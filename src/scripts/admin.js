@@ -342,7 +342,8 @@ function openEditor(item, slug = null) {
   form.body.value = item.body || '';
   form.featured.checked = item.featured === true;
   form.visibility.value = ['friends', 'private'].includes(item.visibility) ? item.visibility : 'public';
-  form.owned.checked = item.owned === true;
+  // New entries follow the Settings default; existing ones keep what they have.
+  form.owned.checked = item.owned === true || (!slug && root.dataset.ownedDefault === '1');
   form.lentTo.value = item.lentTo || '';
   form.lentSince.value = item.lentSince || '';
   updateFeaturedHint();
