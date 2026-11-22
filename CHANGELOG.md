@@ -6,7 +6,7 @@ The version number lives in `package.json` and shows in **Manage → Settings �
 
 - **Comments on friends' entries.** A public thread under each entry on the Friends page and on the item's own page. You can reply on your own items and delete any comment there; friends can delete their own comments. New comments show up in your inbox.
 - **Thread notifications.** When someone adds to a thread, everyone who commented there before gets an inbox note ("Dillon also commented on their Dune") with a link back to the thread.
-- **Inbox controls.** Each notification has a dot to mark it read or unread and a ✕ to delete just that one. There's also **Mark all read**. Notifications now stay unread until you mark them; they're no longer marked read just by opening the inbox.
+- **Inbox controls.** Each notification has a ✕ to delete just that one. There's also **Mark all read**, which also clears requests you haven't answered yet. Other notifications are marked read when you see them, as before.
 - **Friends' notes on the Friends page.** Entries now show what your friend wrote (long notes fold up; click to read the rest).
 - **Inbox on the Friends page.** Signed in, your inbox sits at the top with all its buttons. You can hide it.
 - **Friend groups.** Private groups in Manage → Friends. They filter the Friends page and fill in the Recommend dialog.

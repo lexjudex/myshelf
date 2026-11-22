@@ -1,5 +1,5 @@
 // Admin UI: Friends tab (other MyShelf sites, inbox, groups, recommendations) and Settings tab.
-import { esc, api, fmt, inboxHtml, waiting, bindFriendActions } from './friends-ui.js';
+import { esc, api, fmt, inboxHtml, waiting, markSeen as markInboxSeen, bindFriendActions } from './friends-ui.js';
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const TYPES = JSON.parse($('#admin').dataset.types);
@@ -129,7 +129,16 @@ $('#groups-save').addEventListener('click', async (e) => {
 });
 
 document.addEventListener('myshelf:ready', loadFriends);
-document.addEventListener('myshelf:tab', (e) => { if (e.detail === 'friends') loadFriends(); });
+// Messages that need no answer count as read a moment after you open the Friends tab.
+function markSeen() {
+  setUnread(markInboxSeen(state.inbox));
+  $('#inbox-all-read').hidden = !state.inbox.some((m) => m.status === 'unread');
+}
+document.addEventListener('myshelf:tab', async (e) => {
+  if (e.detail !== 'friends') return;
+  await loadFriends();
+  setTimeout(markSeen, 1500);
+});
 
 $('#copy-address').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(state.me?.url || ''); toast('Address copied.'); } catch { toast('Couldn’t copy. Select the address and copy it instead.', 'error'); }

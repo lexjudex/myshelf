@@ -118,7 +118,7 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
 </Base>
 
 <script>
-  import { esc, api, token, inboxHtml, bindFriendActions, bindThreads, shelfHtml } from '../scripts/friends-ui.js';
+  import { esc, api, token, inboxHtml, markSeen, bindFriendActions, bindThreads, shelfHtml } from '../scripts/friends-ui.js';
 
   const page = document.getElementById('friends-page');
   const TYPES = JSON.parse(page.dataset.types);
@@ -276,6 +276,12 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
     let hidden = false;
     try { hidden = localStorage.getItem('myshelf_inbox_hidden') === '1'; } catch {}
     setInboxOpen(!hidden);
+    // Messages that need no answer count as read a moment after you see them.
+    if (!hidden) setTimeout(() => {
+      const left = markSeen(overview.inbox);
+      setUnread(left);
+      document.getElementById('fr-all-read').hidden = !left;
+    }, 1500);
 
     // Comment boxes and your own comments' Delete buttons.
     bindThreads(page, { me, toast });

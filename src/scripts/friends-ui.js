@@ -227,7 +227,6 @@ export function inboxHtml(inbox, friends, TYPES) {
       <div class="inbox-text">${body} ${when}${['comment', 'comment-reply'].includes(m.kind) ? '' : note}</div>
       <div class="inbox-actions">${actions}${done ? `<span class="muted small">${done}</span>` : ''}
         <span class="inbox-ctls">
-          ${open ? `<button type="button" class="inbox-ctl" data-inbox-mark="${esc(m.id)}" data-to="${m.status === 'unread' ? 'read' : 'unread'}" title="${m.status === 'unread' ? 'Mark as read' : 'Mark as unread'}" aria-label="${m.status === 'unread' ? 'Mark as read' : 'Mark as unread'}"><span class="dot${m.status === 'unread' ? ' on' : ''}"></span></button>` : ''}
           <button type="button" class="inbox-ctl" data-inbox-del="${esc(m.id)}" title="Delete this notification" aria-label="Delete this notification">✕</button>
         </span>
       </div>
@@ -235,7 +234,18 @@ export function inboxHtml(inbox, friends, TYPES) {
   }).join('');
 }
 
-// Messages stay unread until you mark them (the dot on each one, or "Mark all read").
+/**
+ * Mark messages that need no answer as read once they've been seen. Friend and borrow requests stay unread
+ * until you answer them (or use "Mark all read"). Returns how many are still unread.
+ */
+export function markSeen(inbox) {
+  const seen = inbox.filter((m) => m.status === 'unread' && !['friend-request', 'borrow-request'].includes(m.kind));
+  for (const m of seen) {
+    api('friends', { method: 'POST', body: { action: 'mark', id: m.id, status: 'read' } }).catch(() => {});
+    m.status = 'read';
+  }
+  return inbox.filter((m) => m.status === 'unread').length;
+}
 
 // ───────── a friend's shelf ─────────
 
@@ -320,19 +330,6 @@ export function bindFriendActions(root, { toast, reload, onAddRec, inbox = () =>
     if (addRec) {
       const m = inbox().find((x) => x.id === addRec.dataset.addRec);
       return onAddRec(m?.payload?.item || {});
-    }
-
-    const mark = e.target.closest('[data-inbox-mark]');
-    if (mark) {
-      mark.disabled = true;
-      try {
-        await api('friends', { method: 'POST', body: { action: 'mark', id: mark.dataset.inboxMark, status: mark.dataset.to } });
-        await reload();
-      } catch (err) {
-        mark.disabled = false;
-        toast(err.message, 'error');
-      }
-      return;
     }
 
     const delMsg = e.target.closest('[data-inbox-del]');
