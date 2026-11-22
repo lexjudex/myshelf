@@ -1,21 +1,8 @@
-// Admin UI: Friends tab (other MyShelf sites, inbox, recommendations, borrowing) and Settings tab.
+// Admin UI: Friends tab (other MyShelf sites, inbox, groups, recommendations) and Settings tab.
+import { esc, api, fmt, inboxHtml, waiting, markSeen as markInboxSeen, bindFriendActions } from './friends-ui.js';
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const TYPES = JSON.parse($('#admin').dataset.types);
-const token = () => { try { return localStorage.getItem('myshelf_token') || ''; } catch { return ''; } };
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-async function api(path, { method = 'GET', body } = {}) {
-  const res = await fetch(`/api/${path}`, {
-    method,
-    headers: { authorization: `Bearer ${token()}`, ...(body ? { 'content-type': 'application/json' } : {}) },
-    body: body ? JSON.stringify(body) : undefined,
-  });
-  let data = {};
-  try { data = await res.json(); } catch {}
-  if (!res.ok) throw new Error(data.error || `Request failed (${res.status})`);
-  return data;
-}
 
 let toastTimer;
 function toast(msg, kind = 'ok') {
@@ -27,19 +14,9 @@ function toast(msg, kind = 'ok') {
   toastTimer = setTimeout(() => (el.hidden = true), kind === 'error' ? 7000 : 4500);
 }
 
-const fmt = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-const typeLabel = (t) => TYPES[t]?.label || t || '';
-const thumb = (cover, title, type) => {
-  const t = TYPES[type] || TYPES.book;
-  const ph = `<span class="thumb-ph" style="width:${Math.round(52 * t.aspect)}px;height:52px;background:${t.color}">${esc((title || '?').slice(0, 1))}</span>`;
-  return cover ? `<img class="thumb" src="${esc(cover)}" alt="" style="height:52px" loading="lazy" referrerpolicy="no-referrer">` : ph;
-};
-
-const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.3 1.1 5 3 1.7-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg>';
-const heartBtn = (on, attrs) => `<button type="button" class="heart-btn${on ? ' on' : ''}" aria-pressed="${on}" title="${on ? 'You enjoyed this too (click to undo)' : 'I enjoyed this too'}" ${attrs}>${HEART}</button>`;
-
 // ───────── friends tab ─────────
-const state = { me: null, friends: [], inbox: [], loaded: false };
+const state = { me: null, friends: [], inbox: [], groups: [], loaded: false };
+const friendName = (f) => f.owner || f.name || f.url;
 
 async function loadFriends() {
   try {
@@ -62,63 +39,12 @@ function render() {
   setUnread(state.unread);
   renderInbox();
   renderFriends();
+  renderGroups();
 }
 
-// Messages "Clear inbox" keeps: requests still waiting on your answer (mirrors clearInbox on the server).
-const waiting = (m) => ['unread', 'read'].includes(m.status) && (m.kind === 'borrow-request'
-  || (m.kind === 'friend-request' && state.friends.find((f) => f.id === m.friendId)?.status === 'pending'));
-
 function renderInbox() {
-  const list = $('#inbox-list');
-  $('#inbox-clear').hidden = !state.inbox.some((m) => !waiting(m));
-  if (!state.inbox.length) {
-    list.innerHTML = '<li class="muted">Nothing yet. Friend requests, recommendations, borrow requests and hearts show up here.</li>';
-    return;
-  }
-  list.innerHTML = state.inbox.map((m) => {
-    const who = `<strong>${esc(m.fromName)}</strong>`;
-    const when = `<span class="muted small">${fmt(m.createdAt)}</span>`;
-    const p = m.payload || {};
-    const note = p.note ? `<p class="inbox-note">“${esc(p.note)}”</p>` : '';
-    const open = ['unread', 'read'].includes(m.status);
-    const done = { accepted: 'Accepted', declined: 'Declined' }[m.status];
-    let body = '', actions = '';
-    if (m.kind === 'friend-request') {
-      body = `${who} <span class="muted small">(${esc(m.from)})</span> wants to be friends.`;
-      const f = state.friends.find((x) => x.id === m.friendId);
-      if (open && f?.status === 'pending') actions = `
-        <button class="btn primary small" data-friend-act="accept" data-id="${esc(f.id)}">Accept</button>
-        <button class="btn ghost small" data-friend-act="decline" data-id="${esc(f.id)}">Decline</button>
-        <button class="btn ghost small danger" data-friend-act="block" data-id="${esc(f.id)}" title="Ignore future requests from this site">Block</button>`;
-    } else if (m.kind === 'friend-accept') {
-      body = `${who} accepted your friend request.`;
-    } else if (m.kind === 'recommend') {
-      const it = p.item || {};
-      const link = it.url || it.source?.url;
-      body = `<span class="inbox-item">${thumb(it.cover, it.title, it.type)}<span>${who} recommends
-        <strong>${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title)}</strong>
-        <span class="muted small">${esc(typeLabel(it.type))}${it.creator ? ` · ${esc(it.creator)}` : ''}${it.year ? ` · ${esc(it.year)}` : ''}</span></span></span>`;
-      actions = p.alreadyHave
-        ? `<a class="btn ghost small" href="/item/${esc(p.alreadyHave)}/" target="_blank">You have this</a>`
-        : `<button class="btn ghost small" data-add-rec="${esc(m.id)}">Add it</button>`;
-    } else if (m.kind === 'borrow-request') {
-      body = `${who} asks to borrow <strong>${esc(p.item?.title)}</strong>.${p.lentTo ? ` <span class="muted small">(It’s marked as lent to ${esc(p.lentTo)}.)</span>` : ''}`;
-      if (open) actions = `
-        <button class="btn primary small" data-borrow="yes" data-id="${esc(m.id)}">Yes, lend it</button>
-        <button class="btn ghost small" data-borrow="no" data-id="${esc(m.id)}">Not now</button>`;
-    } else if (m.kind === 'heart') {
-      const it = p.item || {};
-      const title = it.visibility === 'public' && it.slug ? `<a href="/item/${esc(it.slug)}/" target="_blank">${esc(it.title)}</a>` : esc(it.title);
-      body = `<span class="inbox-item">${thumb(it.cover, it.title, it.type)}<span><span class="heart-mark" aria-hidden="true">${HEART}</span> ${who} enjoyed
-        <strong>${title}</strong> too.</span></span>`;
-    } else if (m.kind === 'borrow-reply') {
-      body = `${who} ${p.answer === 'yes' ? 'said <strong>yes</strong> to' : 'can’t lend you'} <strong>${esc(p.title)}</strong>${p.answer === 'yes' ? '.' : ' right now.'}`;
-    }
-    return `<li class="inbox-row${m.status === 'unread' ? ' unread' : ''}">
-      <div class="inbox-text">${body} ${when}${note}</div>
-      <div class="inbox-actions">${actions}${done ? `<span class="muted small">${done}</span>` : ''}</div>
-    </li>`;
-  }).join('');
+  $('#inbox-clear').hidden = !state.inbox.some((m) => !waiting(m, state.friends));
+  $('#inbox-list').innerHTML = inboxHtml(state.inbox, state.friends, TYPES);
 }
 
 function renderFriends() {
@@ -131,26 +57,80 @@ function renderFriends() {
   list.innerHTML = state.friends.map((f) => `
     <li class="friend-row">
       <span class="friend-text">
-        <strong>${esc(f.owner || f.name || f.url)}</strong>${f.owner && f.name ? ` <span class="muted">· ${esc(f.name)}</span>` : ''}
-        <a class="muted small" href="${esc(f.url)}" target="_blank" rel="noopener">${esc(f.url.replace(/^https?:\/\//, ''))}</a>
+        <strong>${esc(friendName(f))}</strong>${f.owner && f.name ? ` <span class="muted">· ${esc(f.name)}</span>` : ''}
+        <span class="muted small">${esc(f.url.replace(/^https?:\/\//, ''))}</span>
         ${label[f.status] ? `<span class="vis-badge">${label[f.status]}</span>` : ''}
       </span>
       <span class="friend-actions">
-        ${f.status === 'accepted' ? `<button class="btn ghost small" data-shelf="${esc(f.id)}">View shelf</button>` : ''}
+        ${f.status === 'accepted' ? `<a class="btn ghost small" href="${esc(f.url)}" target="_blank" rel="noopener">View shelf ↗</a>` : ''}
         ${f.status === 'pending' ? `<button class="btn primary small" data-friend-act="accept" data-id="${esc(f.id)}">Accept</button>` : ''}
         <button class="btn ghost small danger" data-friend-act="remove" data-id="${esc(f.id)}">${f.status === 'requested' ? 'Cancel' : f.status === 'blocked' ? 'Unblock' : 'Remove'}</button>
       </span>
     </li>`).join('');
 }
 
-// Mark messages that need no answer as read once they've been seen.
-async function markSeen() {
-  const seen = state.inbox.filter((m) => m.status === 'unread' && !['friend-request', 'borrow-request'].includes(m.kind));
-  for (const m of seen) {
-    api('friends', { method: 'POST', body: { action: 'mark', id: m.id, status: 'read' } }).catch(() => {});
-    m.status = 'read';
+// ───────── groups ─────────
+// Edited here, saved all at once. Only you see them: they filter your Friends page and fill in the Recommend dialog.
+let groupsDirty = false;
+function renderGroups() {
+  const accepted = state.friends.filter((f) => f.status === 'accepted');
+  const box = $('#group-list');
+  $('#groups-section').hidden = !accepted.length;
+  if (!state.groups.length) {
+    box.innerHTML = '<li class="muted">No groups yet.</li>';
+  } else {
+    box.innerHTML = state.groups.map((g, i) => `
+      <li class="group-row" data-i="${i}">
+        <div class="group-head">
+          <input class="group-name" value="${esc(g.name)}" maxlength="60" placeholder="Group name, e.g. Board game night" aria-label="Group name" />
+          <button type="button" class="btn ghost small danger" data-group-del="${i}">Delete</button>
+        </div>
+        <div class="checks">${accepted.map((f) => `<label class="check"><input type="checkbox" value="${esc(f.url)}" ${g.members.includes(f.url) ? 'checked' : ''}/> ${esc(friendName(f))}</label>`).join('')}</div>
+      </li>`).join('');
   }
-  if (seen.length) setUnread(state.inbox.filter((m) => m.status === 'unread').length);
+  $('#groups-save').classList.toggle('needs-save', groupsDirty);
+}
+function readGroups() {
+  return $$('#group-list .group-row').map((row) => ({
+    ...state.groups[Number(row.dataset.i)],
+    name: $('.group-name', row).value,
+    members: $$('input[type="checkbox"]:checked', row).map((cb) => cb.value),
+  }));
+}
+$('#group-list').addEventListener('input', () => { groupsDirty = true; $('#groups-save').classList.add('needs-save'); });
+$('#group-list').addEventListener('click', (e) => {
+  const del = e.target.closest('[data-group-del]');
+  if (!del) return;
+  state.groups = readGroups().filter((_, i) => i !== Number(del.dataset.groupDel));
+  groupsDirty = true;
+  renderGroups();
+});
+$('#group-add').addEventListener('click', () => {
+  state.groups = [...readGroups(), { id: '', name: '', members: [] }];
+  groupsDirty = true;
+  renderGroups();
+  $$('#group-list .group-name').at(-1)?.focus();
+});
+$('#groups-save').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  const groups = readGroups().filter((g) => g.name.trim() || g.members.length);
+  btn.disabled = true;
+  try {
+    ({ groups: state.groups } = await api('friends', { method: 'POST', body: { action: 'groups', groups } }));
+    groupsDirty = false;
+    renderGroups();
+    toast('Groups saved.');
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+async function markSeen() {
+  const before = state.inbox.filter((m) => m.status === 'unread').length;
+  const left = markInboxSeen(state.inbox);
+  if (left !== before) setUnread(left);
 }
 
 document.addEventListener('myshelf:ready', loadFriends);
@@ -175,7 +155,7 @@ $('#inbox-clear').addEventListener('click', async (e) => {
   btn.disabled = true;
   try {
     await api('friends', { method: 'POST', body: { action: 'clear-inbox' } });
-    const left = state.inbox.filter(waiting).length;
+    const left = state.inbox.filter((m) => waiting(m, state.friends)).length;
     toast(left ? `Inbox cleared. ${left === 1 ? 'One request is' : `${left} requests are`} still waiting on your answer.` : 'Inbox cleared.');
     await loadFriends();
     setUnread(state.inbox.filter((m) => m.status === 'unread').length);
@@ -195,7 +175,7 @@ $('#friend-add').addEventListener('submit', async (e) => {
   $('#friend-msg').textContent = 'Contacting their site…';
   try {
     const { friend, status } = await api('friends', { method: 'POST', body: { action: 'add', url: $('#friend-url').value } });
-    const name = friend.owner || friend.name || friend.url;
+    const name = friendName(friend);
     $('#friend-msg').textContent = status === 'accepted' ? `You and ${name} are now friends.` : `Friend request sent to ${name}. You’ll be connected when they accept.`;
     $('#friend-url').value = '';
     await loadFriends();
@@ -206,132 +186,17 @@ $('#friend-add').addEventListener('submit', async (e) => {
   }
 });
 
-
-document.addEventListener('click', async (e) => {
-  const act = e.target.closest('[data-friend-act]');
-  if (act) {
-    const action = act.dataset.friendAct;
-    if (action === 'remove' && !act.classList.contains('confirm')) {
-      act.classList.add('confirm');
-      const prev = act.textContent;
-      act.textContent = 'Sure?';
-      setTimeout(() => { act.classList.remove('confirm'); act.textContent = prev; }, 4000);
-      return;
-    }
-    act.disabled = true;
-    try {
-      await api('friends', { method: 'POST', body: { action, id: act.dataset.id } });
-      toast({ accept: 'You’re now friends.', decline: 'Request declined.', block: 'Blocked.', remove: 'Removed.' }[action]);
-      $('#friend-shelf').hidden = true;
-      await loadFriends();
-    } catch (err) {
-      act.disabled = false;
-      toast(err.message, 'error');
-    }
-    return;
-  }
-
-  const borrow = e.target.closest('[data-borrow]');
-  if (borrow) {
-    const yes = borrow.dataset.borrow === 'yes';
-    const note = window.prompt(yes ? 'Add a note? (optional — e.g. when to pick it up)' : 'Add a note? (optional)', '');
-    if (note === null) return;
-    borrow.disabled = true;
-    try {
-      await api('friends', { method: 'POST', body: { action: 'reply', inboxId: borrow.dataset.id, answer: yes ? 'yes' : 'no', note } });
-      toast(yes ? 'Sent. It’s marked as lent on your shelf.' : 'Sent.');
-      if (yes) document.dispatchEvent(new CustomEvent('myshelf:library-changed'));
-      await loadFriends();
-    } catch (err) {
-      borrow.disabled = false;
-      toast(err.message, 'error');
-    }
-    return;
-  }
-
-  const addRec = e.target.closest('[data-add-rec]');
-  if (addRec) {
-    const m = state.inbox.find((x) => x.id === addRec.dataset.addRec);
-    const it = m?.payload?.item || {};
-    document.dispatchEvent(new CustomEvent('myshelf:search', { detail: { type: it.type, title: it.title } }));
-    return;
-  }
-
-  const shelfBtn = e.target.closest('[data-shelf]');
-  if (shelfBtn) return showFriendShelf(shelfBtn.dataset.shelf);
-
-  const ask = e.target.closest('[data-ask]');
-  if (ask) {
-    const note = window.prompt(`Ask to borrow “${ask.dataset.title}”. Add a note? (optional)`, '');
-    if (note === null) return;
-    ask.disabled = true;
-    try {
-      await api('friends', { method: 'POST', body: { action: 'borrow', friendId: ask.dataset.friend, uid: ask.dataset.ask, title: ask.dataset.title, note } });
-      ask.textContent = 'Asked';
-      toast('Request sent.');
-    } catch (err) {
-      ask.disabled = false;
-      toast(err.message, 'error');
-    }
-    return;
-  }
-
-  const h = e.target.closest('[data-heart]');
-  if (h) return toggleHeart(h, { friendId: h.dataset.friend, uid: h.dataset.heart, title: h.dataset.title });
-
-  const rec = e.target.closest('[data-recommend]');
-  if (rec) return openRecommend(rec.dataset.recommend, rec.dataset.title);
+// Inbox buttons (accept, lend, add a recommendation, delete a comment) and friend list buttons.
+bindFriendActions($('[data-panel="friends"]'), {
+  toast,
+  reload: loadFriends,
+  inbox: () => state.inbox,
+  onAddRec: (it) => document.dispatchEvent(new CustomEvent('myshelf:search', { detail: { type: it.type, title: it.title } })),
 });
 
-async function toggleHeart(btn, fields) {
-  const on = !btn.classList.contains('on');
-  btn.disabled = true;
-  try {
-    await api('friends', { method: 'POST', body: { action: 'heart', ...fields, on } });
-    btn.classList.toggle('on', on);
-    btn.classList.toggle('pop', on);
-    btn.setAttribute('aria-pressed', String(on));
-    btn.title = on ? 'You enjoyed this too (click to undo)' : 'I enjoyed this too';
-    if (on) toast('Sent. They’ll see you enjoyed it too.');
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-  }
-}
-
-async function showFriendShelf(id) {
-  const box = $('#friend-shelf');
-  box.hidden = false;
-  box.innerHTML = '<p class="muted">Loading their shelf…</p>';
-  box.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  try {
-    const { friend, items } = await api(`friends?shelf=${encodeURIComponent(id)}`);
-    const name = friend.owner || friend.name || friend.url;
-    const byType = Object.keys(TYPES).map((t) => [t, items.filter((i) => i.type === t)]).filter(([, l]) => l.length);
-    box.innerHTML = `
-      <div class="friend-shelf-head"><h3>${esc(name)}’s shelf</h3><button class="btn ghost small" data-close-shelf>✕</button></div>
-      ${items.length ? '' : '<p class="muted">Nothing to see yet.</p>'}
-      ${byType.map(([t, list]) => `
-        <h4>${esc(TYPES[t].plural)} <span class="muted small">${list.length}</span></h4>
-        <ul class="lib-list">${list.map((i) => `
-          <li class="lib-row">
-            ${thumb(i.cover, i.title, i.type)}
-            <span class="lib-text">
-              <strong>${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a>` : esc(i.title)}${i.youHave ? ' <span class="vis-badge">You have this</span>' : ''}${i.visibility === 'friends' ? ' <span class="vis-badge">Friends only</span>' : ''}</strong>
-              <span class="muted small">${esc(i.creator || '')}${i.rating ? ` · ${'★'.repeat(Math.floor(i.rating))}${i.rating % 1 ? '½' : ''}` : ''}</span>
-            </span>
-            <span class="lib-actions">
-              ${heartBtn(i.hearted, `data-heart="${esc(i.uid)}" data-friend="${esc(friend.id)}" data-title="${esc(i.title)}"`)}
-              ${i.available ? `<button class="btn ghost small" data-ask="${esc(i.uid)}" data-friend="${esc(friend.id)}" data-title="${esc(i.title)}">Ask to borrow</button>` : i.owned ? '<span class="muted small">Lent out</span>' : ''}
-            </span>
-          </li>`).join('')}</ul>`).join('')}`;
-  } catch (err) {
-    box.innerHTML = `<p class="error">${esc(err.message)}</p>`;
-  }
-}
-$('#friend-shelf').addEventListener('click', (e) => {
-  if (e.target.closest('[data-close-shelf]')) $('#friend-shelf').hidden = true;
+document.addEventListener('click', (e) => {
+  const rec = e.target.closest('[data-recommend]');
+  if (rec) openRecommend(rec.dataset.recommend, rec.dataset.title);
 });
 
 // ───────── recommend dialog ─────────
@@ -343,11 +208,23 @@ async function openRecommend(slug, title) {
   if (!friends.length) return toast('Add a friend first (Friends tab).', 'error');
   recSlug = slug;
   $('#recommend-title').textContent = `Recommend “${title}”`;
-  $('#rec-friends').innerHTML = friends.map((f) => `<label class="check"><input type="checkbox" value="${esc(f.id)}" ${friends.length === 1 ? 'checked' : ''}/> ${esc(f.owner || f.name || f.url)}</label>`).join('');
+  $('#rec-friends').innerHTML = friends.map((f) => `<label class="check"><input type="checkbox" value="${esc(f.id)}" data-url="${esc(f.url)}" ${friends.length === 1 ? 'checked' : ''}/> ${esc(friendName(f))}</label>`).join('');
+  // Groups: one click ticks everyone in it (click again to untick them).
+  const groups = state.groups.filter((g) => g.members.length);
+  $('#rec-groups').hidden = !groups.length;
+  $('#rec-groups').innerHTML = groups.length ? `<span class="muted small">Groups:</span> ${groups.map((g) => `<button type="button" class="btn ghost small" data-rec-group="${esc(g.id)}">${esc(g.name)} <span class="muted">${g.members.length}</span></button>`).join(' ')}` : '';
   $('#recommend-form').note.value = '';
   recDialog.showModal();
 }
 $$('[data-close-rec]', recDialog).forEach((b) => b.addEventListener('click', () => recDialog.close()));
+$('#rec-groups').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-rec-group]');
+  if (!b) return;
+  const g = state.groups.find((x) => x.id === b.dataset.recGroup);
+  const boxes = $$('#rec-friends input').filter((cb) => g?.members.includes(cb.dataset.url));
+  const allOn = boxes.length && boxes.every((cb) => cb.checked);
+  boxes.forEach((cb) => (cb.checked = !allOn));
+});
 $('#recommend-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const friendIds = $$('#rec-friends input:checked').map((i) => i.value);
@@ -401,15 +278,21 @@ function applyTypes(types) {
 const ghLink = (repo) => `<a href="https://github.com/${esc(repo)}" target="_blank" rel="noopener">${esc(repo)}</a>`;
 const SOURCE_HINT = 'If you set up MyShelf by forking it, put your fork’s address (like <code>https://github.com/you/myshelf</code>) in <strong>Source code link</strong> above and save.';
 const TOKEN_HINT = (repo) => `To check for and install updates from here, add a <strong>GITHUB_TOKEN</strong> secret to your Worker: a GitHub fine-grained token for just ${ghLink(repo)} with <em>Contents: Read and write</em>. Until then, use <strong>Sync fork</strong> on your repository’s GitHub page.`;
+function renderVersion(v) {
+  if (!v?.version) return;
+  const bits = [v.commit && `<code>${esc(v.commit)}</code>`, v.built && `built ${fmt(v.built)}`].filter(Boolean);
+  $('#version').innerHTML = `You’re running <strong>MyShelf ${esc(v.version)}</strong>${bits.length ? ` <span class="muted small">(${bits.join(', ')})</span>` : ''}.`;
+}
 async function loadUpdates() {
   const box = $('#updates');
   box.innerHTML = '<p class="muted">Checking for a new version…</p>';
   let u;
   try { u = await api('updates'); } catch (err) { box.innerHTML = `<p class="error">${esc(err.message)}</p>`; return; }
+  renderVersion(u.current);
   const again = '<button type="button" class="btn ghost small" data-updates="check">Check again</button>';
   if (u.status === 'behind') {
     const list = u.changes.length ? `<ul class="updates-list">${u.changes.map((c) => `<li>${esc(c.message)}${c.date ? ` <span class="muted small">${fmt(c.date)}</span>` : ''}</li>`).join('')}</ul>` : '';
-    box.innerHTML = `<p><strong>A new version is available</strong> from ${ghLink(u.upstream)} (${u.behind} ${u.behind === 1 ? 'change' : 'changes'}).</p>${list}
+    box.innerHTML = `<p><strong>${u.latest && u.latest !== u.current?.version ? `Version ${esc(u.latest)} is available` : 'A new version is available'}</strong> from ${ghLink(u.upstream)} (${u.behind} ${u.behind === 1 ? 'change' : 'changes'}).</p>${list}
       ${u.canSync ? `<div class="row"><button type="button" class="btn primary" data-updates="sync">Update now</button>${again}</div>` : `<p class="muted small">${TOKEN_HINT(u.repo)}</p>${again}`}`;
   } else if (u.status === 'up-to-date') {
     box.innerHTML = `<p>✓ Up to date with ${ghLink(u.upstream)}.${u.yours ? ` <span class="muted small">Your copy also has ${u.yours} change${u.yours === 1 ? '' : 's'} of its own.</span>` : ''}</p>

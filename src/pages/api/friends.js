@@ -5,6 +5,8 @@ import * as fed from '../../../server/federation/index.js';
 // GET  /api/friends?shelf=<id> → that friend's shelf (including their friends-only items)
 // GET  /api/friends?hearts=1   → { hearts: [{ friendUrl, uid }] } (friends' items you've hearted)
 // POST /api/friends { action, ... } → add | accept | decline | block | remove | recommend | borrow | reply | heart | mark | clear-inbox
+//   | comment (on a friend's item) | uncomment (take yours back) | comment-own (reply on your item) | delete-comment (on your item)
+//   | groups ({ groups: [{ id, name, members: [friendUrl] }] })
 export const GET = route(async ({ env, url }) => {
   const shelf = url.searchParams.get('shelf');
   if (url.searchParams.has('hearts')) return json({ hearts: await fed.heartsSent(env) });
@@ -26,6 +28,11 @@ export const POST = route(async ({ request, env, url }) => {
     case 'heart': return json(await fed.heart(env, at, b));
     case 'mark': return json(await fed.markMessage(env, b.id, b.status));
     case 'clear-inbox': return json(await fed.clearInbox(env));
+    case 'comment': return json(await fed.commentOnFriend(env, at, b));
+    case 'uncomment': return json(await fed.deleteFriendComment(env, at, b));
+    case 'comment-own': return json(await fed.commentOwn(env, at, b));
+    case 'delete-comment': return json(await fed.deleteComment(env, b.id));
+    case 'groups': return json(await fed.saveGroups(env, b.groups));
     default: throw new HttpError(400, 'Unknown action');
   }
 });

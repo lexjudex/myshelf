@@ -2,9 +2,10 @@
 // Each site keeps its own list of friends and its own inbox in D1; sites talk over HTTPS with signed messages
 // (see protocol.js). Nothing goes through a central server.
 import { HttpError } from '../util.js';
-import { ensureSchema, getItem, getItemByUid, putItem } from '../db.js';
+import { ensureSchema, getItem, getItemByUid, putItem, getSetting, setSetting } from '../db.js';
 import { getSite } from '../site.js';
 import { getIdentity } from './crypto.js';
+import { VERSION } from '../version.js';
 import {
   PROTOCOL, SOFTWARE, WELL_KNOWN, INBOX_PATH, SHELF_PATH, MAX_BODY, KINDS,
   cleanSiteUrl, signedHeaders, verifyRequest,
@@ -13,6 +14,8 @@ import {
 const MAX_PENDING = 100; // friend requests waiting for an answer
 const MAX_INBOX = 2000;  // oldest read messages are trimmed past this
 const TIMEOUT_MS = 8000;
+const MAX_COMMENT = 1000;            // characters in one comment
+const MAX_COMMENTS_PER_ITEM = 500;
 const now = () => new Date().toISOString();
 const str = (v, n) => String(v ?? '').trim().slice(0, n);
 
@@ -35,6 +38,7 @@ export async function wellKnown(env, requestUrl) {
   return {
     software: SOFTWARE,
     protocol: PROTOCOL,
+    version: VERSION,
     url,
     name: site.title,
     owner: site.owner,
@@ -281,6 +285,38 @@ export async function receive(env, request, fetcher = fetch) {
     return { ok: true, on: true };
   }
 
+  if (msg.kind === 'comment') {
+    const row = await getItemByUid(env, str(msg.item?.uid, 40));
+    // Friends can see public and friends-only items, so those are the ones they can comment on.
+    if (!row || row.item.visibility === 'private') throw new HttpError(404, 'That item isn’t on this shelf');
+    const text = str(msg.text, MAX_COMMENT);
+    if (!text) throw new HttpError(400, 'A comment needs some text');
+    const DB = await ensureSchema(env);
+    const n = await DB.prepare('SELECT COUNT(*) AS n FROM comments WHERE uid = ?').bind(row.uid).first();
+    if (Number(n?.n || 0) >= MAX_COMMENTS_PER_ITEM) throw new HttpError(429, 'That item has too many comments');
+    const author = known.owner || known.name || '';
+    const t = now();
+    const res = await DB.prepare('INSERT OR IGNORE INTO comments (id, uid, from_url, author, text, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .bind(msg.id, row.uid, from, author, text, t).run();
+    if (res.meta?.changes !== 0) {
+      const it = row.item;
+      await addInbox(env, {
+        id: msg.id, from, kind: 'comment',
+        payload: { text, commentId: msg.id, item: { uid: row.uid, slug: row.slug, title: it.title, type: it.type, creator: it.creator || '', cover: it.cover || '', visibility: it.visibility || 'public' } },
+      });
+    }
+    return { ok: true, comment: { id: msg.id, author, authorUrl: from, text, createdAt: t } };
+  }
+
+  if (msg.kind === 'comment-delete') {
+    const id = str(msg.commentId, 40);
+    const DB = await ensureSchema(env);
+    // Only the friend who wrote a comment can take it back; its unread inbox note goes with it.
+    const res = await DB.prepare('DELETE FROM comments WHERE id = ? AND from_url = ?').bind(id, from).run();
+    if (res.meta?.changes) await DB.prepare(`DELETE FROM inbox WHERE id = ? AND kind = 'comment' AND status = 'unread'`).bind(id).run();
+    return { ok: true };
+  }
+
   if (msg.kind === 'borrow-reply') {
     await addInbox(env, {
       id: msg.id, from, kind: msg.kind,
@@ -305,8 +341,10 @@ function safeUrl(v) {
 
 // ───────── shelf feed ─────────
 
+const MAX_REVIEW = 5000; // characters of your notes sent with each item
+
 /** What a friend (or anyone) sees: items as plain JSON with absolute cover links. */
-function feedItem(row, origin, forFriend) {
+function feedItem(row, origin, forFriend, comments = []) {
   const it = row.item;
   const abs = (u) => (u && u.startsWith('/') ? origin + u : u || '');
   const out = {
@@ -320,6 +358,10 @@ function feedItem(row, origin, forFriend) {
     source: it.source?.url ? { name: it.source.name, id: it.source.id, url: it.source.url } : null,
     url: (it.visibility || 'public') === 'public' ? `${origin}/item/${row.slug}/` : null,
     visibility: it.visibility || 'public',
+    // Your notes as written (Markdown). Friends' sites show them as plain text, never as HTML.
+    review: String(row.body || '').trim().slice(0, MAX_REVIEW),
+    // Always an array, so a friend's site can tell this one takes comments.
+    comments,
   };
   if (forFriend) {
     out.owned = it.owned === true;
@@ -342,18 +384,19 @@ export async function shelfFeed(env, request) {
   const origin = await selfOrigin(env, request.url);
   const site = await getSite(env);
   const rows = (await listItemsWithKeys(env, friend ? ['public', 'friends'] : ['public'])).filter((r) => site.types.includes(r.item.type));
+  const comments = await commentsByUid(env, origin);
   return {
     software: SOFTWARE, protocol: PROTOCOL, url: origin, name: site.title, owner: site.owner,
     friend: Boolean(friend),
-    items: rows.map((r) => feedItem(r, origin, Boolean(friend))),
+    items: rows.map((r) => feedItem(r, origin, Boolean(friend), comments.get(r.uid) || [])),
   };
 }
 
 async function listItemsWithKeys(env, visibility) {
   const DB = await ensureSchema(env);
   const where = visibility ? `WHERE visibility IN (${visibility.map(() => '?').join(', ')})` : '';
-  const { results } = await DB.prepare(`SELECT slug, uid, ext_key, data FROM items ${where}`).bind(...(visibility || [])).all();
-  return (results || []).map((r) => ({ slug: r.slug, uid: r.uid, extKey: r.ext_key, item: JSON.parse(r.data) }));
+  const { results } = await DB.prepare(`SELECT slug, uid, ext_key, data, body FROM items ${where}`).bind(...(visibility || [])).all();
+  return (results || []).map((r) => ({ slug: r.slug, uid: r.uid, extKey: r.ext_key, item: JSON.parse(r.data), body: r.body || '' }));
 }
 
 // ───────── keeping friends' names current ─────────
@@ -401,6 +444,7 @@ export async function overview(env, requestUrl) {
       return { id: r.id, from: r.from_url, fromName: f?.owner || f?.name || r.from_url, friendId: f?.id || null, kind: r.kind, payload: JSON.parse(r.payload), status: r.status, createdAt: r.created_at };
     }),
     unread: (inbox.results || []).filter((r) => r.status === 'unread').length,
+    groups: await getGroups(env),
   };
 }
 
@@ -597,10 +641,7 @@ export async function heart(env, requestUrl, { friendId, friendUrl, uid, title, 
     await send(env, requestUrl, f.url, 'heart', { item: { uid: id }, on: yes }, fetcher);
   } catch (err) {
     // A friend on an older copy of MyShelf doesn't know about hearts yet.
-    if (/Unknown message/.test(err.message)) {
-      const who = f.owner || f.name;
-      throw new HttpError(502, `${who ? `${who}’s` : 'Their'} MyShelf needs an update before it can get hearts.`);
-    }
+    if (/Unknown message/.test(err.message)) throw needsUpdate(f, 'hearts');
     throw err;
   }
   const DB = await ensureSchema(env);
@@ -627,36 +668,178 @@ export async function publicFriends(env) {
 
 const FEED_TTL = 600; // seconds a friend's public shelf is cached for the friends page
 
+/** A friend's PUBLIC shelf (unsigned, so friends-only items never show), cached for a few minutes. */
+async function loadPublicShelf(f, fetcher = fetch) {
+  const url = f.url + SHELF_PATH;
+  const cache = globalThis.caches?.default;
+  try {
+    let res = cache ? await cache.match(url) : null;
+    if (!res) {
+      res = await fetcher(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(4000) });
+      if (!res.ok) return [];
+      if (cache) {
+        const copy = new Response(res.clone().body, res);
+        copy.headers.set('cache-control', `public, max-age=${FEED_TTL}`);
+        await cache.put(url, copy).catch(() => {});
+      }
+    }
+    const data = await res.json();
+    return (Array.isArray(data.items) ? data.items : []).map((i) => ({ ...i, friend: { name: f.name, owner: f.owner, url: f.url } }));
+  } catch {
+    return []; // a friend's site being down shouldn't break the page
+  }
+}
+
+/** Forget the cached copy of a friend's public shelf (after you comment, so the page shows it). */
+async function dropCachedShelf(friendUrl) {
+  await globalThis.caches?.default?.delete(friendUrl + SHELF_PATH).catch(() => {});
+}
+
 /**
  * Friends' most recent PUBLIC entries, newest first. Each friend's public shelf feed is fetched
  * (unsigned, so their friends-only items never appear on this public page) and cached for a few minutes.
  */
 export async function friendsFeed(env, { limit = 30, fetcher = fetch } = {}) {
   const friends = await publicFriends(env);
-  const cache = globalThis.caches?.default;
-  const load = async (f) => {
-    const url = f.url + SHELF_PATH;
-    try {
-      let res = cache ? await cache.match(url) : null;
-      if (!res) {
-        res = await fetcher(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(4000) });
-        if (!res.ok) return [];
-        if (cache) {
-          const copy = new Response(res.clone().body, res);
-          copy.headers.set('cache-control', `public, max-age=${FEED_TTL}`);
-          await cache.put(url, copy).catch(() => {});
-        }
-      }
-      const data = await res.json();
-      return (Array.isArray(data.items) ? data.items : []).map((i) => ({ ...i, friend: { name: f.name, owner: f.owner, url: f.url } }));
-    } catch {
-      return []; // a friend's site being down shouldn't break the page
-    }
-  };
-  const all = (await Promise.all(friends.map(load))).flat();
+  const all = (await Promise.all(friends.map((f) => loadPublicShelf(f, fetcher)))).flat();
   const when = (i) => (i.status === 'finished' && i.dateFinished) || i.dateStarted || i.dateAdded || '';
   return {
     friends,
     items: all.filter((i) => when(i) && i.title).sort((a, b) => when(b).localeCompare(when(a))).slice(0, limit).map((i) => ({ ...i, date: when(i) })),
   };
+}
+
+/** One friend's public shelf, for the shelf viewer on the public Friends page. Only accepted friends. */
+export async function publicFriendShelf(env, friendUrl, fetcher = fetch) {
+  const url = cleanSiteUrl(friendUrl);
+  const f = (await publicFriends(env)).find((x) => x.url === url);
+  if (!f) throw new HttpError(404, 'Friend not found');
+  return { friend: f, items: (await loadPublicShelf(f, fetcher)).slice(0, 5000).map(({ friend, ...i }) => i) };
+}
+
+// ───────── comments ─────────
+// Comments live on the site of the person whose item it is. Friends send theirs as signed 'comment'
+// messages; your own replies are stored directly. Everyone who can see the item sees its comments.
+
+/** All comments on your items: Map uid → [{ id, author, authorUrl, text, createdAt }], oldest first. */
+async function commentsByUid(env, origin, uid = null) {
+  const DB = await ensureSchema(env);
+  const site = await getSite(env);
+  const q = uid
+    ? DB.prepare('SELECT * FROM comments WHERE uid = ? ORDER BY created_at').bind(uid)
+    : DB.prepare('SELECT * FROM comments ORDER BY created_at');
+  const [{ results }, { results: fr }] = await Promise.all([q.all(), DB.prepare('SELECT url, name, owner FROM friends').all()]);
+  const names = new Map((fr || []).map((f) => [f.url, f.owner || f.name]));
+  const out = new Map();
+  for (const r of results || []) {
+    const mine = !r.from_url;
+    const c = {
+      id: r.id,
+      author: mine ? site.owner || site.title : names.get(r.from_url) || r.author || r.from_url.replace(/^https?:\/\//, ''),
+      authorUrl: mine ? origin : r.from_url,
+      text: r.text,
+      createdAt: r.created_at,
+    };
+    if (!out.has(r.uid)) out.set(r.uid, []);
+    out.get(r.uid).push(c);
+  }
+  return out;
+}
+
+/** Comments on one of your items (for its page), by slug. */
+export async function itemComments(env, requestUrl, slug) {
+  const row = await getItem(env, String(slug || ''));
+  if (!row) return [];
+  const origin = await selfOrigin(env, requestUrl);
+  return (await commentsByUid(env, origin, row.uid)).get(row.uid) || [];
+}
+
+/** Reply on one of your own items. */
+export async function commentOwn(env, requestUrl, { slug, text }) {
+  const row = await getItem(env, String(slug || ''));
+  if (!row) throw new HttpError(404, 'Item not found');
+  const t = str(text, MAX_COMMENT);
+  if (!t) throw new HttpError(400, 'Write something first.');
+  const DB = await ensureSchema(env);
+  const id = crypto.randomUUID();
+  await DB.prepare(`INSERT INTO comments (id, uid, from_url, author, text, created_at) VALUES (?, ?, '', '', ?, ?)`).bind(id, row.uid, t, now()).run();
+  return { comment: (await itemComments(env, requestUrl, row.slug)).find((c) => c.id === id) };
+}
+
+/** Delete any comment on your items (yours or a friend's). */
+export async function deleteComment(env, id) {
+  const DB = await ensureSchema(env);
+  const cid = str(id, 40);
+  await DB.batch([
+    DB.prepare('DELETE FROM comments WHERE id = ?').bind(cid),
+    DB.prepare(`DELETE FROM inbox WHERE id = ? AND kind = 'comment'`).bind(cid),
+  ]);
+  return { ok: true };
+}
+
+async function friendFromFields(env, { friendId, friendUrl }) {
+  if (friendId) return acceptedFriend(env, friendId);
+  const byUrl = await friendByUrl(env, cleanSiteUrl(friendUrl));
+  if (!byUrl) throw new HttpError(404, 'Friend not found');
+  return acceptedFriend(env, byUrl.id);
+}
+
+const needsUpdate = (f, what) => {
+  const who = f.owner || f.name;
+  return new HttpError(502, `${who ? `${who}’s` : 'Their'} MyShelf needs an update before it can get ${what}.`);
+};
+
+/** Comment on a friend's item (uid from their shelf feed). */
+export async function commentOnFriend(env, requestUrl, { friendId, friendUrl, uid, text }, fetcher = fetch) {
+  const f = await friendFromFields(env, { friendId, friendUrl });
+  const t = str(text, MAX_COMMENT);
+  if (!t) throw new HttpError(400, 'Write something first.');
+  let reply;
+  try {
+    ({ reply } = await send(env, requestUrl, f.url, 'comment', { item: { uid: str(uid, 40) }, text: t }, fetcher));
+  } catch (err) {
+    if (/Unknown message/.test(err.message)) throw needsUpdate(f, 'comments');
+    throw err;
+  }
+  await dropCachedShelf(f.url);
+  return { comment: reply.comment };
+}
+
+/** Take back a comment you left on a friend's item. */
+export async function deleteFriendComment(env, requestUrl, { friendId, friendUrl, commentId }, fetcher = fetch) {
+  const f = await friendFromFields(env, { friendId, friendUrl });
+  await send(env, requestUrl, f.url, 'comment-delete', { commentId: str(commentId, 40) }, fetcher);
+  await dropCachedShelf(f.url);
+  return { ok: true };
+}
+
+// ───────── friend groups ─────────
+// Your own labels for sets of friends (e.g. "Board game night"), to filter the Friends page and to pick
+// everyone in a group when recommending. Private: stored only on your site, never sent to anyone.
+
+const MAX_GROUPS = 50;
+
+/** [{ id, name, members: [friendUrl] }], members limited to current friends. */
+export async function getGroups(env) {
+  const DB = await ensureSchema(env);
+  const { results } = await DB.prepare(`SELECT url FROM friends WHERE status = 'accepted'`).all();
+  const ok = new Set((results || []).map((r) => r.url));
+  const groups = await getSetting(env, 'friendGroups', []);
+  return (Array.isArray(groups) ? groups : []).map((g) => ({ ...g, members: (g.members || []).filter((u) => ok.has(u)) }));
+}
+
+export async function saveGroups(env, groups) {
+  if (!Array.isArray(groups)) throw new HttpError(400, 'groups must be a list');
+  const seen = new Set();
+  const clean = groups.slice(0, MAX_GROUPS).map((g) => {
+    const name = str(g?.name, 60);
+    if (!name) throw new HttpError(400, 'Every group needs a name');
+    let id = /^[a-z0-9-]{1,40}$/.test(g.id || '') ? g.id : crypto.randomUUID().slice(0, 8);
+    while (seen.has(id)) id = crypto.randomUUID().slice(0, 8);
+    seen.add(id);
+    const members = [...new Set((Array.isArray(g.members) ? g.members : []).map((u) => { try { return cleanSiteUrl(u); } catch { return null; } }).filter(Boolean))];
+    return { id, name, members };
+  });
+  await setSetting(env, 'friendGroups', clean);
+  return { groups: await getGroups(env) };
 }

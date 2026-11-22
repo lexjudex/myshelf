@@ -38,6 +38,16 @@ function build() {
   list = dialog.querySelector('.ar-list');
   dialog.querySelectorAll('[data-ar-close]').forEach((b) => b.addEventListener('click', () => dialog.close()));
   dialog.querySelector('[data-ar-add]').addEventListener('click', () => current.onAdd?.());
+  dialog.addEventListener('close', () => current?.onClose?.());
+  // Pencil: edit that item (the dialog stays open underneath).
+  list.addEventListener('click', (e) => {
+    const edit = e.target.closest('.ar-edit');
+    if (!edit) return;
+    e.preventDefault();
+    const slug = edit.closest('.ar-item').dataset.slug;
+    const item = current.items.find((i) => i.slug === slug);
+    if (item) current.onEdit(item);
+  });
   // Red ✕ marks an item to come off this collection; click again (↺) to keep it. Nothing changes until you save.
   list.addEventListener('click', (e) => {
     const btn = e.target.closest('.ar-remove');
@@ -80,26 +90,48 @@ function updateRemoved() {
   list.querySelectorAll('.ar-item:not(.is-removed) .ar-num').forEach((el, i) => (el.textContent = i + 1));
 }
 
+const PENCIL = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+
+function itemHtml(i, n, removed = false) {
+  return `<li class="ar-item${removed ? ' is-removed' : ''}" data-slug="${esc(i.slug)}" data-title="${esc(i.title)}"><span class="ar-num">${n + 1}</span>${
+    current.onEdit ? `<button type="button" class="ar-edit" aria-label="Edit ${esc(i.title)}" title="Edit this item">${PENCIL}</button>` : ''
+  }${
+    current.canRemove?.(i) ? `<button type="button" class="ar-remove" aria-label="${removed ? `Keep ${esc(i.title)}` : `Remove ${esc(i.title)} from this collection`}" title="${removed ? 'Keep it on this shelf' : 'Remove from this collection'}">${removed ? '↺' : '✕'}</button>` : ''
+  }${thumb(i)}<span class="ar-name">${esc(i.title)}</span></li>`;
+}
+
 function render(items) {
-  list.innerHTML = items.length
-    ? items.map((i, n) => `<li class="ar-item" data-slug="${esc(i.slug)}" data-title="${esc(i.title)}"><span class="ar-num">${n + 1}</span>${
-        current.canRemove?.(i) ? `<button type="button" class="ar-remove" aria-label="Remove ${esc(i.title)} from this collection" title="Remove from this collection">✕</button>` : ''
-      }${thumb(i)}<span class="ar-name">${esc(i.title)}</span></li>`).join('')
-    : '<li class="ar-empty">This collection is empty.</li>';
+  list.innerHTML = items.length ? items.map((i, n) => itemHtml(i, n)).join('') : '<li class="ar-empty">This collection is empty.</li>';
+}
+
+/** After an item was edited from the pencil: show its new title and cover in the dialog. */
+export function updateItem(slug, item) {
+  if (!current || !item) return;
+  const idx = current.items.findIndex((i) => i.slug === slug);
+  if (idx < 0) return;
+  const next = { ...current.items[idx], ...item, slug: item.slug || slug };
+  current.items[idx] = next;
+  const li = list.querySelector(`.ar-item[data-slug="${CSS.escape(slug)}"]`);
+  if (!li) return;
+  const n = Number(li.querySelector('.ar-num')?.textContent) || 1;
+  li.outerHTML = itemHtml(next, n - 1, li.classList.contains('is-removed'));
+  updateRemoved();
 }
 
 /**
  * items: already in current shelf order. onSave(orderSlugs, removedSlugs) should persist (throw on failure).
  * canRemove(item): show the red ✕ on that item (hand-picked collection members only).
  * onAdd(): shows an "＋ Add more" button that runs it (e.g. go to search with the collection pre-checked).
+ * onEdit(item): shows a pencil on each item that runs it (open the item editor).
+ * onClose(): runs whenever the dialog closes (saved or not).
  */
-export function openArrange({ title, items, onSave, canRemove = null, onAdd = null }) {
+export function openArrange({ title, items, onSave, canRemove = null, onAdd = null, onEdit = null, onClose = null }) {
   if (!dialog) build();
-  current = { items, onSave, canRemove, onAdd };
+  current = { items, onSave, canRemove, onAdd, onEdit, onClose };
   dialog.querySelector('.ar-title').textContent = `Arrange “${title}”`;
-  dialog.querySelector('.ar-hint').textContent = canRemove
+  dialog.querySelector('.ar-hint').textContent = (canRemove
     ? 'Drag covers into the order you want. Use the red ✕ to take something off this shelf.'
-    : 'Drag covers into the order you want. Items you add later appear at the front.';
+    : 'Drag covers into the order you want. Items you add later appear at the front.') + (onEdit ? ' The pencil edits an item.' : '');
   dialog.querySelector('[data-ar-add]').hidden = !onAdd;
   render(items);
   updateRemoved();
@@ -109,7 +141,7 @@ export function openArrange({ title, items, onSave, canRemove = null, onAdd = nu
     ghostClass: 'ar-ghost-item',
     chosenClass: 'ar-chosen',
     delay: 120, delayOnTouchOnly: true, // on phones: press & hold briefly to pick up, so scrolling still works
-    filter: '.ar-remove', preventOnFilter: false, // the ✕ is a button, not a drag handle
+    filter: '.ar-remove, .ar-edit', preventOnFilter: false, // the ✕ and pencil are buttons, not drag handles
     onSort: updateRemoved,
   });
   dialog.showModal();
@@ -123,6 +155,9 @@ export function toast(msg, kind = 'ok') {
     toastEl.setAttribute('role', 'status');
     document.body.appendChild(toastEl);
   }
+  // Inside the open dialog it has to live in the dialog, or the backdrop dims it.
+  const host = dialog?.open ? dialog : document.body;
+  if (toastEl.parentNode !== host) host.appendChild(toastEl);
   toastEl.textContent = msg;
   toastEl.dataset.kind = kind;
   toastEl.hidden = false;

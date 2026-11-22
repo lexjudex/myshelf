@@ -284,3 +284,17 @@ details label { margin-bottom: 10px; }
 .heart-mark svg { fill: currentColor; width: 16px; height: 16px; }
 @keyframes heart-pop { 50% { transform: scale(1.2); } }
 @media (prefers-reduced-motion: reduce) { .heart-btn.pop { animation: none; } }
+
+/* Friend groups (Manage → Friends) */
+.group-list { list-style: none; padding: 0; margin: 6px 0 0; }
+.group-row { padding: 10px 0; border-bottom: 1px solid #e2d6bd; }
+.group-head { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.group-head .group-name { flex: 1; font-weight: 600; }
+.rec-groups { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 10px; }
+.rec-groups[hidden], #groups-section[hidden] { display: none; }
+.version { margin: 0 0 8px; }
+
+/* ?embed=1: nothing but the editor dialog, over a transparent page */
+html.embed, html.embed body { background: transparent !important; }
+html.embed body > :not(main), html.embed #app, html.embed #login, html.embed .device-prefs { display: none !important; }
+html.embed .editor::backdrop { background: transparent; }

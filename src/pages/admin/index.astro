@@ -6,6 +6,8 @@ export const prerender = true;
 const typesJson = JSON.stringify(TYPES);
 ---
 <Base title="Manage" noindex>
+  <!-- ?embed=1: only the item editor, shown in a frame over a public shelf. Set before anything draws. -->
+  <script is:inline>if (new URLSearchParams(location.search).has('embed')) document.documentElement.classList.add('embed');</script>
   <div id="admin" class="admin" data-types={typesJson}>
     <!-- Login -->
     <section id="login" class="panel" hidden>
@@ -95,7 +97,7 @@ const typesJson = JSON.stringify(TYPES);
       <div class="tabpanel" data-panel="friends" hidden>
         <div class="panel">
           <h2>Friends</h2>
-          <p class="muted">Connect with friends who run their own MyShelf. Friends can see items you mark <em>Friends only</em>, send you recommendations, and ask to borrow things you own.</p>
+          <p class="muted">Connect with friends who run their own MyShelf. Friends can see items you mark <em>Friends only</em>, send you recommendations, comment on your notes, and ask to borrow things you own. See what they’re up to (and browse their shelves) on your <a href="/friends/">Friends page</a>.</p>
           <div class="inbox-head">
             <h3>Inbox</h3>
             <button id="inbox-clear" class="btn ghost small" type="button" hidden>Clear inbox</button>
@@ -103,7 +105,15 @@ const typesJson = JSON.stringify(TYPES);
           <ul id="inbox-list" class="inbox-list"></ul>
           <h3>Your friends</h3>
           <ul id="friend-list" class="friend-list"></ul>
-          <div id="friend-shelf" class="friend-shelf" hidden></div>
+          <section id="groups-section" hidden>
+            <h3>Groups</h3>
+            <p class="muted small">Only you see your groups. Use them to filter your Friends page and to recommend something to everyone in a group at once.</p>
+            <ul id="group-list" class="group-list"></ul>
+            <div class="row">
+              <button id="group-add" class="btn ghost small" type="button">＋ New group</button>
+              <button id="groups-save" class="btn primary small" type="button">Save groups</button>
+            </div>
+          </section>
           <h3>Connect with a friend</h3>
           <div class="my-address">
             <span class="muted small">Your address — send this to friends:</span>
@@ -142,6 +152,7 @@ const typesJson = JSON.stringify(TYPES);
             <div class="row span2"><button class="btn primary" type="submit">Save</button><span id="site-msg" class="muted small"></span></div>
           </form>
           <h2>Updates</h2>
+          <p id="version" class="version"></p>
           <div id="updates" class="updates"><p class="muted">Checking for a new version…</p></div>
           <h2>Backup &amp; restore</h2>
           <p class="muted">A backup is one JSON file with all your entries, notes, collections, shelf orders and site settings. Restoring adds those to this site, replacing entries with the same name. Moving to a new site? Restore here while the old site is still online and the covers are copied over from it.</p>
@@ -275,7 +286,7 @@ const typesJson = JSON.stringify(TYPES);
           <button type="button" class="btn ghost small" data-close-rec>✕</button>
         </header>
         <div class="rec-body">
-          <fieldset><legend>Send to</legend><div id="rec-friends" class="checks"></div></fieldset>
+          <fieldset><legend>Send to</legend><div id="rec-groups" class="rec-groups" hidden></div><div id="rec-friends" class="checks"></div></fieldset>
           <label>Note <span class="muted small">(optional)</span><textarea name="note" rows="3" maxlength="1000" placeholder="Why they’ll love it"></textarea></label>
         </div>
         <footer class="editor-foot">

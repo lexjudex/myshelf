@@ -1,13 +1,16 @@
 // Admin UI: search external databases, add/edit/delete items, manage collections.
 import { marked } from 'marked';
 import { SORTS, sortShelf, inShelf, AUTO_RULES, SHOW_OPTIONS, WITHIN_OPTIONS } from '../lib/sorting.js';
-import { openArrange } from './arrange.js';
+import { openArrange, updateItem as updateArrangeItem } from './arrange.js';
 import Sortable from 'sortablejs';
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const root = $('#admin');
 const TYPES = JSON.parse(root.dataset.types);
 const TOKEN_KEY = 'myshelf_token';
+// /admin/?embed=1#edit=<slug>: just the item editor, in a frame over a public shelf (see edit-shelves.js).
+const EMBED = new URLSearchParams(location.search).has('embed');
+const tellParent = (msg) => { if (EMBED && window.parent !== window) window.parent.postMessage(msg, location.origin); };
 
 const state = {
   type: 'book',
@@ -18,6 +21,7 @@ const state = {
   saved: {},          // items saved in this session (for the preview dialog)
   previewSlug: null,
   addTo: null,        // collection slug picked via "＋ Add more": pre-checked on new entries
+  afterSave: null,    // (slug, item) => …: run instead of the preview after saving (editing from a shelf's pencil)
 };
 
 // ───────── helpers ─────────
@@ -71,7 +75,7 @@ function showLogin(error) {
   err.textContent = error || '';
 }
 async function boot() {
-  if (!getToken()) return showLogin();
+  if (!getToken()) { tellParent({ type: 'myshelf:edit-closed', error: 'Sign in on the Manage page first.' }); return showLogin(); }
   try {
     const ping = await api('ping');
     $('#login').hidden = true;
@@ -415,6 +419,10 @@ $$('[data-clear-date]', editor).forEach((b) => b.addEventListener('click', () =>
   if (b.dataset.clearDate === 'dateFinished') delete form.dataset.stashedFinished;
 }));
 $$('[data-close]', editor).forEach((b) => b.addEventListener('click', () => editor.close()));
+editor.addEventListener('close', () => {
+  state.afterSave = null;
+  tellParent({ type: 'myshelf:edit-closed' });
+});
 $('#add-entry').addEventListener('click', () => {
   const date = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const ta = form.body;
@@ -474,8 +482,10 @@ form.addEventListener('submit', async (e) => {
     const res = await api('save', { method: 'POST', body: { slug, item, body: form.body.value } });
     if (!slug) rememberSettings(item);
     state.saved[res.slug] = { slug: res.slug, ...res.item, body: form.body.value };
+    const after = state.afterSave;
     editor.close();
-    showPreview(res.slug);
+    if (after) after(res.slug, { slug: res.slug, ...res.item });
+    else showPreview(res.slug);
     loadLibrary();
     if (location.hash) history.replaceState(null, '', location.pathname);
   } catch (err) {
@@ -657,12 +667,15 @@ function renderLibrary() {
 $('#lib-filter').addEventListener('input', renderLibrary);
 $('#lib-type').addEventListener('change', renderLibrary);
 
-async function editSlug(slug) {
+async function editSlug(slug, afterSave = null) {
   try {
     const { item, body } = await api(`item?slug=${encodeURIComponent(slug)}`);
     openEditor({ ...item, body }, slug);
+    state.afterSave = afterSave;
+    tellParent({ type: 'myshelf:edit-ready' });
   } catch (err) {
     toast(err.message, 'error');
+    tellParent({ type: 'myshelf:edit-closed', error: err.message });
   }
 }
 $('#lib-list').addEventListener('click', async (e) => {
@@ -822,6 +835,11 @@ function openArrangeFor(index) {
     title: c.name,
     items,
     canRemove: c.slug ? (i) => (i.collections || []).includes(c.slug) : null,
+    onEdit: (i) => editSlug(i.slug, (slug, saved) => {
+      updateArrangeItem(i.slug, saved);
+      toast(`Saved “${saved.title}”.`);
+      loadLibrary();
+    }),
     onAdd: c.slug && !c.auto ? () => {
       document.querySelector('.ar-dialog')?.close();
       startAddingTo(c.slug, types.size === 1 ? [...types][0] : null);
@@ -939,9 +957,19 @@ $('#export-btn').addEventListener('click', async () => {
 
 // ───────── deep links: /admin/#edit=slug ─────────
 // /admin/#add=collection-slug[&type=boardgame] — from "＋ Add more" in a collection's arrange dialog.
+// /admin/#search=<type>&q=<title> — "Add it" on a recommendation in the inbox on the public Friends page.
 function handleHash() {
   const m = location.hash.match(/^#edit=([a-z0-9-]+)$/);
-  if (m) return editSlug(m[1]);
+  if (m) {
+    if (EMBED) return editSlug(m[1], (slug, item) => tellParent({ type: 'myshelf:edited', slug: m[1], item }));
+    return editSlug(m[1]);
+  }
+  if (location.hash.startsWith('#search=')) {
+    const q = new URLSearchParams(location.hash.slice(1));
+    history.replaceState(null, '', location.pathname);
+    document.dispatchEvent(new CustomEvent('myshelf:search', { detail: { type: q.get('search'), title: q.get('q') || '' } }));
+    return;
+  }
   if (location.hash.startsWith('#add=')) {
     const q = new URLSearchParams(location.hash.slice(1));
     startAddingTo(q.get('add'), q.get('type'));

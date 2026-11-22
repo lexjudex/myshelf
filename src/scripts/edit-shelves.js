@@ -42,6 +42,41 @@ function savedToast(mod, name) {
   mod.toast(`Saved “${name}”.`);
 }
 
+// ───────── pencil on an item: edit it right here ─────────
+// Opens Manage's item editor (/admin/?embed=1#edit=<slug>) in a frame over this page, so you don't lose your
+// place. When it's saved, the arrange dialog shows the new title and cover; the page reloads once you close it.
+let edited = false;
+function editItem(mod, slug) {
+  const dlg = document.createElement('dialog');
+  dlg.className = 'ef-dialog';
+  dlg.innerHTML = `<p class="ef-loading">Opening the editor…</p><iframe class="loading" title="Edit item" src="/admin/?embed=1#edit=${encodeURIComponent(slug)}"></iframe>`;
+  document.body.appendChild(dlg);
+  const frame = dlg.querySelector('iframe');
+  const done = () => { window.removeEventListener('message', onMessage); dlg.close(); dlg.remove(); };
+  const onMessage = (e) => {
+    if (e.origin !== location.origin || e.source !== frame.contentWindow) return;
+    const msg = e.data || {};
+    if (msg.type === 'myshelf:edit-ready') {
+      frame.classList.remove('loading');
+      dlg.querySelector('.ef-loading').hidden = true;
+    } else if (msg.type === 'myshelf:edited') {
+      edited = true;
+      mod.updateItem(msg.slug, msg.item);
+      mod.toast(`Saved “${msg.item?.title || 'item'}”.`);
+    } else if (msg.type === 'myshelf:edit-closed') {
+      if (msg.error) mod.toast(msg.error, 'error');
+      done();
+    }
+  };
+  window.addEventListener('message', onMessage);
+  dlg.addEventListener('cancel', (e) => { e.preventDefault(); done(); });
+  dlg.showModal();
+}
+const arrangeExtras = (mod) => ({
+  onEdit: (item) => editItem(mod, item.slug),
+  onClose: () => { if (edited) location.reload(); },
+});
+
 // Open the editor for a collection shelf.
 async function editCollection(mod, lib, slug) {
   const live = await api('collections');
@@ -55,6 +90,7 @@ async function editCollection(mod, lib, slug) {
   const types = new Set(items.map((i) => i.type));
   const addHref = `/admin/#add=${encodeURIComponent(slug)}${types.size === 1 ? `&type=${[...types][0]}` : ''}`;
   mod.openArrange({
+    ...arrangeExtras(mod),
     title: c.name,
     items,
     canRemove: (i) => (i.collections || []).includes(slug), // automatic (status) members can't be taken off by hand
@@ -96,6 +132,7 @@ async function editTypeShelf(mod, lib, key, title) {
   const entries = (lib.items || []).filter((i) => i.type === type && i.status === status).map((i) => ({ id: i.slug, data: i }));
   const shelf = arrangements[key] ? { sort: 'custom', order: arrangements[key] } : { sort: 'newest' };
   mod.openArrange({
+    ...arrangeExtras(mod),
     title,
     items: sortShelf(entries, shelf).map((e) => e.data),
     onSave: async (order) => {

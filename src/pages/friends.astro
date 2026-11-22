@@ -1,41 +1,57 @@
 ---
-// Public friends page: what your friends have been up to lately, then links to their shelves.
-// Only their PUBLIC entries are shown here; friends-only items stay in Manage → Friends.
+// Public friends page: your inbox (only you, when signed in), what your friends have been up to, and their shelves.
+// Visitors see friends' PUBLIC entries only. Signed in on this browser, you also get your inbox, hearts, comment
+// boxes, your groups as a filter, and friends-only items when you open a friend's shelf.
 import Base from '../layouts/Base.astro';
 import '../styles/filters.css';
+import '../styles/friends.css';
 import CopyLink from '../components/CopyLink.astro';
 import { friendsFeed } from '../../server/federation/index.js';
 import { fmtDate } from '../lib/items.js';
 import { TYPES, STATUS_LABEL, stars } from '../lib/types.js';
+import { reviewHtml, threadHtml } from '../scripts/friends-ui.js';
 
 const env = Astro.locals.runtime.env;
 let friends = [], items = [];
 try { ({ friends, items } = await friendsFeed(env, { limit: 240 })); } catch {}
 const PAGE = 12; // cards shown at first and per "Load more"
 const who = (f) => f.owner || f.name || f.url.replace(/^https?:\/\//, '');
-// Filters only offer choices that would narrow the list.
+// Filters only offer choices that would narrow the list. (Your groups are added by the script, only for you.)
 const feedFriends = friends.filter((f) => items.some((i) => i.friend.url === f.url));
 const feedTypes = Object.keys(TYPES).filter((t) => items.some((i) => (i.type || 'book') === t));
 const groups = [];
 if (feedFriends.length > 1) groups.push({ key: 'friend', label: 'Friend', options: feedFriends.map((f) => [f.url, who(f)]) });
 if (feedTypes.length > 1) groups.push({ key: 'type', label: 'Media', options: feedTypes.map((t) => [t, TYPES[t].plural]) });
 const host = (u) => u.replace(/^https?:\/\//, '');
+const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.3 1.1 5 3 1.7-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg>';
 ---
 <Base title="Friends">
-  <section class="page-head">
-    <p class="eyebrow">{friends.length} {friends.length === 1 ? 'friend' : 'friends'}</p>
-    <h1>Friends<CopyLink /></h1>
-  </section>
+  <div class="friends-page" id="friends-page" data-types={JSON.stringify(TYPES)} data-page={PAGE}>
+    <section class="page-head">
+      <p class="eyebrow">{friends.length} {friends.length === 1 ? 'friend' : 'friends'}</p>
+      <h1>Friends<CopyLink /></h1>
+    </section>
 
-  {friends.length === 0 ? (
-    <p class="shelf-empty">No friends yet.</p>
-  ) : (
-    <>
-      <section class="friends-feed">
-        <h2>Lately</h2>
-        {items.length === 0 && <p class="shelf-empty">Nothing new from friends yet.</p>}
-        {groups.length > 0 && (
-          <div class="bg-filters feed-filters" aria-label="Filter">
+    {/* Filled in by the script below, only for you (signed in on this browser). */}
+    <section class="fr-inbox" id="fr-inbox" hidden>
+      <div class="fr-section-head">
+        <h2>Inbox <span class="tab-count" id="fr-unread" hidden></span></h2>
+        <span class="fr-head-actions">
+          <button type="button" class="btn ghost small" id="fr-inbox-toggle" aria-expanded="true">Hide</button>
+          <a class="btn ghost small" href="/admin/">Manage friends</a>
+        </span>
+      </div>
+      <ul class="inbox-list" id="fr-inbox-list"></ul>
+    </section>
+
+    {friends.length === 0 ? (
+      <p class="shelf-empty">No friends yet.</p>
+    ) : (
+      <>
+        <section class="friends-feed">
+          <h2>What Your Friends Are Up To</h2>
+          {items.length === 0 && <p class="shelf-empty">Nothing new from friends yet.</p>}
+          <div class="bg-filters feed-filters" aria-label="Filter" hidden={groups.length === 0}>
             <div class="bgf-body">
               {groups.map((g) => (
                 <div class="bgf-group">
@@ -48,183 +64,277 @@ const host = (u) => u.replace(/^https?:\/\//, '');
               ))}
             </div>
           </div>
-        )}
-        <ul class="feed-list" id="feed-list" data-page={PAGE}>
-          {items.map((i, n) => {
-            const t = TYPES[i.type] || TYPES.book;
-            const link = i.url || i.friend.url;
-            return (
-              <li class="feed-row" data-friend={i.friend.url} data-type={i.type || 'book'} data-uid={i.uid} data-title={i.title} hidden={n >= PAGE}>
-                <a class="feed-cover" href={link} target="_blank" rel="noopener" style={`--tc:${t.color}; aspect-ratio:${t.aspect}`}>
-                  {i.cover ? <img src={i.cover} alt="" loading="lazy" referrerpolicy="no-referrer" /> : <span>{(i.title || '?').slice(0, 1)}</span>}
-                </a>
-                <div class="feed-text">
-                  <p class="eyebrow"><a href={i.friend.url} target="_blank" rel="noopener">{who(i.friend)}</a> · {STATUS_LABEL(i.type, i.status)}{i.date && <> · {fmtDate(i.date)}</>}</p>
-                  <h3><a href={link} target="_blank" rel="noopener">{i.title}</a> {i.rating != null && <span class="rating">{stars(i.rating)}</span>}</h3>
-                  <p class="creator">{t.label}{i.creator && <> · {i.creator}</>}{i.year && <> · {i.year}</>}</p>
-                </div>
-                {/* Shown by the script below only to you, when you're signed in on this device. */}
-                <button type="button" class="heart-btn" aria-pressed="false" title="I enjoyed this too" hidden>
-                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.3 1.1 5 3 1.7-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg>
+          <ul class="feed-list" id="feed-list">
+            {items.map((i, n) => {
+              const t = TYPES[i.type] || TYPES.book;
+              const link = i.url || i.friend.url;
+              return (
+                <li class="feed-row" data-friend={i.friend.url} data-type={i.type || 'book'} data-uid={i.uid} hidden={n >= PAGE}>
+                  <a class="feed-cover" href={link} target="_blank" rel="noopener" style={`--tc:${t.color}; aspect-ratio:${t.aspect}`}>
+                    {i.cover ? <img src={i.cover} alt="" loading="lazy" referrerpolicy="no-referrer" /> : <span>{(i.title || '?').slice(0, 1)}</span>}
+                  </a>
+                  <div class="feed-text">
+                    <p class="eyebrow"><a href={i.friend.url} target="_blank" rel="noopener">{who(i.friend)}</a> · {STATUS_LABEL(i.type, i.status)}{i.date && <> · {fmtDate(i.date)}</>}</p>
+                    <h3><a href={link} target="_blank" rel="noopener">{i.title}</a> {i.rating != null && <span class="rating">{stars(i.rating)}</span>}</h3>
+                    <p class="creator">{t.label}{i.creator && <> · {i.creator}</>}{i.year && <> · {i.year}</>}</p>
+                    {i.review && <div class="review clamp" title="Show all" set:html={reviewHtml(i.review)} />}
+                    <Fragment set:html={threadHtml(i.comments, { friendUrl: i.friend.url, uid: i.uid })} />
+                  </div>
+                  {/* Shown by the script only to you, when you're signed in on this device. */}
+                  <button type="button" class="heart-btn" aria-pressed="false" title="I enjoyed this too" data-heart={i.uid} data-friend-url={i.friend.url} data-title={i.title} hidden set:html={HEART} />
+                </li>
+              );
+            })}
+          </ul>
+          <p class="shelf-empty" id="feed-none" hidden>Nothing here yet.</p>
+          <div class="feed-more" id="feed-more" hidden={items.length <= PAGE}>
+            <button type="button" class="btn-see-all" id="feed-more-btn">Load more</button>
+          </div>
+        </section>
+
+        <section class="friends-shelves">
+          <h2>Their shelves</h2>
+          <ul class="friend-cards">
+            {friends.map((f) => (
+              <li>
+                <button type="button" class="friend-card" data-friend-url={f.url} data-name={who(f)} aria-controls="fr-shelf">
+                  <span class="friend-initial" aria-hidden="true">{who(f).slice(0, 1).toUpperCase()}</span>
+                  <span class="friend-card-text">
+                    <strong>{who(f)}</strong>
+                    <span>{f.owner && f.name ? `${f.name} · ` : ''}{host(f.url)}</span>
+                  </span>
+                  <span class="friend-go" aria-hidden="true">→</span>
                 </button>
               </li>
-            );
-          })}
-        </ul>
-        <p class="shelf-empty" id="feed-none" hidden>Nothing here yet.</p>
-        <p class="heart-msg" id="heart-msg" role="status" hidden></p>
-        <div class="feed-more" id="feed-more" hidden={items.length <= PAGE}>
-          <button type="button" class="btn-see-all" id="feed-more-btn">Load more</button>
-        </div>
-      </section>
-
-      <section class="friends-shelves">
-        <h2>Their shelves</h2>
-        <ul class="friend-cards">
-          {friends.map((f) => (
-            <li>
-              <a class="friend-card" href={f.url} target="_blank" rel="noopener">
-                <span class="friend-initial" aria-hidden="true">{who(f).slice(0, 1).toUpperCase()}</span>
-                <span class="friend-card-text">
-                  <strong>{who(f)}</strong>
-                  <span>{f.owner && f.name ? `${f.name} · ` : ''}{host(f.url)}</span>
-                </span>
-                <span class="friend-go" aria-hidden="true">→</span>
-              </a>
-            </li>
-          ))}
-        </ul>
-      </section>
-    </>
-  )}
+            ))}
+          </ul>
+          <div class="fr-shelf" id="fr-shelf" hidden></div>
+        </section>
+      </>
+    )}
+    <p class="fr-toast" id="fr-toast" role="status" hidden></p>
+  </div>
 </Base>
 
 <script>
-  // "Lately": show 12 cards, "Load more" adds 12 more, and the Friend / Media chips narrow the list.
-  const list = document.getElementById('feed-list');
-  if (list) {
-    const page = Number(list.dataset.page) || 12;
-    const rows = [...list.querySelectorAll('.feed-row')];
-    const more = document.getElementById('feed-more');
-    const none = document.getElementById('feed-none');
-    const state = { friend: '', type: '' };
-    let shown = page;
-    const render = () => {
-      const match = rows.filter((r) => (!state.friend || r.dataset.friend === state.friend) && (!state.type || r.dataset.type === state.type));
-      rows.forEach((r) => { r.hidden = true; });
-      match.slice(0, shown).forEach((r) => { r.hidden = false; });
-      more.hidden = match.length <= shown;
-      none.hidden = match.length > 0 || rows.length === 0;
-    };
-    document.getElementById('feed-more-btn')?.addEventListener('click', () => { shown += page; render(); });
-    document.querySelectorAll('.feed-filters .bgf-chips').forEach((group) => {
-      group.addEventListener('click', (e) => {
-        const chip = e.target.closest('.bgf-chip');
-        if (!chip) return;
-        state[group.dataset.filter] = chip.dataset.value;
-        group.querySelectorAll('.bgf-chip').forEach((c) => {
-          const on = c === chip;
-          c.classList.toggle('on', on);
-          c.setAttribute('aria-pressed', String(on));
-        });
-        shown = page; // a new filter starts back at the first 12
-        render();
-      });
-    });
-  }
+  import { esc, api, token, inboxHtml, markSeen, bindFriendActions, bindThreads, shelfHtml } from '../scripts/friends-ui.js';
 
-  // Hearts ("I enjoyed this too"): only for you. This page is public, so the buttons stay hidden unless
-  // this browser is signed in to Manage, and which items you've hearted is fetched with your token.
-  (async () => {
-    let token = '';
-    try { token = localStorage.getItem('myshelf_token') || ''; } catch {}
-    const rows = [...document.querySelectorAll('.feed-row[data-uid]')];
-    if (!token || !rows.length) return;
-    const api = (body) => fetch('/api/friends' + (body ? '' : '?hearts=1'), {
-      method: body ? 'POST' : 'GET',
-      headers: { authorization: `Bearer ${token}`, ...(body ? { 'content-type': 'application/json' } : {}) },
-      body: body ? JSON.stringify(body) : undefined,
+  const page = document.getElementById('friends-page');
+  const TYPES = JSON.parse(page.dataset.types);
+  const PAGE = Number(page.dataset.page) || 12;
+
+  // ───────── toast ─────────
+  const toastEl = document.getElementById('fr-toast');
+  let toastTimer;
+  const toast = (text, kind = 'ok') => {
+    toastEl.textContent = text;
+    toastEl.classList.toggle('error', kind === 'error');
+    toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toastEl.hidden = true), kind === 'error' ? 7000 : 3500);
+  };
+
+  // ───────── the feed: 12 at a time, narrowed by the Friend / Media (/ Group) chips ─────────
+  const list = document.getElementById('feed-list');
+  const rows = list ? [...list.querySelectorAll('.feed-row')] : [];
+  const state = { friend: '', type: '', group: '' };
+  let groupMembers = new Map(); // group id → Set of friend addresses
+  let shown = PAGE;
+  const render = () => {
+    if (!list) return;
+    const inGroup = state.group ? groupMembers.get(state.group) || new Set() : null;
+    const match = rows.filter((r) => (!state.friend || r.dataset.friend === state.friend)
+      && (!state.type || r.dataset.type === state.type)
+      && (!inGroup || inGroup.has(r.dataset.friend)));
+    rows.forEach((r) => { r.hidden = true; });
+    match.slice(0, shown).forEach((r) => { r.hidden = false; });
+    document.getElementById('feed-more').hidden = match.length <= shown;
+    document.getElementById('feed-none').hidden = match.length > 0 || rows.length === 0;
+  };
+  document.getElementById('feed-more-btn')?.addEventListener('click', () => { shown += PAGE; render(); });
+  page.querySelector('.feed-filters')?.addEventListener('click', (e) => {
+    const chip = e.target.closest('.bgf-chip');
+    if (!chip) return;
+    const group = chip.closest('.bgf-chips');
+    state[group.dataset.filter] = chip.dataset.value;
+    group.querySelectorAll('.bgf-chip').forEach((c) => {
+      const on = c === chip;
+      c.classList.toggle('on', on);
+      c.setAttribute('aria-pressed', String(on));
     });
-    let hearts;
+    shown = PAGE; // a new filter starts back at the first 12
+    render();
+  });
+
+  // Long reviews are cut to a few lines; click to read the rest.
+  page.addEventListener('click', (e) => {
+    const r = e.target.closest('.review.clamp');
+    if (!r || e.target.closest('a')) return;
+    r.classList.toggle('expanded');
+    r.title = r.classList.contains('expanded') ? 'Show less' : 'Show all';
+  });
+
+  // ───────── a friend's shelf, opened from "Their shelves" ─────────
+  let me = '';
+  let overview = null;
+  const box = document.getElementById('fr-shelf');
+  let shelfData = null;
+  const drawShelf = () => {
+    const q = box.querySelector('.fr-shelf-filter')?.value || '';
+    box.querySelector('.fr-shelf-body').innerHTML = shelfHtml(shelfData, TYPES, { me, filter: q });
+    bindThreads(box, { me, toast });
+  };
+  async function openShelf(url, name) {
+    page.querySelectorAll('.friend-card').forEach((c) => c.classList.toggle('active', c.dataset.friendUrl === url));
+    box.hidden = false;
+    box.innerHTML = `
+      <div class="fr-section-head">
+        <h3>${esc(name)}’s shelf</h3>
+        <span class="fr-head-actions">
+          <a class="btn ghost small" href="${esc(url)}" target="_blank" rel="noopener">Visit their site ↗</a>
+          <button type="button" class="btn ghost small" data-close-shelf aria-label="Close">✕</button>
+        </span>
+      </div>
+      <input class="fr-shelf-filter" type="search" placeholder="Filter by title or creator…" aria-label="Filter their shelf" hidden />
+      <div class="fr-shelf-body"><p class="muted">Loading their shelf…</p></div>`;
+    box.scrollIntoView({ behavior: 'smooth', block: 'start' });
     try {
-      const res = await api();
-      if (!res.ok) return; // not signed in (or an old token): leave the page as everyone sees it
-      ({ hearts } = await res.json());
-    } catch { return; }
-    const on = new Set(hearts.map((h) => `${h.friendUrl} ${h.uid}`));
-    const msg = document.getElementById('heart-msg');
-    let msgTimer;
-    const say = (text, error = false) => {
-      msg.textContent = text;
-      msg.classList.toggle('error', error);
-      msg.hidden = false;
-      clearTimeout(msgTimer);
-      msgTimer = setTimeout(() => (msg.hidden = true), error ? 7000 : 3500);
-    };
-    const set = (btn, yes) => {
-      btn.classList.toggle('on', yes);
-      btn.setAttribute('aria-pressed', String(yes));
-      btn.title = yes ? 'You enjoyed this too (click to undo)' : 'I enjoyed this too';
-    };
-    for (const row of rows) {
-      const btn = row.querySelector('.heart-btn');
-      set(btn, on.has(`${row.dataset.friend} ${row.dataset.uid}`));
-      btn.hidden = false;
-      btn.addEventListener('click', async () => {
-        const yes = !btn.classList.contains('on');
-        btn.disabled = true;
-        try {
-          const res = await api({ action: 'heart', friendUrl: row.dataset.friend, uid: row.dataset.uid, title: row.dataset.title, on: yes });
-          const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error || `Couldn’t send (${res.status})`);
-          set(btn, yes);
-          btn.classList.toggle('pop', yes);
-          if (yes) say('Sent. They’ll see you enjoyed it too.');
-        } catch (err) {
-          say(err.message, true);
-        } finally {
-          btn.disabled = false;
-        }
+      const f = overview?.friends.find((x) => x.url === url && x.status === 'accepted');
+      shelfData = f
+        ? await api(`friends?shelf=${encodeURIComponent(f.id)}`) // includes their friends-only items, hearts and borrowing
+        : await fetch(`/friends/shelf.json?friend=${encodeURIComponent(url)}`).then(async (r) => {
+          const data = await r.json().catch(() => ({}));
+          if (!r.ok) throw new Error(data.error || `Couldn’t load their shelf (${r.status})`);
+          return data;
+        });
+      box.querySelector('.fr-shelf-filter').hidden = shelfData.items.length < 12;
+      drawShelf();
+    } catch (err) {
+      box.querySelector('.fr-shelf-body').innerHTML = `<p class="error">${esc(err.message)}</p>`;
+    }
+  }
+  page.querySelectorAll('.friend-card').forEach((c) => c.addEventListener('click', () => {
+    if (c.classList.contains('active') && !box.hidden) { box.hidden = true; c.classList.remove('active'); return; }
+    openShelf(c.dataset.friendUrl, c.dataset.name);
+  }));
+  box?.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-close-shelf]')) return;
+    box.hidden = true;
+    page.querySelectorAll('.friend-card.active').forEach((c) => c.classList.remove('active'));
+  });
+  box?.addEventListener('input', (e) => { if (e.target.closest('.fr-shelf-filter')) drawShelf(); });
+
+  // ───────── inbox (only you) ─────────
+  const inboxBox = document.getElementById('fr-inbox');
+  const setUnread = (n) => {
+    const el = document.getElementById('fr-unread');
+    el.hidden = !n;
+    el.textContent = n;
+  };
+  function renderInbox() {
+    document.getElementById('fr-inbox-list').innerHTML = inboxHtml(overview.inbox, overview.friends, TYPES);
+    setUnread(overview.inbox.filter((m) => m.status === 'unread').length);
+  }
+  async function reloadInbox() {
+    overview = await api('friends');
+    renderInbox();
+  }
+  const toggle = document.getElementById('fr-inbox-toggle');
+  const setInboxOpen = (open) => {
+    document.getElementById('fr-inbox-list').hidden = !open;
+    toggle.textContent = open ? 'Hide' : 'Show';
+    toggle.setAttribute('aria-expanded', String(open));
+    try { open ? localStorage.removeItem('myshelf_inbox_hidden') : localStorage.setItem('myshelf_inbox_hidden', '1'); } catch {}
+  };
+  toggle.addEventListener('click', () => setInboxOpen(toggle.getAttribute('aria-expanded') !== 'true'));
+
+  bindFriendActions(page, {
+    toast,
+    reload: reloadInbox,
+    inbox: () => overview?.inbox || [],
+    // "Add it" on a recommendation: search for it on the Manage page.
+    onAddRec: (it) => { location.href = `/admin/#search=${encodeURIComponent(it.type || 'book')}&q=${encodeURIComponent(it.title || '')}`; },
+  });
+
+  // Visitors can read comment threads; signing in below adds the comment boxes.
+  bindThreads(page, { toast });
+
+  // ───────── signed in on this browser? ─────────
+  (async () => {
+    if (!token()) return;
+    try {
+      overview = await api('friends');
+    } catch { return; } // not signed in (or an old token): leave the page as everyone sees it
+    me = overview.me?.url || '';
+
+    // Inbox at the top.
+    inboxBox.hidden = false;
+    renderInbox();
+    let hidden = false;
+    try { hidden = localStorage.getItem('myshelf_inbox_hidden') === '1'; } catch {}
+    setInboxOpen(!hidden);
+    setTimeout(() => setUnread(markSeen(overview.inbox)), 1500);
+
+    // Comment boxes and your own comments' Delete buttons.
+    bindThreads(page, { me, toast });
+
+    // Hearts on the feed.
+    try {
+      const { hearts } = await api('friends?hearts=1');
+      const on = new Set(hearts.map((h) => `${h.friendUrl} ${h.uid}`));
+      page.querySelectorAll('.feed-row .heart-btn').forEach((btn) => {
+        const yes = on.has(`${btn.dataset.friendUrl} ${btn.dataset.heart}`);
+        btn.classList.toggle('on', yes);
+        btn.setAttribute('aria-pressed', String(yes));
+        btn.title = yes ? 'You enjoyed this too (click to undo)' : 'I enjoyed this too';
+        btn.hidden = false;
       });
+    } catch {}
+
+    // Your groups as a filter (they stay private: added here, never in the page everyone gets).
+    const groups = (overview.groups || []).filter((g) => g.members.some((u) => rows.some((r) => r.dataset.friend === u)));
+    if (groups.length && list) {
+      groupMembers = new Map(groups.map((g) => [g.id, new Set(g.members)]));
+      const filters = page.querySelector('.feed-filters');
+      filters.hidden = false;
+      filters.querySelector('.bgf-body').insertAdjacentHTML('afterbegin', `
+        <div class="bgf-group">
+          <span class="bgf-label">Group</span>
+          <div class="bgf-chips" data-filter="group">
+            <button type="button" class="bgf-chip on" data-value="" aria-pressed="true">All</button>
+            ${groups.map((g) => `<button type="button" class="bgf-chip" data-value="${esc(g.id)}" aria-pressed="false">${esc(g.name)}</button>`).join('')}
+          </div>
+        </div>`);
     }
   })();
 </script>
 
 <style>
-  .friends-feed, .friends-shelves { margin: 8px 0 36px; }
-  .friends-feed h2, .friends-shelves h2 { font-size: 1.3rem; margin: 0 0 12px; }
+  .friends-feed, .friends-shelves, .fr-inbox { margin: 8px 0 36px; }
+  .friends-feed h2, .friends-shelves h2, .fr-inbox h2 { font-size: 1.3rem; margin: 0 0 12px; }
   @media (min-width: 761px) { .feed-filters .bgf-label { width: 64px; } }
+  .feed-filters[hidden] { display: none; }
   .feed-row[hidden] { display: none; }
   .feed-more { display: flex; justify-content: center; margin-top: 18px; }
   .feed-more[hidden] { display: none; }
   .feed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-  .feed-row { display: flex; gap: 16px; align-items: center; padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(241,230,208,0.08); }
+  .feed-row { display: flex; gap: 16px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(241,230,208,0.08); }
   .feed-cover { flex: 0 0 auto; height: 84px; display: grid; place-items: center; border-radius: 4px; overflow: hidden; background: var(--tc); color: #fbf6ec; font-weight: 700; text-decoration: none; box-shadow: 0 6px 14px rgba(0,0,0,0.35); }
   .feed-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .feed-text { min-width: 0; }
+  .feed-text { min-width: 0; flex: 1; }
   .feed-text .eyebrow { margin: 0 0 4px; }
   .feed-text h3 { margin: 0; font-size: 1.05rem; }
   .feed-text h3 a { text-decoration: none; }
   .feed-text h3 a:hover { color: var(--accent); }
   .feed-text .rating { color: var(--accent); font-size: 0.9rem; margin-left: 4px; }
   .feed-text .creator { margin: 2px 0 0; color: var(--cream-soft); font-size: 0.88rem; }
-  .heart-btn { flex: 0 0 auto; margin-left: auto; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 50%; cursor: pointer; background: transparent; border: 1px solid rgba(241,230,208,0.18); color: var(--cream-soft); transition: color 0.15s, border-color 0.15s; }
-  .heart-btn[hidden] { display: none; }
-  .heart-btn svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
-  .heart-btn:hover, .heart-btn.on { color: var(--accent); border-color: var(--accent); }
-  .heart-btn.on svg { fill: currentColor; }
-  .heart-btn.pop { animation: heart-pop 0.25s ease-out; }
-  .heart-btn:disabled { opacity: 0.6; cursor: wait; }
-  @keyframes heart-pop { 50% { transform: scale(1.2); } }
-  @media (prefers-reduced-motion: reduce) { .heart-btn.pop { animation: none; } }
-  .heart-msg { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 50; margin: 0; padding: 10px 16px; border-radius: 10px; background: #1d1d1f; border: 1px solid var(--accent); color: var(--cream); font-size: 0.9rem; box-shadow: 0 8px 24px rgba(0,0,0,0.45); }
-  .heart-msg.error { border-color: #d9534f; }
-  .heart-msg[hidden] { display: none; }
   .friend-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-  .friend-card { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; text-decoration: none; background: rgba(255,255,255,0.04); border: 1px solid rgba(241,230,208,0.1); transition: border-color 0.15s; }
-  .friend-card:hover { border-color: var(--accent); }
+  .friend-card { font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(241,230,208,0.1); transition: border-color 0.15s, background 0.15s; }
+  .friend-card:hover, .friend-card.active { border-color: var(--accent); }
+  .friend-card.active { background: rgba(217,154,78,0.08); }
+  .friend-card.active .friend-go { transform: rotate(90deg); }
   .friend-initial { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: rgba(217,154,78,0.18); color: var(--accent); font-weight: 700; }
   .friend-card-text { display: flex; flex-direction: column; min-width: 0; }
   .friend-card-text span { color: var(--cream-soft); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .friend-go { margin-left: auto; color: var(--accent); }
+  .friend-go { margin-left: auto; color: var(--accent); transition: transform 0.15s; }
 </style>

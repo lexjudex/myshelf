@@ -306,3 +306,103 @@ test('turning off a media type hides it from public pages and the public feed, b
   assert.deepEqual((await getItems(env)).map((e) => e.data.title), ['Heat']);
   await assert.rejects(saveSite(env, { title: 'S', types: [] }), /at least one/);
 });
+
+test('friends: comments — a public thread on a friend’s item, with replies and moderation', async () => {
+  const A = 'https://alex.example', B = 'https://bea.example', C = 'https://cy.example';
+  const alex = fakeEnv(), bea = fakeEnv(), cy = fakeEnv();
+  await saveSite(alex, { title: 'Alex Shelf', owner: 'Alex' });
+  await saveSite(bea, { title: 'Bea Shelf', owner: 'Bea' });
+  await saveSite(cy, { title: 'Cy Shelf', owner: 'Cy' });
+  const net = network({ [A]: alex, [B]: bea, [C]: cy });
+  await saveItem(bea, { item: { title: 'Dune', type: 'book', status: 'finished', rating: 5 }, body: '**Loved it.** The spice must flow.' });
+  await saveItem(bea, { item: { title: 'Diary', type: 'book', status: 'finished', visibility: 'private' }, body: 'secret' });
+  const duneUid = (await getItem(bea, 'book-dune')).uid;
+  const diaryUid = (await getItem(bea, 'book-diary')).uid;
+
+  // Strangers can't comment.
+  await assert.rejects(fed.commentOnFriend(cy, `${C}/api/friends`, { friendUrl: B, uid: duneUid, text: 'hi' }, net), /Friend not found/);
+
+  for (const [env, at] of [[alex, A], [cy, C]]) {
+    await fed.addFriend(env, `${at}/api/friends`, B, '', net);
+    const pending = (await fed.overview(bea, `${B}/api/friends`)).friends.find((f) => f.url === at);
+    await fed.acceptFriend(bea, `${B}/api/friends`, pending.id, net);
+  }
+
+  // The public feed carries the review text and an (empty) comment list.
+  let pub = await (await net(`${B}/federation/v1/shelf`)).json();
+  assert.equal(pub.items[0].review, '**Loved it.** The spice must flow.');
+  assert.deepEqual(pub.items[0].comments, []);
+
+  // Alex comments; Bea gets an inbox note; everyone sees it in the feed.
+  const { comment } = await fed.commentOnFriend(alex, `${A}/api/friends`, { friendUrl: B, uid: duneUid, text: '  Agreed!  ' }, net);
+  assert.equal(comment.text, 'Agreed!');
+  assert.equal(comment.authorUrl, A);
+  const note = (await fed.overview(bea, `${B}/api/friends`)).inbox.find((m) => m.kind === 'comment');
+  assert.equal(note.payload.text, 'Agreed!');
+  assert.equal(note.payload.item.slug, 'book-dune');
+  await fed.commentOnFriend(cy, `${C}/api/friends`, { friendUrl: B, uid: duneUid, text: 'Need to read this' }, net);
+  await fed.commentOwn(bea, `${B}/api/friends`, { slug: 'book-dune', text: 'Do it, Cy' });
+  pub = await (await net(`${B}/federation/v1/shelf`)).json();
+  assert.deepEqual(pub.items[0].comments.map((c) => [c.author, c.text]), [['Alex', 'Agreed!'], ['Cy', 'Need to read this'], ['Bea', 'Do it, Cy']]);
+  assert.equal(pub.items[0].comments[2].authorUrl, B);
+  assert.equal((await fed.itemComments(bea, `${B}/item/book-dune/`, 'book-dune')).length, 3);
+
+  // Private items, empty comments and made-up uids are refused.
+  await assert.rejects(fed.commentOnFriend(alex, `${A}/api/friends`, { friendUrl: B, uid: diaryUid, text: 'x' }, net), /Write|isn’t on this shelf/);
+  await assert.rejects(fed.commentOnFriend(alex, `${A}/api/friends`, { friendUrl: B, uid: duneUid, text: '   ' }, net), /Write something/);
+
+  // Cy can't delete Alex's comment; Alex can delete his own (and its unread note goes too).
+  await fed.deleteFriendComment(cy, `${C}/api/friends`, { friendUrl: B, commentId: comment.id }, net);
+  assert.equal((await fed.itemComments(bea, B, 'book-dune')).length, 3);
+  await fed.deleteFriendComment(alex, `${A}/api/friends`, { friendUrl: B, commentId: comment.id }, net);
+  assert.deepEqual((await fed.itemComments(bea, B, 'book-dune')).map((c) => c.author), ['Cy', 'Bea']);
+  assert.ok(!(await fed.overview(bea, `${B}/api/friends`)).inbox.some((m) => m.id === comment.id));
+
+  // Bea can delete anything on her items.
+  const cys = (await fed.itemComments(bea, B, 'book-dune'))[0];
+  await fed.deleteComment(bea, cys.id);
+  assert.deepEqual((await fed.itemComments(bea, B, 'book-dune')).map((c) => c.author), ['Bea']);
+});
+
+test('friends: a friend on an older MyShelf explains why a comment didn’t go through', async () => {
+  const A = 'https://a.example', B = 'https://b.example';
+  const a = fakeEnv(), b = fakeEnv();
+  await saveSite(b, { title: 'B', owner: 'Bo' });
+  const net = network({ [A]: a, [B]: b });
+  await fed.addFriend(a, `${A}/api/friends`, B, '', net);
+  await fed.acceptFriend(b, `${B}/api/friends`, (await fed.overview(b, `${B}/api/friends`)).friends[0].id, net);
+  const old = async (url, init) => (new URL(url).pathname === INBOX_PATH && JSON.parse(init.body).kind === 'comment'
+    ? Response.json({ error: 'Unknown message' }, { status: 400 }) : net(url, init));
+  await assert.rejects(fed.commentOnFriend(a, `${A}/api/friends`, { friendUrl: B, uid: crypto.randomUUID(), text: 'hi' }, old), /Bo’s MyShelf needs an update before it can get comments/);
+});
+
+test('friends: groups are private labels limited to current friends', async () => {
+  const A = 'https://a.example', B = 'https://b.example', C = 'https://c.example';
+  const a = fakeEnv(), b = fakeEnv(), c = fakeEnv();
+  const net = network({ [A]: a, [B]: b, [C]: c });
+  for (const [env, at] of [[b, B], [c, C]]) {
+    await fed.addFriend(a, `${A}/api/friends`, at, '', net);
+    await fed.acceptFriend(env, `${at}/api/friends`, (await fed.overview(env, `${at}/api/friends`)).friends[0].id, net);
+  }
+  await assert.rejects(fed.saveGroups(a, [{ name: '  ', members: [] }]), /needs a name/);
+  const { groups } = await fed.saveGroups(a, [{ name: 'Game night', members: [B, C, 'https://stranger.example', 'not a url'] }, { name: 'Book club', members: [C] }]);
+  assert.deepEqual(groups.map((g) => [g.name, g.members]), [['Game night', [B, C]], ['Book club', [C]]]);
+  assert.equal((await fed.overview(a, `${A}/api/friends`)).groups.length, 2);
+  // Removing a friend drops them from groups.
+  const cid = (await fed.overview(a, `${A}/api/friends`)).friends.find((f) => f.url === C).id;
+  await fed.removeFriend(a, `${A}/api/friends`, cid, net);
+  assert.deepEqual((await fed.getGroups(a)).map((g) => g.members), [[B], []]);
+});
+
+test('public friend shelf only answers for accepted friends', async () => {
+  const A = 'https://a.example', B = 'https://b.example';
+  const a = fakeEnv(), b = fakeEnv();
+  const net = network({ [A]: a, [B]: b });
+  await saveItem(b, { item: { title: 'Dune', type: 'book', status: 'finished' }, body: '' });
+  await saveItem(b, { item: { title: 'Secret', type: 'book', status: 'finished', visibility: 'friends' }, body: '' });
+  await assert.rejects(fed.publicFriendShelf(a, B, net), /Friend not found/);
+  await fed.addFriend(a, `${A}/api/friends`, B, '', net);
+  await fed.acceptFriend(b, `${B}/api/friends`, (await fed.overview(b, `${B}/api/friends`)).friends[0].id, net);
+  const { items } = await fed.publicFriendShelf(a, B, net);
+  assert.deepEqual(items.map((i) => i.title), ['Dune']);
+});

@@ -21,7 +21,9 @@ export const MAX_BODY = 32 * 1024;
 const MAX_SKEW_MS = 5 * 60 * 1000;
 
 // heart: { item: { uid }, on: true|false } — "I enjoyed this too" on one of the receiver's items (on: false takes it back).
-export const KINDS = ['friend-request', 'friend-accept', 'friend-remove', 'recommend', 'borrow-request', 'borrow-reply', 'heart'];
+// comment: { item: { uid }, text } — a comment on one of the receiver's items; the message id becomes the comment's id.
+// comment-delete: { commentId } — take back a comment you wrote.
+export const KINDS = ['friend-request', 'friend-accept', 'friend-remove', 'recommend', 'borrow-request', 'borrow-reply', 'heart', 'comment', 'comment-delete'];
 
 export async function signingString({ method, path, to, from, date, body }) {
   return ['myshelf-1', method.toUpperCase(), path, to, from, date, await sha256hex(body || '')].join('\n');

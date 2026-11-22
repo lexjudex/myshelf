@@ -10,7 +10,7 @@ class Stmt {
   }
   async first() { return this.db.prepare(this.sql).get(...this.#norm()) ?? null; }
   async all() { return { results: this.db.prepare(this.sql).all(...this.#norm()) }; }
-  async run() { this.db.prepare(this.sql).run(...this.#norm()); return { success: true }; }
+  async run() { const r = this.db.prepare(this.sql).run(...this.#norm()); return { success: true, meta: { changes: Number(r.changes) } }; }
 }
 
 export function fakeD1() {

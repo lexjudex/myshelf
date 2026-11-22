@@ -100,6 +100,20 @@ const MIGRATIONS = [
       )`,
     ],
   },
+  {
+    version: 5, // comments on your items, from friends (and your own replies)
+    sql: [
+      `CREATE TABLE IF NOT EXISTS comments (
+        id TEXT PRIMARY KEY,               -- a friend's message id, or a random id for your own replies
+        uid TEXT NOT NULL,                 -- your item's uid
+        from_url TEXT NOT NULL DEFAULT '', -- the friend's site; '' means you wrote it
+        author TEXT NOT NULL DEFAULT '',   -- their name when they wrote it (the friends list has the current one)
+        text TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS comments_uid ON comments (uid, created_at)`,
+    ],
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

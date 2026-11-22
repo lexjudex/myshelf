@@ -8,6 +8,7 @@
 // addresses runs out quickly, so we don't try.)
 import { getSite } from './site.js';
 import { HttpError } from './util.js';
+import { versionInfo } from './version.js';
 
 const API = 'https://api.github.com';
 
@@ -30,6 +31,17 @@ const firstLine = (s) => String(s || '').split('\n')[0];
 
 /** Where this site's repository stands against the one it was forked from. */
 export async function checkUpdates(env) {
+  return { ...(await check(env)), current: versionInfo() };
+}
+
+/** The version number in the original's package.json (blank if it can't be read). */
+async function upstreamVersion(env, upstream, branch) {
+  const res = await gh(env, `/repos/${upstream}/contents/package.json?ref=${encodeURIComponent(branch)}`).catch(() => null);
+  if (res?.status !== 200 || !res.data.content) return '';
+  try { return String(JSON.parse(atob(res.data.content.replace(/\s/g, ''))).version || ''); } catch { return ''; }
+}
+
+async function check(env) {
   const site = await getSite(env);
   const repo = repoOf(env, site);
   const canSync = Boolean(env.GITHUB_TOKEN);
@@ -54,8 +66,10 @@ export async function checkUpdates(env) {
     .filter((c) => (c.parents || []).length < 2) // skip merge commits; their branches' commits are listed
     .map((c) => ({ message: firstLine(c.commit?.message), date: c.commit?.committer?.date || c.commit?.author?.date || '' }))
     .reverse();
+  const behind = cmp.data.ahead_by > 0;
   return {
-    status: cmp.data.ahead_by > 0 ? 'behind' : 'up-to-date',
+    status: behind ? 'behind' : 'up-to-date',
+    latest: behind ? await upstreamVersion(env, upstream, upBranch) : '',
     repo, upstream, branch, canSync,
     behind: all.length || cmp.data.ahead_by || 0,
     changes: all.slice(0, 8),
@@ -66,7 +80,7 @@ export async function checkUpdates(env) {
 /** Pull in the original's new commits, like GitHub's "Sync fork → Update branch". */
 export async function syncUpdates(env) {
   if (!env.GITHUB_TOKEN) throw new HttpError(400, 'Add a GITHUB_TOKEN secret to your Worker to update from here.');
-  const now = await checkUpdates(env);
+  const now = await check(env);
   if (now.status === 'up-to-date') return { ok: true, message: 'Already up to date.' };
   if (now.status !== 'behind') throw new HttpError(400, `Can’t update right now (${now.status}).`);
 

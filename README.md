@@ -92,7 +92,16 @@ Friends are other people running their own MyShelf. There's no central server: y
    - **Ask to borrow** anything they've marked *I own a copy*. Saying yes marks it as lent on their shelf.
    - tap the **heart** on any of their items to say you enjoyed it too. They get a note in their inbox; tap again to take it back. (Your friend needs a copy of MyShelf with hearts, so ask them to update if it says otherwise.)
 
-**Friends page:** `/friends/` on your site (in the menu) shows your friends' latest public entries and links to their shelves. Only public items appear there, and your inbox and requests stay private in Manage. When you're signed in to Manage on that browser, each entry also gets a heart button; visitors never see it.
+**Friends page:** `/friends/` on your site (in the menu) shows *What Your Friends Are Up To*: your friends' latest public entries with their notes, plus their shelves. Click a friend to browse their shelf right there (**Visit their site** opens it). Visitors only see public items. When you're signed in to Manage on that browser, the page also shows you (and only you):
+- your **Inbox** at the top, with the same Accept / Lend / Add it buttons as Manage,
+- a heart button on each entry ("I enjoyed this too"),
+- comment boxes,
+- your **groups** as a filter,
+- friends' *Friends only* items when you open their shelf.
+
+**Comments:** friends can comment on each other's entries. A comment is stored on the site of the person whose entry it is. Anyone who can see the entry can read it, on the Friends page and on the item's own page. You can reply on your item's page and delete any comment on your items. Friends can delete their own comments.
+
+**Groups:** in **Manage → Friends → Groups**, sort friends into groups (like "Board game night"). Groups are private. They filter your Friends page, and in the Recommend dialog one click picks everyone in a group.
 
 **What friends can see:** your public items, your *Friends only* items, whether you own them, and whether they're available to borrow. They never see *Only me* items or who you've lent things to. Removing a friend tells their site to remove you too.
 
@@ -110,7 +119,7 @@ Friends are other people running their own MyShelf. There's no central server: y
   ```
   Then whenever you want the latest version: `git pull upstream main && git push`.
 
-Database changes in new versions apply themselves on the next page load.
+Database changes in new versions apply themselves on the next page load. **Manage → Settings → Updates** shows which version you're running (the number from `package.json`, plus the commit it was built from) and which version is available. What changed in each version is in [CHANGELOG.md](CHANGELOG.md).
 
 ## Optional: make the site private
 

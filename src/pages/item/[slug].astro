@@ -5,6 +5,9 @@ import CopyLink from '../../components/CopyLink.astro';
 import { getEntry, getShelves, fmtDate, renderBody } from '../../lib/items.js';
 import { inShelf } from '../../lib/sorting.js';
 import { TYPES, STATUS_LABEL, DETAIL_LABELS, HIDDEN_DETAILS, formatDetail, stars } from '../../lib/types.js';
+import { itemComments } from '../../../server/federation/index.js';
+import { threadHtml } from '../../scripts/friends-ui.js';
+import '../../styles/friends.css';
 
 const env = Astro.locals.runtime.env;
 const slug = Astro.params.slug || '';
@@ -23,6 +26,9 @@ const hasBody = Boolean(bodyHtml);
 const finished = d.status === 'finished' ? d.dateFinished : null;
 const thoughtsDate = finished || d.dateStarted || d.dateAdded;
 const expansions = d.type === 'boardgame' && Array.isArray(d.expansions) ? d.expansions : [];
+// Comments from friends (and your replies). Visitors see them; signed in, you can reply and delete.
+let comments = [];
+try { comments = await itemComments(env, Astro.url.href, slug); } catch {}
 ---
 <Base title={d.title} description={d.description}>
   <a class="back-link" id="back-link" href={`/type/${d.type}/`} data-fallback={`/type/${d.type}/`}>
@@ -92,6 +98,11 @@ const expansions = d.type === 'boardgame' && Array.isArray(d.expansions) ? d.exp
       )}
 
 
+      <section class="comments-section" id="comments" hidden={comments.length === 0}>
+        <h2>Comments</h2>
+        <Fragment set:html={threadHtml(comments, { ownSlug: slug, open: true })} />
+      </section>
+
       {d.description && (
         <section class="synopsis">
           <h2>About</h2>
@@ -105,9 +116,32 @@ const expansions = d.type === 'boardgame' && Array.isArray(d.expansions) ? d.exp
       </p>
     </div>
   </article>
+  <p class="fr-toast" id="fr-toast" role="status" hidden></p>
 </Base>
 
 <script>
+  // Comments: signed in on this browser, you can reply and delete (the section shows even when it's empty).
+  import { token, api, bindThreads } from '../../scripts/friends-ui.js';
+  const section = document.getElementById('comments');
+  const toastEl = document.getElementById('fr-toast');
+  let toastTimer;
+  const say = (msg, kind = 'ok') => {
+    toastEl.textContent = msg;
+    toastEl.classList.toggle('error', kind === 'error');
+    toastEl.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (toastEl.hidden = true), 6000);
+  };
+  if (section && token()) {
+    api('ping').then(() => {
+      section.hidden = false;
+      bindThreads(section, { me: location.origin, toast: say });
+      if (location.hash === '#comments') section.scrollIntoView({ block: 'start' });
+    }).catch(() => bindThreads(section, { toast: say }));
+  } else if (section) {
+    bindThreads(section, { toast: say });
+  }
+
   // Go back to wherever the item was opened from (keeps that page's scroll position).
   // Opened directly (shared link, new tab)? Fall back to this item's media page.
   const back = document.getElementById('back-link');
