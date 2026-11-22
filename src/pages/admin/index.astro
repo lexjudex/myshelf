@@ -135,7 +135,6 @@ const typesJson = JSON.stringify(TYPES);
                 {TYPE_KEYS.map((t) => <label class="check"><input type="checkbox" name="types" value={t} checked /> <span>{TYPES[t].plural}</span></label>)}
               </div>
             </fieldset>
-            <label class="check span2"><input type="checkbox" name="ownedDefault" /> <span>Check “I own a copy” on new entries <span class="muted small">(you can still uncheck it for any one entry)</span></span></label>
             <div class="row span2"><button class="btn primary" type="submit">Save</button><span id="site-msg" class="muted small"></span></div>
           </form>
           <h2>Updates</h2>

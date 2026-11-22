@@ -344,17 +344,10 @@ async function loadSite() {
     const { site } = await api('site');
     for (const k of ['title', 'tagline', 'owner', 'url', 'source']) siteForm[k].value = site[k] || '';
     $$('input[name="types"]', siteForm).forEach((cb) => (cb.checked = site.types.includes(cb.value)));
-    applyOwnedDefault(site.ownedDefault);
     applyTypes(site.types);
   } catch (err) {
     $('#site-msg').textContent = err.message;
   }
-}
-
-// The add/edit dialog (admin.js) reads this when it opens a new entry.
-function applyOwnedDefault(on) {
-  siteForm.ownedDefault.checked = on === true;
-  $('#admin').dataset.ownedDefault = on === true ? '1' : '';
 }
 
 // Hide turned-off media types around the admin page (this page is built ahead of time, so it starts with all of them).
@@ -429,13 +422,11 @@ siteForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const body = Object.fromEntries(['title', 'tagline', 'owner', 'url', 'source'].map((k) => [k, siteForm[k].value]));
   body.types = $$('input[name="types"]:checked', siteForm).map((cb) => cb.value);
-  body.ownedDefault = siteForm.ownedDefault.checked;
   if (!body.types.length) { $('#site-msg').textContent = 'Keep at least one kind of media turned on.'; return; }
   try {
     const { site } = await api('site', { method: 'POST', body });
     siteForm.url.value = site.url || '';
     siteForm.source.value = site.source || '';
-    applyOwnedDefault(site.ownedDefault);
     applyTypes(site.types);
     $('#site-msg').textContent = 'Saved. Your public pages show it right away.';
   } catch (err) {

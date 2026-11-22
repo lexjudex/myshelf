@@ -29,7 +29,6 @@ function cleanTypes(value) {
 }
 
 export async function saveSite(env, input = {}) {
-  const current = await getSite(env);
   if (Array.isArray(input.types) && !TYPE_KEYS.some((t) => input.types.includes(t))) {
     throw new HttpError(400, 'Keep at least one kind of media turned on.');
   }
@@ -43,9 +42,7 @@ export async function saveSite(env, input = {}) {
     // if you run a modified copy, point this at your own repository.
     source: cleanLink(input.source) || defaults.source,
     // Which kinds of media this site shows. Turning one off hides it everywhere public; entries are kept.
-    types: input.types === undefined ? current.types : cleanTypes(input.types),
-    // New entries start with "I own a copy" checked (editor default only; existing entries are untouched).
-    ownedDefault: input.ownedDefault === undefined ? current.ownedDefault === true : input.ownedDefault === true,
+    types: input.types === undefined ? (await getSite(env)).types : cleanTypes(input.types),
   };
   await setSetting(env, 'site', site);
   return site;
