@@ -4,12 +4,13 @@ import Shelf from '../components/Shelf.astro';
 import JournalCard from '../components/JournalCard.astro';
 import CopyLink from '../components/CopyLink.astro';
 import { getSite } from '../../server/site.js';
+import { getDecor } from '../../server/decor.js';
 import { getItems, getShelves } from '../lib/items.js';
 import { sortShelf, inShelf, showsOnHome } from '../lib/sorting.js';
 import { TYPES, TYPE_KEYS } from '../lib/types.js';
 
 const env = Astro.locals.runtime.env;
-const [items, shelves, site] = await Promise.all([getItems(env), getShelves(env), getSite(env)]);
+const [items, shelves, site, decor] = await Promise.all([getItems(env), getShelves(env), getSite(env), getDecor(env)]);
 // "My Ramblings": the entry marked Featured in the editor, or else the most recent journal entry
 // (items are already sorted newest first).
 const hasNotes = (e) => e.body && e.body.trim();
@@ -21,6 +22,15 @@ const latestThought = items.find((e) => e.data.featured === true && hasNotes(e))
     <p>{site.tagline}</p>
   </section>
 
+  {/* Shelf decorations (Manage → Settings): up to three images standing on top of the bookcase. */}
+  {decor.length > 0 && (
+    <div class="bookcase-top" aria-hidden="true">
+      {decor.map((d) => (
+        <img class:list={['decor', `decor-${d.size}`, `decor-${d.position}`, { flip: d.flip }]} src={d.image} alt="" decoding="async"
+          style={d.aspect ? `aspect-ratio:${d.aspect}` : undefined} />
+      ))}
+    </div>
+  )}
   <div class="bookcase scroll-motion">
     {shelves.filter(showsOnHome).map((s) => {
       const list = sortShelf(items.filter((e) => inShelf(e.data, s)), s);

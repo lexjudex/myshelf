@@ -494,3 +494,30 @@ test('removeFromCollection: drops only that collection and keeps notes', async (
   assert.equal(row.body, 'Spice.');
   assert.deepEqual((await getItem(env, b.slug)).item.collections, ['classics']);
 });
+
+test('shelf decorations: PNG/WebP only, up to three, removed images are deleted, kept in backups', async () => {
+  const { addDecor, saveDecor, getDecor } = await import('../server/decor.js');
+  const { exportBackup, restoreBackup } = await import('../server/backup.js');
+  const { fakeEnv } = await import('./fake-cloudflare.mjs');
+  const env = fakeEnv();
+  // 1×1 transparent PNG
+  const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='), (c) => c.charCodeAt(0)).buffer;
+  await assert.rejects(addDecor(env, new TextEncoder().encode('GIF89a nope').buffer), /PNG/);
+  await addDecor(env, png);
+  await addDecor(env, png);
+  const list = await addDecor(env, png);
+  assert.equal(list.length, 3);
+  assert.deepEqual(list.map((d) => d.position), ['left', 'right', 'center']);
+  assert.ok(list.every((d) => /^\/img\/decor-[a-z0-9-]+\.png$/.test(d.image) && d.size === 'medium' && d.aspect === 1));
+  await assert.rejects(addDecor(env, png), /up to 3/);
+  // Bad values are cleaned; outside images aren't accepted.
+  const saved = await saveDecor(env, [{ ...list[0], size: 'huge', position: 'nowhere', flip: true }, list[1], { image: 'https://evil.example/x.png' }]);
+  assert.deepEqual(saved.map((d) => [d.size, d.position, d.flip]), [['medium', 'center', true], ['medium', 'right', false]]);
+  assert.equal(env.COVERS._store.has(list[2].image.slice(5)), false); // the removed one is gone from storage
+  assert.equal(env.COVERS._store.has(list[0].image.slice(5)), true);
+  const backup = await exportBackup(env, 'https://old.example');
+  assert.equal(backup.decor.length, 2);
+  const fresh = fakeEnv();
+  await restoreBackup(fresh, backup);
+  assert.equal((await getDecor(fresh)).length, 2);
+});

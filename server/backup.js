@@ -6,13 +6,14 @@ import { HttpError } from './util.js';
 import { listItems, putItems, setSetting, getItemByUid } from './db.js';
 import { getCollections, getArrangements, cleanCollections } from './settings.js';
 import { getSite, saveSite } from './site.js';
+import { getDecor, cleanDecor } from './decor.js';
 import { normalizeItem } from './markdown.js';
 import { assertSlug } from './paths.js';
 import { storedCoverName, IMG_PREFIX, EXT, MIME, aspectOf } from './covers.js';
 
 export async function exportBackup(env, origin) {
-  const [items, collections, arrangements, site] = await Promise.all([
-    listItems(env), getCollections(env), getArrangements(env), getSite(env),
+  const [items, collections, arrangements, site, decor] = await Promise.all([
+    listItems(env), getCollections(env), getArrangements(env), getSite(env), getDecor(env),
   ]);
   return {
     format: 'myshelf-backup',
@@ -23,6 +24,7 @@ export async function exportBackup(env, origin) {
     items: items.sort((a, b) => a.slug.localeCompare(b.slug)),
     collections,
     arrangements,
+    decor,
   };
 }
 
@@ -44,6 +46,8 @@ export async function restoreBackup(env, data) {
   if (Array.isArray(data.collections)) await setSetting(env, 'collections', cleanCollections(data.collections));
   if (data.arrangements && typeof data.arrangements === 'object') await setSetting(env, 'arrangements', data.arrangements);
   if (data.site && typeof data.site === 'object') await saveSite(env, data.site);
+  // Decorations: the list now, the images with the covers (restoreCovers).
+  if (Array.isArray(data.decor)) await setSetting(env, 'decor', cleanDecor(data.decor));
   return { items: rows.length };
 }
 
@@ -67,7 +71,10 @@ export function cleanOrigin(value) {
 export async function restoreCovers(env, { origin, offset = 0, limit = 8 }, fetcher = fetch) {
   origin = cleanOrigin(origin);
   const items = (await listItems(env)).sort((a, b) => a.slug.localeCompare(b.slug));
-  const todo = items.flatMap((r) => localCoverPaths(r.item).map((path) => ({ row: r, path })));
+  const todo = [
+    ...items.flatMap((r) => localCoverPaths(r.item).map((path) => ({ row: r, path }))),
+    ...(await getDecor(env)).map((d) => ({ row: null, path: d.image })), // shelf decorations (always /img/ paths)
+  ];
   const slice = todo.slice(offset, offset + limit);
   let copied = 0, failed = 0;
   const changed = new Map();

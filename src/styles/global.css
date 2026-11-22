@@ -80,6 +80,36 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 20px 60px; }
 .eyebrow a { text-decoration: none; }
 .lede { color: var(--cream-soft); font-size: 1.05rem; max-width: 60ch; }
 
+/* ───────── Decorations on top of the bookcase (main Shelves page) ───────── */
+.bookcase-top { position: relative; height: var(--decor-h, 150px); margin-top: 8px; pointer-events: none; }
+.bookcase-top:has(.decor-large) { --decor-h: 160px; }
+.bookcase-top:not(:has(.decor-large)):has(.decor-medium) { --decor-h: 116px; }
+.bookcase-top:not(:has(.decor-large, .decor-medium)) { --decor-h: 76px; }
+.decor {
+  position: absolute; bottom: -3px; /* stands on the top board */
+  width: auto; max-width: 40%; object-fit: contain; object-position: bottom;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 6px 6px rgba(0,0,0,0.55));
+  user-select: none; -webkit-user-drag: none;
+}
+.decor.flip { transform: translateX(-50%) scaleX(-1); }
+.decor-small { height: 70px; }
+.decor-medium { height: 110px; }
+.decor-large { height: 150px; }
+.decor-left { left: 10%; }
+.decor-left-center { left: 30%; }
+.decor-center { left: 50%; }
+.decor-right-center { left: 70%; }
+.decor-right { left: 90%; }
+@media (max-width: 760px) {
+  .bookcase-top:has(.decor-large) { --decor-h: 106px; }
+  .bookcase-top:not(:has(.decor-large)):has(.decor-medium) { --decor-h: 82px; }
+  .bookcase-top:not(:has(.decor-large, .decor-medium)) { --decor-h: 56px; }
+  .decor-small { height: 52px; }
+  .decor-medium { height: 76px; }
+  .decor-large { height: 100px; }
+}
+
 /* ───────── The bookcase ───────── */
 .bookcase {
   /* rounded frame: interior on the padding box, wood gradient on the border box */

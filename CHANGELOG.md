@@ -11,6 +11,7 @@ The version number lives in `package.json` and shows in **Manage → Settings �
 - **Inbox on the Friends page.** Signed in, your inbox sits at the top with all its buttons. You can hide it.
 - **Friend groups.** Private groups in Manage → Friends. They filter the Friends page and fill in the Recommend dialog.
 - **Browse a friend's shelf on the Friends page.** Click a friend under *Their shelves*. Signed in, you see their friends-only items, hearts and *Ask to borrow*. In Manage, *View shelf* now opens their site.
+- **Shelf decorations.** In Settings, add up to three PNGs (a framed photo, a teddy bear, a mini figure…) that stand on top of the bookcase on the main Shelves page. Pick a spot, a size, and whether to mirror each one. Decorations are included in backups.
 - **Edit from the arrange dialog.** A pencil on each item opens the editor without leaving the page.
 - "Lately" on the Friends page is now **What Your Friends Are Up To**.
 - **Version numbers.** Settings shows the version you're running and the version available. `/.well-known/myshelf` includes it too.
