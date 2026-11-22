@@ -277,12 +277,12 @@ function updateCreatorLabel() {
   for (const opt of form.status.options) opt.textContent = words[opt.value] || opt.textContent;
 }
 
-// ───────── remember the last status, dates and collections used per type (new entries only) ─────────
+// ───────── remember the last status, dates, collections and "I own a copy" used per type (new entries only) ─────────
 const LAST_KEY = 'myshelf_last_settings';
 const readLast = () => { try { return JSON.parse(localStorage.getItem(LAST_KEY)) || {}; } catch { return {}; } };
 function rememberSettings(item) {
   const all = readLast();
-  all[item.type] = { status: item.status || '', dateStarted: item.dateStarted || '', dateFinished: item.dateFinished || '', collections: item.collections || [] };
+  all[item.type] = { status: item.status || '', dateStarted: item.dateStarted || '', dateFinished: item.dateFinished || '', collections: item.collections || [], owned: item.owned === true };
   try { localStorage.setItem(LAST_KEY, JSON.stringify(all)); } catch {}
 }
 function forgetSettings(type) {
@@ -301,6 +301,7 @@ function withLastSettings(item) {
       dateStarted: item.dateStarted || last.dateStarted,
       dateFinished: item.dateFinished || last.dateFinished,
       collections: item.collections?.length ? item.collections : last.collections,
+      owned: item.owned === true || last.owned === true,
     },
   };
 }
@@ -310,6 +311,7 @@ $('#editor-forget').addEventListener('click', () => {
   form.dateStarted.value = '';
   form.dateFinished.value = '';
   renderCollectionChecks([]);
+  form.owned.checked = false;
   $('#editor-remembered').hidden = true;
 });
 
