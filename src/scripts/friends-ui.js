@@ -212,25 +212,30 @@ export function inboxHtml(inbox, friends, TYPES) {
       if (p.text) body += `<p class="inbox-note">“${esc(p.text)}”</p>`;
       actions = `${it.visibility === 'public' && it.slug ? `<a class="btn ghost small" href="/item/${esc(it.slug)}/#comments" target="_blank">Reply</a>` : ''}
         <button class="btn ghost small danger" data-inbox-del-comment="${esc(p.commentId || m.id)}" title="Remove this comment from your item">Delete comment</button>`;
+    } else if (m.kind === 'comment-reply') {
+      const it = p.item || {};
+      const author = p.author || 'Someone';
+      const whose = author === m.fromName ? 'their' : `${esc(m.fromName)}’s`;
+      const title = it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title);
+      body = `<span class="inbox-item">${thumb(TYPES, it.cover, it.title, it.type)}<span><strong>${esc(author)}</strong> also commented on ${whose} <strong>${title}</strong></span></span>`;
+      if (p.text) body += `<p class="inbox-note">“${esc(p.text)}”</p>`;
+      if (it.url) actions = `<a class="btn ghost small" href="${esc(it.url)}" target="_blank" rel="noopener">View thread</a>`;
     } else if (m.kind === 'borrow-reply') {
       body = `${who} ${p.answer === 'yes' ? 'said <strong>yes</strong> to' : 'can’t lend you'} <strong>${esc(p.title)}</strong>${p.answer === 'yes' ? '.' : ' right now.'}`;
     }
     return `<li class="inbox-row${m.status === 'unread' ? ' unread' : ''}">
-      <div class="inbox-text">${body} ${when}${m.kind === 'comment' ? '' : note}</div>
-      <div class="inbox-actions">${actions}${done ? `<span class="muted small">${done}</span>` : ''}</div>
+      <div class="inbox-text">${body} ${when}${['comment', 'comment-reply'].includes(m.kind) ? '' : note}</div>
+      <div class="inbox-actions">${actions}${done ? `<span class="muted small">${done}</span>` : ''}
+        <span class="inbox-ctls">
+          ${open ? `<button type="button" class="inbox-ctl" data-inbox-mark="${esc(m.id)}" data-to="${m.status === 'unread' ? 'read' : 'unread'}" title="${m.status === 'unread' ? 'Mark as read' : 'Mark as unread'}" aria-label="${m.status === 'unread' ? 'Mark as read' : 'Mark as unread'}"><span class="dot${m.status === 'unread' ? ' on' : ''}"></span></button>` : ''}
+          <button type="button" class="inbox-ctl" data-inbox-del="${esc(m.id)}" title="Delete this notification" aria-label="Delete this notification">✕</button>
+        </span>
+      </div>
     </li>`;
   }).join('');
 }
 
-/** Mark messages that need no answer as read once they've been seen. Returns how many are still unread. */
-export function markSeen(inbox) {
-  const seen = inbox.filter((m) => m.status === 'unread' && !['friend-request', 'borrow-request'].includes(m.kind));
-  for (const m of seen) {
-    api('friends', { method: 'POST', body: { action: 'mark', id: m.id, status: 'read' } }).catch(() => {});
-    m.status = 'read';
-  }
-  return inbox.filter((m) => m.status === 'unread').length;
-}
+// Messages stay unread until you mark them (the dot on each one, or "Mark all read").
 
 // ───────── a friend's shelf ─────────
 
@@ -315,6 +320,48 @@ export function bindFriendActions(root, { toast, reload, onAddRec, inbox = () =>
     if (addRec) {
       const m = inbox().find((x) => x.id === addRec.dataset.addRec);
       return onAddRec(m?.payload?.item || {});
+    }
+
+    const mark = e.target.closest('[data-inbox-mark]');
+    if (mark) {
+      mark.disabled = true;
+      try {
+        await api('friends', { method: 'POST', body: { action: 'mark', id: mark.dataset.inboxMark, status: mark.dataset.to } });
+        await reload();
+      } catch (err) {
+        mark.disabled = false;
+        toast(err.message, 'error');
+      }
+      return;
+    }
+
+    const delMsg = e.target.closest('[data-inbox-del]');
+    if (delMsg) {
+      if (!delMsg.classList.contains('confirm')) {
+        delMsg.classList.add('confirm');
+        delMsg.textContent = 'Delete?';
+        setTimeout(() => { delMsg.classList.remove('confirm'); delMsg.textContent = '✕'; }, 4000);
+        return;
+      }
+      delMsg.disabled = true;
+      try {
+        await api('friends', { method: 'POST', body: { action: 'delete-message', id: delMsg.dataset.inboxDel } });
+        await reload();
+      } catch (err) {
+        delMsg.disabled = false;
+        toast(err.message, 'error');
+      }
+      return;
+    }
+
+    if (e.target.closest('[data-inbox-all-read]')) {
+      try {
+        await api('friends', { method: 'POST', body: { action: 'mark-all-read' } });
+        await reload();
+      } catch (err) {
+        toast(err.message, 'error');
+      }
+      return;
     }
 
     const delComment = e.target.closest('[data-inbox-del-comment]');

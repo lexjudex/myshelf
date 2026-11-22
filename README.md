@@ -99,7 +99,9 @@ Friends are other people running their own MyShelf. There's no central server: y
 - your **groups** as a filter,
 - friends' *Friends only* items when you open their shelf.
 
-**Comments:** friends can comment on each other's entries. A comment is stored on the site of the person whose entry it is. Anyone who can see the entry can read it, on the Friends page and on the item's own page. You can reply on your item's page and delete any comment on your items. Friends can delete their own comments.
+**Comments:** friends can comment on each other's entries. A comment is stored on the site of the person whose entry it is. Anyone who can see the entry can read it, on the Friends page and on the item's own page. You can reply on your item's page and delete any comment on your items. Friends can delete their own comments. When someone adds to a thread, everyone who commented there before gets an inbox note.
+
+**Inbox:** each notification has a dot to mark it read or unread and a ✕ to delete it. **Mark all read** and **Clear inbox** handle everything at once.
 
 **Groups:** in **Manage → Friends → Groups**, sort friends into groups (like "Board game night"). Groups are private. They filter your Friends page, and in the Recommend dialog one click picks everyone in a group.
 

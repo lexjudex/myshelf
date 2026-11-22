@@ -174,7 +174,7 @@ async function send(env, requestUrl, toUrl, kind, fields, fetcher = fetch) {
 // ───────── inbound ─────────
 
 /** POST /federation/v1/inbox */
-export async function receive(env, request, fetcher = fetch) {
+export async function receive(env, request, fetcher = fetch, { waitUntil = null } = {}) {
   const body = await request.text();
   if (body.length > MAX_BODY) throw new HttpError(413, 'Message too large');
   let msg;
@@ -304,6 +304,9 @@ export async function receive(env, request, fetcher = fetch) {
         id: msg.id, from, kind: 'comment',
         payload: { text, commentId: msg.id, item: { uid: row.uid, slug: row.slug, title: it.title, type: it.type, creator: it.creator || '', cover: it.cover || '', visibility: it.visibility || 'public' } },
       });
+      // Let everyone else in the thread know (in the background when the platform allows it).
+      const work = notifyThread(env, request.url, row, { id: msg.id, author, authorUrl: from, text }, fetcher);
+      if (waitUntil) waitUntil(work); else await work;
     }
     return { ok: true, comment: { id: msg.id, author, authorUrl: from, text, createdAt: t } };
   }
@@ -314,6 +317,21 @@ export async function receive(env, request, fetcher = fetch) {
     // Only the friend who wrote a comment can take it back; its unread inbox note goes with it.
     const res = await DB.prepare('DELETE FROM comments WHERE id = ? AND from_url = ?').bind(id, from).run();
     if (res.meta?.changes) await DB.prepare(`DELETE FROM inbox WHERE id = ? AND kind = 'comment' AND status = 'unread'`).bind(id).run();
+    return { ok: true };
+  }
+
+  if (msg.kind === 'comment-reply') {
+    // From a friend: someone added to a thread on one of their items that you'd commented in.
+    const it = msg.item || {};
+    const text = str(msg.text, MAX_COMMENT);
+    if (!text || !str(it.title, 200)) throw new HttpError(400, 'Incomplete reply notice');
+    await addInbox(env, {
+      id: msg.id, from, kind: 'comment-reply',
+      payload: {
+        text, commentId: str(msg.commentId, 40), author: str(msg.author, 80), authorUrl: safeUrl(msg.authorUrl),
+        item: { uid: str(it.uid, 40), title: str(it.title, 200), type: str(it.type, 20), cover: safeUrl(it.cover), url: safeUrl(it.url) },
+      },
+    });
     return { ok: true };
   }
 
@@ -580,9 +598,26 @@ export async function clearInbox(env) {
   return { ok: true, cleared: res.meta?.changes ?? 0 };
 }
 
+/** Delete one inbox message. */
+export async function deleteMessage(env, id) {
+  await inboxById(env, id);
+  const DB = await ensureSchema(env);
+  await DB.prepare('DELETE FROM inbox WHERE id = ?').bind(String(id)).run();
+  return { ok: true };
+}
+
+/** Mark every unread message as read. */
+export async function markAllRead(env) {
+  const DB = await ensureSchema(env);
+  await DB.prepare(`UPDATE inbox SET status = 'read' WHERE status = 'unread'`).run();
+  return { ok: true };
+}
+
 export async function markMessage(env, id, status) {
   if (!['read', 'unread', 'done'].includes(status)) throw new HttpError(400, 'Unknown status');
-  await inboxById(env, id);
+  const msg = await inboxById(env, id);
+  // An answered request (accepted / declined) keeps its answer.
+  if (!['read', 'unread'].includes(msg.status)) return { ok: true, status: msg.status };
   await setInboxStatus(env, id, status);
   return { ok: true };
 }
@@ -755,7 +790,7 @@ export async function itemComments(env, requestUrl, slug) {
 }
 
 /** Reply on one of your own items. */
-export async function commentOwn(env, requestUrl, { slug, text }) {
+export async function commentOwn(env, requestUrl, { slug, text }, fetcher = fetch) {
   const row = await getItem(env, String(slug || ''));
   if (!row) throw new HttpError(404, 'Item not found');
   const t = str(text, MAX_COMMENT);
@@ -763,7 +798,33 @@ export async function commentOwn(env, requestUrl, { slug, text }) {
   const DB = await ensureSchema(env);
   const id = crypto.randomUUID();
   await DB.prepare(`INSERT INTO comments (id, uid, from_url, author, text, created_at) VALUES (?, ?, '', '', ?, ?)`).bind(id, row.uid, t, now()).run();
-  return { comment: (await itemComments(env, requestUrl, row.slug)).find((c) => c.id === id) };
+  const comment = (await itemComments(env, requestUrl, row.slug)).find((c) => c.id === id);
+  await notifyThread(env, requestUrl, row, comment, fetcher);
+  return { comment };
+}
+
+/**
+ * Someone added a comment on one of your items: tell every friend who has commented there before (except
+ * whoever just wrote). You (the owner) get the regular inbox note instead. Unreachable sites are skipped.
+ */
+async function notifyThread(env, requestUrl, row, comment, fetcher = fetch) {
+  const DB = await ensureSchema(env);
+  const { results } = await DB.prepare(`SELECT DISTINCT from_url FROM comments WHERE uid = ? AND from_url != ''`).bind(row.uid).all();
+  const targets = (results || []).map((r) => r.from_url).filter((u) => u !== comment.authorUrl);
+  if (!targets.length) return;
+  const origin = await selfOrigin(env, requestUrl);
+  const it = row.item;
+  const pub = (it.visibility || 'public') === 'public';
+  const item = {
+    uid: row.uid, title: it.title, type: it.type,
+    cover: it.cover?.startsWith('/') ? origin + it.cover : it.cover || '',
+    url: pub ? `${origin}/item/${row.slug}/#comments` : origin,
+  };
+  await Promise.allSettled(targets.map(async (url) => {
+    const f = await friendByUrl(env, url);
+    if (f?.status !== 'accepted') return; // only friends get notices
+    await send(env, requestUrl, url, 'comment-reply', { item, commentId: comment.id, author: comment.author, authorUrl: comment.authorUrl, text: comment.text }, fetcher);
+  }));
 }
 
 /** Delete any comment on your items (yours or a friend's). */

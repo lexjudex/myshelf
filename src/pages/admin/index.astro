@@ -100,7 +100,10 @@ const typesJson = JSON.stringify(TYPES);
           <p class="muted">Connect with friends who run their own MyShelf. Friends can see items you mark <em>Friends only</em>, send you recommendations, comment on your notes, and ask to borrow things you own. See what they’re up to (and browse their shelves) on your <a href="/friends/">Friends page</a>.</p>
           <div class="inbox-head">
             <h3>Inbox</h3>
-            <button id="inbox-clear" class="btn ghost small" type="button" hidden>Clear inbox</button>
+            <span class="inbox-head-actions">
+              <button id="inbox-all-read" class="btn ghost small" type="button" data-inbox-all-read hidden>Mark all read</button>
+              <button id="inbox-clear" class="btn ghost small" type="button" hidden>Clear inbox</button>
+            </span>
           </div>
           <ul id="inbox-list" class="inbox-list"></ul>
           <h3>Your friends</h3>

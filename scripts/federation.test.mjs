@@ -406,3 +406,63 @@ test('public friend shelf only answers for accepted friends', async () => {
   const { items } = await fed.publicFriendShelf(a, B, net);
   assert.deepEqual(items.map((i) => i.title), ['Dune']);
 });
+
+test('friends: everyone in a comment thread hears about new comments', async () => {
+  const A = 'https://alex.example', B = 'https://bea.example', C = 'https://cy.example';
+  const alex = fakeEnv(), bea = fakeEnv(), cy = fakeEnv();
+  await saveSite(alex, { title: 'Alex Shelf', owner: 'Alex' });
+  await saveSite(bea, { title: 'Bea Shelf', owner: 'Bea' });
+  await saveSite(cy, { title: 'Cy Shelf', owner: 'Cy' });
+  const net = network({ [A]: alex, [B]: bea, [C]: cy });
+  await saveItem(bea, { item: { title: 'Dune', type: 'book', status: 'finished' }, body: 'Great.' });
+  const uid = (await getItem(bea, 'book-dune')).uid;
+  for (const [env, at] of [[alex, A], [cy, C]]) {
+    await fed.addFriend(env, `${at}/api/friends`, B, '', net);
+    const pending = (await fed.overview(bea, `${B}/api/friends`)).friends.find((f) => f.url === at);
+    await fed.acceptFriend(bea, `${B}/api/friends`, pending.id, net);
+  }
+  const replies = async (env, at) => (await fed.overview(env, `${at}/api/friends`)).inbox.filter((m) => m.kind === 'comment-reply');
+
+  // First comment: nobody else in the thread yet.
+  await fed.commentOnFriend(alex, `${A}/api/friends`, { friendUrl: B, uid, text: 'So good' }, net);
+  assert.equal((await replies(alex, A)).length, 0);
+  // Cy joins: Alex hears about it, Cy doesn't hear about himself.
+  await fed.commentOnFriend(cy, `${C}/api/friends`, { friendUrl: B, uid, text: 'Agreed' }, net);
+  let a = await replies(alex, A);
+  assert.equal(a.length, 1);
+  assert.equal(a[0].payload.author, 'Cy');
+  assert.equal(a[0].payload.text, 'Agreed');
+  assert.equal(a[0].payload.item.url, `${B}/item/book-dune/#comments`);
+  assert.equal(a[0].fromName, 'Bea');
+  assert.equal((await replies(cy, C)).length, 0);
+  // Bea replies on her own item: both hear about it.
+  await fed.commentOwn(bea, `${B}/api/friends`, { slug: 'book-dune', text: 'Thanks both' }, net);
+  a = await replies(alex, A);
+  assert.equal(a.length, 2);
+  assert.ok(a.some((m) => m.payload.author === 'Bea' && m.payload.text === 'Thanks both'));
+  assert.equal((await replies(cy, C)).length, 1);
+});
+
+test('inbox: delete one message, mark read and unread, mark all read', async () => {
+  const A = 'https://a.example', B = 'https://b.example';
+  const a = fakeEnv(), b = fakeEnv();
+  const net = network({ [A]: a, [B]: b });
+  await saveItem(b, { item: { title: 'Dune', type: 'book', status: 'finished' }, body: '' });
+  await fed.addFriend(a, `${A}/api/friends`, B, '', net);
+  const fid = (await fed.overview(b, `${B}/api/friends`)).friends[0].id;
+  await fed.acceptFriend(b, `${B}/api/friends`, fid, net);
+  await fed.recommend(b, `${B}/api/friends`, { slug: 'book-dune', friendIds: [fid] }, net);
+  let inbox = (await fed.overview(a, `${A}/api/friends`)).inbox;
+  assert.equal(inbox.length, 2);
+  const rec = inbox.find((m) => m.kind === 'recommend');
+  await fed.markMessage(a, rec.id, 'read');
+  assert.equal((await fed.overview(a, `${A}/api/friends`)).unread, 1);
+  await fed.markMessage(a, rec.id, 'unread');
+  assert.equal((await fed.overview(a, `${A}/api/friends`)).unread, 2);
+  await fed.markAllRead(a);
+  assert.equal((await fed.overview(a, `${A}/api/friends`)).unread, 0);
+  await fed.deleteMessage(a, rec.id);
+  inbox = (await fed.overview(a, `${A}/api/friends`)).inbox;
+  assert.deepEqual(inbox.map((m) => m.kind), ['friend-accept']);
+  await assert.rejects(fed.deleteMessage(a, rec.id), /not found/);
+});

@@ -122,3 +122,13 @@
 .item-page .comments-section .comment-form textarea { background: #fffaf0; color: var(--ink); border-color: #d5c6a8; }
 .item-page .comments-section .comments { padding-bottom: 2px; }
 .item-page .comments-section .comment { padding: 8px 0; border-bottom: 1px solid #e2d6bd; }
+
+/* Per-message controls: read/unread dot and delete */
+.inbox-ctls { display: inline-flex; gap: 2px; margin-left: 4px; }
+.inbox-ctl { font: inherit; font-size: 0.78rem; font-weight: 700; min-width: 28px; height: 28px; padding: 0 6px; display: inline-grid; place-items: center; border-radius: 6px; cursor: pointer; background: transparent; border: 1px solid transparent; color: var(--cream-soft); }
+.inbox-ctl:hover { border-color: rgba(241,230,208,0.22); color: var(--cream); }
+.inbox-ctl.confirm { background: var(--danger); color: #fff; border-color: var(--danger); }
+.inbox-ctl .dot { width: 9px; height: 9px; border-radius: 50%; border: 2px solid currentColor; }
+.inbox-ctl .dot.on { background: var(--accent); border-color: var(--accent); }
+.inbox-ctl:disabled { opacity: 0.5; cursor: wait; }
+.fr-head-actions [hidden] { display: none; }
