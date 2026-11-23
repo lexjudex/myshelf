@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.3.7 (Nov 2026)
+
+- Fixed: in the decorations preview, the shelf's edge drew on top of decorations that overlap it. They now always draw in front of the bookcase, as on the live page.
+
 ## 0.3.6 (Nov 2026)
 
 - **Up / down for shelf decorations.** A new slider raises a decoration above the shelf (0 = standing on it), next to **Left / right**. Dragging in the preview moves it both ways (a sideways drag stays level), and the up/down arrow keys nudge it 1px at a time, or 10px with Shift. Phones get their own up/down too.

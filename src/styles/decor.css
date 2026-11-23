@@ -5,6 +5,7 @@
 .bookcase-top {
   position: relative; margin-top: 8px; pointer-events: none; --M: var(--decor-max, 120px); height: calc(var(--M) + 10px);
   overflow-x: clip; /* never wider than the page, even before keepInside() has run (phones would zoom out) */
+  z-index: 1; /* always in front of the bookcase where they overlap its top edge (the preview's faded shelf would cover them) */
 }
 .decor { --X: var(--x); --Y: var(--y); --H: var(--h); --T: var(--tilt); --O: var(--origin); --R: var(--turn); --S: var(--shade); --SD: var(--shade-dir); --D: var(--show); }
 @media (max-width: 760px) {
