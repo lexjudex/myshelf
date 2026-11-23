@@ -1,7 +1,7 @@
 /* Shelf decorations: up to three images standing on top of the bookcase (main Shelves page), and the
    preview of them in Manage → Settings. Each decoration carries two sets of variables (see src/lib/decor.js):
    --x --h --tilt --turn … for desktop and --xm --hm … for phones. The rules below copy one set into the
-   working variables (--X --H …): phones by screen width, or .as-phone / .as-desktop in the Settings preview. */
+   working variables (--X --H …), phones by screen width. (The Settings preview is this page in a frame.) */
 .bookcase-top {
   position: relative; margin-top: 8px; pointer-events: none; --M: var(--decor-max, 120px); height: calc(var(--M) + 10px);
   overflow-x: clip; /* never wider than the page, even before keepInside() has run (phones would zoom out) */
@@ -11,10 +11,6 @@
   .bookcase-top { --M: var(--decor-max-m, 80px); }
   .bookcase-top .decor { --X: var(--xm); --H: var(--hm); --T: var(--tiltm); --O: var(--originm); --R: var(--turnm); --S: var(--shadem); --SD: var(--shade-dirm); --D: var(--showm); }
 }
-.bookcase-top.as-phone { --M: var(--decor-max-m, 80px); }
-.bookcase-top.as-phone .decor { --X: var(--xm); --H: var(--hm); --T: var(--tiltm); --O: var(--originm); --R: var(--turnm); --S: var(--shadem); --SD: var(--shade-dirm); --D: var(--showm); }
-.bookcase-top.as-desktop { --M: var(--decor-max, 120px); }
-.bookcase-top.as-desktop .decor { --X: var(--x); --H: var(--h); --T: var(--tilt); --O: var(--origin); --R: var(--turn); --S: var(--shade); --SD: var(--shade-dir); --D: var(--show); }
 
 .decor {
   position: absolute; bottom: -3px; /* stands on the top board */
@@ -62,3 +58,15 @@
   content: ''; position: absolute; inset: calc(-1 * var(--fw)); pointer-events: none;
   background: linear-gradient(var(--SD, to left), rgba(0,0,0,var(--S, 0)), transparent 70%);
 }
+
+/* /?decor-preview: the Shelves page as the live preview in Manage → Settings. Only the top of the bookcase shows. */
+html.decor-preview .site-header, html.decor-preview .hero, html.decor-preview .fab-nav, html.decor-preview .fab-scrim,
+html.decor-preview .site-footer, html.decor-preview .my-thoughts, html.decor-preview .back-link { display: none !important; }
+html.decor-preview main { padding-top: 10px; padding-bottom: 0; }
+html.decor-preview body { min-height: 0; overflow: hidden; }
+html.decor-preview .bookcase { height: 64px; padding: 0; border-bottom-width: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
+html.decor-preview .bookcase-top { pointer-events: auto; touch-action: none; }
+html.decor-preview .decor { cursor: grab; outline-offset: 3px; }
+html.decor-preview .decor:focus-visible, html.decor-preview .decor.dragging { outline: 2px dashed var(--accent); }
+html.decor-preview .decor.dragging { cursor: grabbing; }

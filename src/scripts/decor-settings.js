@@ -2,7 +2,7 @@
 // The Desktop / Phone switch picks which layout you see AND edit: phones follow desktop (smaller) until you change
 // something in Phone view, then they keep their own placement. Every change saves by itself.
 import { esc, token } from './friends-ui.js';
-import { decorStyle, decorClasses, decorInner, decorMaxStyle, keepInside, phoneOf } from '../lib/decor.js';
+import { phoneOf } from '../lib/decor.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const FRAMES = [['none', 'None'], ['wood', 'Wood'], ['black', 'Black'], ['gold', 'Gold'], ['white', 'White']];
@@ -33,10 +33,12 @@ const msg = (text, error = false) => {
 };
 
 // ───────── which layout we're looking at and editing ─────────
-// The canvas is laid out at the bookcase's real width (desktop: the widest the page gets; phone: a typical phone),
-// using the Shelves page's own styles, then shrunk to fit this panel.
-const MODES = { desktop: { width: 1240 }, phone: { width: 366 } };
+// The preview is your real Shelves page (/?decor-preview) in a frame: 1280px wide for desktop, or a phone's width
+// (this phone's, if you're on one), shrunk to fit here. The page draws the decorations itself, so what you see is
+// exactly what visitors get, in this browser.
+const PHONE_MAX = 760; // matches the page's phone layout breakpoint
 let mode = 'desktop';
+const frameWidth = () => (mode === 'phone' ? (window.innerWidth <= PHONE_MAX ? window.innerWidth : 390) : 1280);
 const placement = (d) => (mode === 'phone' ? phoneOf(d) : d);
 // Editing in Phone view gives that decoration its own phone placement (starting from what it showed).
 function setPlacement(i, patch) {
@@ -45,48 +47,63 @@ function setPlacement(i, patch) {
 }
 
 const preview = $('#decor-preview');
-const canvas = $('#decor-canvas');
-const stage = $('#decor-stage');
+const frame = $('#decor-frame');
+let frameReady = false;
+let frameHeight = 160;
+frame.src = '/?decor-preview';
 function scalePreview() {
-  const m = MODES[mode];
-  canvas.style.width = `${m.width}px`;
-  canvas.classList.toggle('phone', mode === 'phone');
-  stage.classList.toggle('as-phone', mode === 'phone');
-  stage.classList.toggle('as-desktop', mode === 'desktop');
-  const fit = Math.min(1, preview.clientWidth / m.width);
-  canvas.style.transform = `scale(${fit})`;
-  canvas.style.left = `${Math.max(0, (preview.clientWidth - m.width * fit) / 2)}px`;
-  preview.style.height = `${Math.ceil(canvas.offsetHeight * fit)}px`;
+  const w = frameWidth();
+  const fit = Math.min(1, preview.clientWidth / w) || 1;
+  frame.style.width = `${w}px`;
+  frame.style.height = `${frameHeight}px`;
+  frame.style.transform = `scale(${fit})`;
+  // A phone is shown at its own size, centered, rather than stretched across the panel.
+  frame.style.left = `${Math.max(0, (preview.clientWidth - w * fit) / 2)}px`;
+  preview.style.height = `${Math.ceil(frameHeight * fit)}px`;
 }
+// Send the current decorations to the page in the frame (at most once per animation frame).
+let pending = false;
+let focusAfter = null;
+function renderStage(focus = null) {
+  if (focus != null) focusAfter = focus;
+  if (pending || !frameReady) return;
+  pending = true;
+  requestAnimationFrame(() => {
+    pending = false;
+    frame.contentWindow?.postMessage({ type: 'myshelf:decor', decor, focus: focusAfter }, location.origin);
+    focusAfter = null;
+  });
+}
+window.addEventListener('message', (e) => {
+  if (e.origin !== location.origin || e.source !== frame.contentWindow) return;
+  const m = e.data || {};
+  if (m.type === 'myshelf:decor-ready') {
+    frameReady = true;
+    $('#decor-loading').hidden = true;
+    renderStage();
+  } else if (m.type === 'myshelf:decor-size') {
+    frameHeight = Math.max(80, m.height || 0);
+    scalePreview();
+  } else if (m.type === 'myshelf:decor-move' && decor[m.i]) {
+    if (m.done) return save();
+    setField(m.i, 'x', m.x);
+  } else if (m.type === 'myshelf:decor-nudge' && decor[m.i]) {
+    setField(m.i, 'x', Math.round((placement(decor[m.i]).x + m.step) * 10) / 10, m.i);
+    saveSoon();
+  }
+});
 document.querySelectorAll('[data-decor-mode]').forEach((b) => b.addEventListener('click', () => {
   mode = b.dataset.decorMode;
   document.querySelectorAll('[data-decor-mode]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
+  scalePreview(); // the page in the frame switches between its desktop and phone layouts by itself
   render();
 }));
+new ResizeObserver(scalePreview).observe(preview);
+window.addEventListener('resize', scalePreview);
 
-// ───────── preview ─────────
-function renderStage() {
-  stage.setAttribute('style', decorMaxStyle(decor));
-  stage.innerHTML = decor.length
-    ? decor.map((d, i) => `<span class="${decorClasses(d)}" style="${decorStyle(d)}" data-i="${i}" tabindex="0" role="slider"
-        aria-label="Decoration ${i + 1} position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${placement(d).x}"
-        title="Drag to move · arrow keys nudge (Shift for bigger steps)">${decorInner(d, esc)}</span>`).join('')
-    : '<p class="decor-empty">Your decorations will stand here, on top of the bookcase.</p>';
-  scalePreview();
-  stage.querySelectorAll('img').forEach((img) => { if (!img.complete) img.addEventListener('load', () => { scalePreview(); keepInside(stage); }, { once: true }); });
-  keepInside(stage);
-}
-// Update one decoration in place (keeps focus and drag state).
-function refreshOne(i) {
-  const el = stage.querySelector(`.decor[data-i="${i}"]`);
-  if (el) {
-    el.className = decorClasses(decor[i]);
-    el.setAttribute('style', decorStyle(decor[i]));
-    el.setAttribute('aria-valuenow', placement(decor[i]).x);
-  }
-  stage.setAttribute('style', decorMaxStyle(decor));
-  scalePreview();
-  keepInside(stage);
+// Update one decoration (keeps focus in the rows; the preview redraws).
+function refreshOne(i, focus = null) {
+  renderStage(focus);
   const row = $(`#decor-list .decor-row[data-i="${i}"]`);
   if (!row) return;
   const p = placement(decor[i]);
@@ -110,6 +127,7 @@ const phoneNote = (d, i) => (d.phone
   ? `Phone has its own placement. <button type="button" class="linkish" data-decor-follow="${i}">Match desktop again</button>`
   : 'Following desktop (smaller). Change anything here to give phones their own placement.');
 function render() {
+  scalePreview();
   renderStage();
   const phone = mode === 'phone';
   $('#decor-editing').innerHTML = phone
@@ -164,7 +182,7 @@ async function load() {
   try { decor = await call('GET'); render(); } catch (err) { msg(err.message, true); }
 }
 
-function setField(i, k, v) {
+function setField(i, k, v, focus = null) {
   if (k in FIELDS) {
     const f = FIELDS[k];
     const n = Number(v);
@@ -175,7 +193,7 @@ function setField(i, k, v) {
   } else {
     decor[i] = { ...decor[i], [k]: v }; // frame, flip: shared by both layouts
   }
-  refreshOne(i);
+  refreshOne(i, focus);
 }
 
 $('#decor-list').addEventListener('input', (e) => {
@@ -216,44 +234,7 @@ $('#decor-list').addEventListener('click', (e) => {
   save('Removed.');
 });
 
-// ───────── drag in the preview ─────────
-let drag = null;
-stage.addEventListener('pointerdown', (e) => {
-  const el = e.target.closest('.decor[data-i]');
-  if (!el) return;
-  e.preventDefault();
-  el.focus({ preventScroll: true });
-  const i = Number(el.dataset.i);
-  const box = stage.getBoundingClientRect();
-  // Keep the grab point under the pointer instead of jumping the middle to it.
-  drag = { i, el, offset: e.clientX - (box.left + (placement(decor[i]).x / 100) * box.width) };
-  el.setPointerCapture(e.pointerId);
-  el.classList.add('dragging');
-});
-stage.addEventListener('pointermove', (e) => {
-  if (!drag) return;
-  const box = stage.getBoundingClientRect();
-  const x = Math.round(((e.clientX - drag.offset - box.left) / box.width) * 1000) / 10;
-  setField(drag.i, 'x', Math.min(100, Math.max(0, x)));
-});
-const endDrag = () => {
-  if (!drag) return;
-  drag.el.classList.remove('dragging');
-  drag = null;
-  save();
-};
-stage.addEventListener('pointerup', endDrag);
-stage.addEventListener('pointercancel', endDrag);
-stage.addEventListener('keydown', (e) => {
-  const el = e.target.closest('.decor[data-i]');
-  if (!el || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
-  e.preventDefault();
-  const i = Number(el.dataset.i);
-  const step = (e.shiftKey ? 5 : 0.5) * (e.key === 'ArrowLeft' ? -1 : 1);
-  setField(i, 'x', Math.round((placement(decor[i]).x + step) * 10) / 10);
-  saveSoon();
-});
-new ResizeObserver(() => { scalePreview(); keepInside(stage); }).observe(preview);
+// Dragging and arrow-key nudges happen in the preview page itself, which reports them back (see the messages above).
 
 // ───────── adding ─────────
 $('#decor-file').addEventListener('change', async (e) => {

@@ -164,12 +164,10 @@ const typesJson = JSON.stringify(TYPES);
               <button type="button" class="btn ghost small" data-decor-mode="phone" aria-pressed="false">Phone</button>
             </span>
           </div>
-          <!-- A real-size copy of the top of your bookcase (same styles as the Shelves page), shrunk to fit here. -->
+          <!-- Your real Shelves page (/?decor-preview), at desktop or phone width, shrunk to fit: exactly what visitors see. -->
           <div class="decor-preview" id="decor-preview">
-            <div class="decor-canvas" id="decor-canvas">
-              <div class="bookcase-top" id="decor-stage"></div>
-              <div class="bookcase decor-fake-case" aria-hidden="true"></div>
-            </div>
+            <iframe id="decor-frame" title="Preview of your Shelves page" tabindex="-1"></iframe>
+            <p class="decor-loading" id="decor-loading">Loading preview…</p>
           </div>
           <ul id="decor-list" class="decor-list"></ul>
           <div class="row">

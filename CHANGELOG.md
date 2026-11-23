@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.3.5 (Nov 2026)
+
+- **The decorations preview is your real Shelves page.** Settings shows your actual home page in a small window, at desktop width or at your phone's width, with your changes drawn live. It can't differ from what visitors see, on any phone or browser. Drag and arrow-key nudges work right in it.
+
 ## 0.3.4 (Nov 2026)
 
 - **Manage in the phone menu.** The bubble menu now has Manage under Journal, so you don't have to scroll to the footer.

@@ -13,20 +13,26 @@ import { TYPES, TYPE_KEYS } from '../lib/types.js';
 
 const env = Astro.locals.runtime.env;
 const escAttr = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const [items, shelves, site, decor] = await Promise.all([getItems(env), getShelves(env), getSite(env), getDecor(env)]);
+// /?decor-preview: this page as the live preview in Manage → Settings → Shelf decorations. Only the top of the
+// bookcase is shown (no shelves are loaded), and the decorations come from the Settings page as you edit them.
+const decorPreview = Astro.url.searchParams.has('decor-preview');
+const [items, shelves, site, decor] = decorPreview
+  ? [[], [], await getSite(env), await getDecor(env)]
+  : await Promise.all([getItems(env), getShelves(env), getSite(env), getDecor(env)]);
 // "My Ramblings": the entry marked Featured in the editor, or else the most recent journal entry
 // (items are already sorted newest first).
 const hasNotes = (e) => e.body && e.body.trim();
 const latestThought = items.find((e) => e.data.featured === true && hasNotes(e)) || items.find(hasNotes);
 ---
-<Base>
+<Base noindex={decorPreview}>
+  {decorPreview && <script is:inline>document.documentElement.classList.add('decor-preview');</script>}
   <section class="hero">
     <h1>{site.title}{site.owner && <span class="hero-owner"><span class="sep">|</span>{site.owner}</span>}<CopyLink label="Copy link to this shelf" /></h1>
     <p>{site.tagline}</p>
   </section>
 
   {/* Shelf decorations (Manage → Settings): up to three images standing on top of the bookcase. */}
-  {decor.length > 0 && (
+  {(decor.length > 0 || decorPreview) && (
     <div class="bookcase-top" aria-hidden="true" style={decorMaxStyle(decor)}>
       {decor.map((d) => (
         <span class={decorClasses(d)} style={decorStyle(d)} set:html={decorInner(d, escAttr)} />
@@ -55,12 +61,83 @@ const latestThought = items.find((e) => e.data.featured === true && hasNotes(e))
 
 <script>
   // Keep shelf decorations inside the bookcase's width (a big one near an edge can hang off on a phone).
-  import { keepInside } from '../lib/decor.js';
+  import { keepInside, decorStyle, decorClasses, decorInner, decorMaxStyle } from '../lib/decor.js';
   const top = document.querySelector('.bookcase-top');
+  const fit = () => keepInside(top);
+  const watchImages = () => top.querySelectorAll('img').forEach((img) => { if (!img.complete) img.addEventListener('load', () => { fit(); tellSize(); }, { once: true }); });
   if (top) {
-    const fit = () => keepInside(top);
-    top.querySelectorAll('img').forEach((img) => { if (!img.complete) img.addEventListener('load', fit, { once: true }); });
+    watchImages();
     fit();
-    new ResizeObserver(fit).observe(top);
+    new ResizeObserver(() => { fit(); tellSize(); }).observe(top);
+  }
+
+  // ───────── live preview for Manage → Settings (/?decor-preview, shown in a frame there) ─────────
+  // The Settings page sends the decorations as you edit them; this page draws them exactly as it always does, and
+  // reports drags and arrow-key nudges back. Only messages from this same site are listened to.
+  function tellSize() {
+    if (!document.documentElement.classList.contains('decor-preview') || window.parent === window) return;
+    const r = document.querySelector('.bookcase')?.getBoundingClientRect();
+    window.parent.postMessage({ type: 'myshelf:decor-size', height: Math.ceil((r?.bottom || 0) + window.scrollY) }, location.origin);
+  }
+  if (document.documentElement.classList.contains('decor-preview') && top) {
+    const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const tell = (msg) => window.parent.postMessage(msg, location.origin);
+    let list = [];
+    window.addEventListener('message', (e) => {
+      if (e.origin !== location.origin || e.source !== window.parent || e.data?.type !== 'myshelf:decor') return;
+      list = e.data.decor || [];
+      top.setAttribute('style', decorMaxStyle(list));
+      const els = [...top.querySelectorAll('.decor')];
+      const same = els.length === list.length && els.every((el, i) => el.dataset.image === list[i].image);
+      if (same) {
+        // Same pictures: update them in place (keeps a drag going and keeps focus).
+        els.forEach((el, i) => {
+          const nudge = el.style.getPropertyValue('--nudge');
+          el.className = decorClasses(list[i]) + (el.classList.contains('dragging') ? ' dragging' : '');
+          el.setAttribute('style', decorStyle(list[i]));
+          if (nudge) el.style.setProperty('--nudge', nudge);
+        });
+      } else {
+        top.innerHTML = list.map((d, i) => `<span class="${decorClasses(d)}" style="${decorStyle(d)}" data-i="${i}" data-image="${esc(d.image)}" tabindex="0"
+          title="Drag to move · arrow keys nudge (Shift for bigger steps)">${decorInner(d, esc)}</span>`).join('');
+      }
+      if (e.data.focus != null) top.querySelector(`.decor[data-i="${e.data.focus}"]`)?.focus({ preventScroll: true });
+      watchImages();
+      fit();
+      tellSize();
+    });
+    // Drag: report where the middle should go, as % of the bookcase's width.
+    let drag = null;
+    top.addEventListener('pointerdown', (e) => {
+      const el = e.target.closest('.decor[data-i]');
+      if (!el) return;
+      e.preventDefault();
+      el.focus({ preventScroll: true });
+      const r = el.getBoundingClientRect();
+      drag = { i: Number(el.dataset.i), el, offset: e.clientX - (r.left + r.width / 2), nudge: parseFloat(el.style.getPropertyValue('--nudge')) || 0 };
+      el.setPointerCapture(e.pointerId);
+      el.classList.add('dragging');
+    });
+    top.addEventListener('pointermove', (e) => {
+      if (!drag) return;
+      const box = top.getBoundingClientRect();
+      const x = ((e.clientX - drag.offset - drag.nudge - box.left) / box.width) * 100;
+      tell({ type: 'myshelf:decor-move', i: drag.i, x: Math.round(Math.min(100, Math.max(0, x)) * 10) / 10 });
+    });
+    const end = () => {
+      if (!drag) return;
+      drag.el.classList.remove('dragging');
+      tell({ type: 'myshelf:decor-move', i: drag.i, done: true });
+      drag = null;
+    };
+    top.addEventListener('pointerup', end);
+    top.addEventListener('pointercancel', end);
+    top.addEventListener('keydown', (e) => {
+      const el = e.target.closest('.decor[data-i]');
+      if (!el || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+      e.preventDefault();
+      tell({ type: 'myshelf:decor-nudge', i: Number(el.dataset.i), step: (e.shiftKey ? 5 : 0.5) * (e.key === 'ArrowLeft' ? -1 : 1) });
+    });
+    tell({ type: 'myshelf:decor-ready' });
   }
 </script>

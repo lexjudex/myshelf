@@ -312,17 +312,9 @@ html.embed .editor::backdrop { background: transparent; }
 .decor-preview-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin: 10px 0 6px; }
 .decor-modes { display: inline-flex; gap: 4px; }
 .decor-modes .btn.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
-/* The page's own wall behind it, so colors and shadows look the same as on the Shelves page. */
+/* The frame holds the real Shelves page; this is just the space around it. */
 .decor-preview { position: relative; margin: 0 0 4px; border-radius: 10px; overflow: hidden; color: var(--cream);
   background: radial-gradient(1200px 600px at 50% -200px, #2e3035 0%, transparent 70%), var(--wall); }
-.decor-canvas { position: absolute; top: 0; left: 0; transform-origin: 0 0; padding-top: 10px; }
-.decor-canvas .bookcase-top { margin-top: 0; pointer-events: auto; touch-action: none; }
-.decor-fake-case { height: 64px; padding: 0; border-bottom-width: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
-  -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
-.decor-canvas .decor { cursor: grab; outline-offset: 3px; }
-.decor-canvas .decor:focus-visible, .decor-canvas .decor.dragging { outline: 2px dashed var(--accent); }
-.decor-canvas .decor.dragging { cursor: grabbing; }
-.decor-preview .decor-empty { position: absolute; left: 0; right: 0; bottom: 8px; margin: 0; text-align: center; color: #c9b79c; font-size: 1rem; }
 .decor-list { list-style: none; padding: 0; margin: 8px 0 0; }
 .decor-row { display: flex; align-items: flex-start; gap: 14px; padding: 12px 0; border-bottom: 1px solid #e2d6bd; }
 .decor-thumb { flex: 0 0 auto; width: 64px; height: 64px; object-fit: contain; border-radius: 8px; background: repeating-conic-gradient(#e8dfcc 0 25%, #f7f1e4 0 50%) 0 0 / 14px 14px; }
@@ -337,6 +329,8 @@ html.embed .editor::backdrop { background: transparent; }
 .decor-options .spacer { flex: 1; }
 #decor-add[hidden] { display: none; }
 @media (max-width: 600px) { .decor-row { flex-direction: column; } .decor-field { grid-template-columns: 60px 1fr auto; } }
-.decor-canvas.phone .decor-fake-case { border-width: 8px 8px 0; border-radius: 14px 14px 0 0; } /* like the Shelves page on a phone */
 .decor-phone-note { margin: 0 0 2px; }
 .decor-row.is-hidden .decor-thumb, .decor-row.is-hidden .decor-field { opacity: 0.45; }
+.decor-preview iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; background: transparent; }
+.decor-loading { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #c9b79c; font-size: 0.88rem; }
+.decor-loading[hidden] { display: none; }
