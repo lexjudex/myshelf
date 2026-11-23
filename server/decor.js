@@ -20,8 +20,10 @@ export async function getDecor(env) {
 }
 
 // Placement: x = where the middle of the image sits, in % of the bookcase's width (0 = left edge, 100 = right);
-// height in px on a desktop screen (phones scale it down); tilt in degrees (negative leans left, positive right).
-export const LIMITS = { x: [0, 100], height: [30, 240], tilt: [-20, 20] };
+// height in px on a desktop screen (phones scale it down); tilt in degrees: leaning flat, like a picture hung
+// crooked (negative leans left, positive right); turn in degrees: angled on the shelf in 3D, like a frame set at
+// an angle instead of head-on (negative faces left, positive faces right).
+export const LIMITS = { x: [0, 100], height: [30, 240], tilt: [-20, 20], turn: [-50, 50] };
 // Earlier versions had five spots and three sizes; they turn into the same numbers.
 const OLD_X = { left: 10, 'left-center': 30, center: 50, 'right-center': 70, right: 90 };
 const OLD_H = { small: 70, medium: 110, large: 150 };
@@ -39,6 +41,7 @@ export function cleanDecor(list) {
     x: num(d.x, LIMITS.x, OLD_X[d.position] ?? 50, 0.1),
     height: num(d.height, LIMITS.height, OLD_H[d.size] ?? 110),
     tilt: num(d.tilt, LIMITS.tilt, 0, 0.5),
+    turn: num(d.turn, LIMITS.turn, 0),
     flip: d.flip === true,
     frame: FRAMES.includes(d.frame) ? d.frame : 'none', // a picture frame around the image (for photos)
     ...(Number(d.aspect) > 0 ? { aspect: Math.round(Number(d.aspect) * 10000) / 10000 } : {}),
@@ -80,7 +83,7 @@ export async function addDecor(env, buf) {
   await env.COVERS.put(name, buf, { metadata: { type: kind.type } });
   // New ones start at the first free spot: left, right, then the middle.
   const x = [10, 90, 50, 30, 70].find((p) => !list.some((d) => Math.abs(d.x - p) < 8)) ?? 50;
-  // A JPG can't be see-through, so it starts out in a wood frame, leaning a little (change both in Settings).
+  // A JPG can't be see-through, so it starts out in a wood frame, angled a little (change both in Settings).
   const jpg = kind.ext === 'jpg';
-  return saveDecor(env, [...list, { image: IMG_PREFIX + name, x, height: 110, tilt: jpg ? -4 : 0, frame: jpg ? 'wood' : 'none', aspect: aspectOf(buf) }]);
+  return saveDecor(env, [...list, { image: IMG_PREFIX + name, x, height: 110, turn: jpg ? 20 : 0, frame: jpg ? 'wood' : 'none', aspect: aspectOf(buf) }]);
 }

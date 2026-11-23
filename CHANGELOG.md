@@ -2,6 +2,11 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.3.2 (Nov 2026)
+
+- **Turn** for shelf decorations: angle one on the shelf in 3D, the way you'd set a frame at an angle instead of head-on. Framed pictures shade the side turning away. **Tilt** (leaning flat) is still there, and the two can be combined. New JPGs start framed and turned slightly.
+- **Accurate preview.** The Settings preview is now a real-size copy of the top of your bookcase, using the Shelves page's own styles, shrunk to fit. A **Desktop / Phone** switch shows both layouts.
+
 ## 0.3.1 (Nov 2026)
 
 - **Exact placement for shelf decorations.** Drag each decoration along the shelf in the Settings preview, or nudge it with the arrow keys (hold Shift for bigger steps). Position, size and tilt are now sliders with exact number fields, so things line up precisely. There's also a **Center it** button. Older decorations keep where they were.

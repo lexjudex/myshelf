@@ -508,21 +508,21 @@ test('shelf decorations: PNG/WebP only, up to three, removed images are deleted,
   const list = await addDecor(env, png);
   assert.equal(list.length, 3);
   assert.deepEqual(list.map((d) => d.x), [10, 90, 50]);
-  assert.ok(list.every((d) => /^\/img\/decor-[a-z0-9-]+\.png$/.test(d.image) && d.height === 110 && d.tilt === 0 && d.frame === 'none' && d.aspect === 1));
+  assert.ok(list.every((d) => /^\/img\/decor-[a-z0-9-]+\.png$/.test(d.image) && d.height === 110 && d.tilt === 0 && d.turn === 0 && d.frame === 'none' && d.aspect === 1));
   await assert.rejects(addDecor(env, png), /up to 3/);
   // Bad values are cleaned; outside images aren't accepted.
-  const saved = await saveDecor(env, [{ ...list[0], x: 37.26, height: 999, tilt: -45, flip: true, frame: 'neon' }, { ...list[1], x: 'abc', frame: 'gold', tilt: 3.3 }, { image: 'https://evil.example/x.png' }]);
-  assert.deepEqual(saved.map((d) => [d.x, d.height, d.tilt, d.flip, d.frame]), [[37.3, 240, -20, true, 'none'], [50, 110, 3.5, false, 'gold']]);
+  const saved = await saveDecor(env, [{ ...list[0], x: 37.26, height: 999, tilt: -45, turn: -80, flip: true, frame: 'neon' }, { ...list[1], x: 'abc', frame: 'gold', tilt: 3.3, turn: 22.4 }, { image: 'https://evil.example/x.png' }]);
+  assert.deepEqual(saved.map((d) => [d.x, d.height, d.tilt, d.turn, d.flip, d.frame]), [[37.3, 240, -20, -50, true, 'none'], [50, 110, 3.5, 22, false, 'gold']]);
   // Older entries (five spots, three sizes) become numbers.
   const { cleanDecor } = await import('../server/decor.js');
-  assert.deepEqual(cleanDecor([{ image: list[0].image, position: 'right-center', size: 'large' }]).map((d) => [d.x, d.height, d.tilt]), [[70, 150, 0]]);
+  assert.deepEqual(cleanDecor([{ image: list[0].image, position: 'right-center', size: 'large' }]).map((d) => [d.x, d.height, d.turn]), [[70, 150, 0]]);
   assert.equal(env.COVERS._store.has(list[2].image.slice(5)), false); // the removed one is gone from storage
   assert.equal(env.COVERS._store.has(list[0].image.slice(5)), true);
   // A JPG goes straight into a wood frame.
   const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70]).buffer;
   const withJpg = await addDecor(env, jpg);
   assert.equal(withJpg.at(-1).frame, 'wood');
-  assert.equal(withJpg.at(-1).tilt, -4);
+  assert.equal(withJpg.at(-1).turn, 20);
   assert.match(withJpg.at(-1).image, /\.jpg$/);
   await saveDecor(env, withJpg.slice(0, 2));
   const backup = await exportBackup(env, 'https://old.example');

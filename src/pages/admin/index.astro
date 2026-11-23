@@ -157,7 +157,20 @@ const typesJson = JSON.stringify(TYPES);
           </form>
           <h2>Shelf decorations</h2>
           <p class="muted">Add up to three images that stand on top of the bookcase on your main Shelves page, like a teddy bear, a mini figure, or a photo in a frame. Use PNGs with a transparent background, or put any image (a JPG, or anything with a background) in a frame. Up to 2 MB each. <strong>Drag them in the preview</strong> to place them (arrow keys nudge), or set exact numbers below. Changes save as you make them.</p>
-          <div class="decor-preview" id="decor-preview" aria-hidden="true"><div class="decor-stage bookcase-top" id="decor-stage"></div><div class="decor-board"></div></div>
+          <div class="decor-preview-bar">
+            <span class="muted small">Preview — exactly as on your Shelves page:</span>
+            <span class="decor-modes" role="group" aria-label="Preview size">
+              <button type="button" class="btn ghost small on" data-decor-mode="desktop" aria-pressed="true">Desktop</button>
+              <button type="button" class="btn ghost small" data-decor-mode="phone" aria-pressed="false">Phone</button>
+            </span>
+          </div>
+          <!-- A real-size copy of the top of your bookcase (same styles as the Shelves page), shrunk to fit here. -->
+          <div class="decor-preview" id="decor-preview">
+            <div class="decor-canvas" id="decor-canvas">
+              <div class="bookcase-top" id="decor-stage"></div>
+              <div class="bookcase decor-fake-case" aria-hidden="true"></div>
+            </div>
+          </div>
           <ul id="decor-list" class="decor-list"></ul>
           <div class="row">
             <label class="btn ghost file-btn" id="decor-add">＋ Add a decoration… <input id="decor-file" type="file" accept="image/png,image/webp,image/jpeg" hidden /></label>

@@ -1,16 +1,16 @@
 // Manage → Settings → Shelf decorations: up to three images on top of the bookcase (main Shelves page).
 // Drag them in the preview (or use the arrow keys), or set exact numbers below. Every change saves by itself.
 import { esc, token } from './friends-ui.js';
-import { decorStyle, decorClasses, decorMax, keepInside } from '../lib/decor.js';
+import { decorStyle, decorClasses, decorInner, decorMax, keepInside } from '../lib/decor.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const FRAMES = [['none', 'None'], ['wood', 'Wood'], ['black', 'Black'], ['gold', 'Gold'], ['white', 'White']];
 const MAX = 3;
-const FULL_WIDTH = 1240; // the bookcase's width on a desktop screen; the preview is drawn to that scale
 const FIELDS = {
   x: { min: 0, max: 100, step: 0.5, unit: '%', label: 'Position', hint: 'from the left edge' },
   height: { min: 30, max: 240, step: 1, unit: 'px', label: 'Size', hint: 'tall' },
-  tilt: { min: -20, max: 20, step: 0.5, unit: '°', label: 'Tilt', hint: 'minus leans left, plus leans right' },
+  tilt: { min: -20, max: 20, step: 0.5, unit: '°', label: 'Tilt', hint: 'lean it flat: minus leans left, plus leans right' },
+  turn: { min: -50, max: 50, step: 1, unit: '°', label: 'Turn', hint: 'angle it on the shelf: minus faces left, plus faces right' },
 };
 let decor = [];
 
@@ -32,18 +32,41 @@ const msg = (text, error = false) => {
 };
 
 // ───────── preview ─────────
+// The canvas is laid out at the bookcase's real width (desktop: the widest the page gets; phone: a typical phone),
+// using the Shelves page's own styles, then shrunk to fit this panel. So sizes, frames, shadows and edges match.
+const MODES = {
+  desktop: { width: 1240, scale: 1 },   // main column (1280) minus its side padding
+  phone: { width: 366, scale: 0.68 },   // a 390px-wide phone minus padding; phones draw decorations at 68%
+};
+let mode = 'desktop';
+const preview = $('#decor-preview');
+const canvas = $('#decor-canvas');
 const stage = $('#decor-stage');
 function scalePreview() {
-  stage.style.setProperty('--decor-scale', String(Math.min(1, stage.clientWidth / FULL_WIDTH) || 0.8));
+  const m = MODES[mode];
+  canvas.style.width = `${m.width}px`;
+  canvas.classList.toggle('phone', mode === 'phone');
+  stage.style.setProperty('--decor-scale', String(m.scale));
+  const fit = Math.min(1, preview.clientWidth / m.width);
+  canvas.style.transform = `scale(${fit})`;
+  // Phone: show it at the phone's size, centered, rather than stretched across the panel.
+  canvas.style.left = `${Math.max(0, (preview.clientWidth - m.width * fit) / 2)}px`;
+  preview.style.height = `${Math.ceil(canvas.offsetHeight * fit)}px`;
 }
-function renderStage() {
+document.querySelectorAll('[data-decor-mode]').forEach((b) => b.addEventListener('click', () => {
+  mode = b.dataset.decorMode;
+  document.querySelectorAll('[data-decor-mode]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
   scalePreview();
+  keepInside(stage);
+}));
+function renderStage() {
   stage.style.setProperty('--decor-max', `${decorMax(decor)}px`);
   stage.innerHTML = decor.length
     ? decor.map((d, i) => `<span class="${decorClasses(d)}" style="${decorStyle(d)}" data-i="${i}" tabindex="0" role="slider"
         aria-label="Decoration ${i + 1} position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${d.x}"
-        title="Drag to move · arrow keys nudge (Shift for bigger steps)"><img src="${esc(d.image)}" alt=""${d.aspect ? ` style="aspect-ratio:${Number(d.aspect)}"` : ''}></span>`).join('')
+        title="Drag to move · arrow keys nudge (Shift for bigger steps)">${decorInner(d, esc)}</span>`).join('')
     : '<p class="decor-empty">Your decorations will stand here, on top of the bookcase.</p>';
+  scalePreview();
   stage.querySelectorAll('img').forEach((img) => { if (!img.complete) img.addEventListener('load', () => keepInside(stage), { once: true }); });
   keepInside(stage);
 }
@@ -55,8 +78,9 @@ function refreshOne(i) {
     el.setAttribute('style', decorStyle(decor[i]));
     el.setAttribute('aria-valuenow', decor[i].x);
   }
-  keepInside(stage);
   stage.style.setProperty('--decor-max', `${decorMax(decor)}px`);
+  scalePreview();
+  keepInside(stage);
   const row = $(`#decor-list .decor-row[data-i="${i}"]`);
   if (row) for (const k of Object.keys(FIELDS)) {
     row.querySelectorAll(`[data-field="${k}"]`).forEach((inp) => { if (document.activeElement !== inp) inp.value = decor[i][k]; });
@@ -78,7 +102,7 @@ function render() {
     <li class="decor-row" data-i="${i}">
       <img class="decor-thumb" src="${esc(d.image)}" alt="Decoration ${i + 1}">
       <div class="decor-controls">
-        ${fieldHtml('x', d)}${fieldHtml('height', d)}${fieldHtml('tilt', d)}
+        ${fieldHtml('x', d)}${fieldHtml('height', d)}${fieldHtml('tilt', d)}${fieldHtml('turn', d)}
         <div class="decor-options">
           <label>Frame <select data-field="frame">${options(FRAMES, d.frame || 'none')}</select></label>
           <label class="check"><input type="checkbox" data-field="flip"${d.flip ? ' checked' : ''}> Mirror</label>
@@ -197,7 +221,7 @@ stage.addEventListener('keydown', (e) => {
   setField(i, 'x', Math.round((decor[i].x + step) * 10) / 10);
   saveSoon();
 });
-window.addEventListener('resize', () => { scalePreview(); keepInside(stage); });
+new ResizeObserver(() => { scalePreview(); keepInside(stage); }).observe(preview);
 
 // ───────── adding ─────────
 $('#decor-file').addEventListener('change', async (e) => {
@@ -210,7 +234,7 @@ $('#decor-file').addEventListener('change', async (e) => {
   try {
     decor = await call('POST', file, true);
     msg(file.type === 'image/jpeg'
-      ? 'Added in a wood frame, leaning a little (a JPG can’t be see-through). Drag it into place, and change the frame and tilt below.'
+      ? 'Added in a wood frame, angled a little (a JPG can’t be see-through). Drag it into place, and change the frame and turn below.'
       : 'Added. Drag it into place in the preview, or set exact numbers below.');
   } catch (err) {
     msg(err.message, true);
