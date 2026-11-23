@@ -23,7 +23,7 @@ export async function getDecor(env) {
 // height in px on a desktop screen (phones scale it down); tilt in degrees: leaning flat, like a picture hung
 // crooked (negative leans left, positive right); turn in degrees: angled on the shelf in 3D, like a frame set at
 // an angle instead of head-on (negative faces left, positive faces right).
-export const LIMITS = { x: [0, 100], height: [30, 240], tilt: [-20, 20], turn: [-50, 50] };
+export const LIMITS = { x: [0, 100], height: [20, 240], tilt: [-20, 20], turn: [-50, 50] };
 // Earlier versions had five spots and three sizes; they turn into the same numbers.
 const OLD_X = { left: 10, 'left-center': 30, center: 50, 'right-center': 70, right: 90 };
 const OLD_H = { small: 70, medium: 110, large: 150 };
@@ -34,6 +34,19 @@ const num = (v, [lo, hi], fallback, step = 1) => {
   return Math.min(hi, Math.max(lo, Number((Math.round(n / step) * step).toFixed(2))));
 };
 
+// Phones: `phone` is null (follow desktop, drawn at PHONE_SCALE) or its own { x, height, tilt, turn, hidden }.
+export const PHONE_SCALE = 0.68;
+function cleanPhone(p) {
+  if (!p || typeof p !== 'object') return null;
+  return {
+    x: num(p.x, LIMITS.x, 50, 0.1),
+    height: num(p.height, LIMITS.height, 75),
+    tilt: num(p.tilt, LIMITS.tilt, 0, 0.5),
+    turn: num(p.turn, LIMITS.turn, 0),
+    hidden: p.hidden === true,
+  };
+}
+
 export function cleanDecor(list) {
   if (!Array.isArray(list)) throw new HttpError(400, 'decorations must be a list');
   return list.filter((d) => isDecorImage(d?.image)).slice(0, MAX_DECOR).map((d) => ({
@@ -42,6 +55,7 @@ export function cleanDecor(list) {
     height: num(d.height, LIMITS.height, OLD_H[d.size] ?? 110),
     tilt: num(d.tilt, LIMITS.tilt, 0, 0.5),
     turn: num(d.turn, LIMITS.turn, 0),
+    phone: cleanPhone(d.phone),
     flip: d.flip === true,
     frame: FRAMES.includes(d.frame) ? d.frame : 'none', // a picture frame around the image (for photos)
     ...(Number(d.aspect) > 0 ? { aspect: Math.round(Number(d.aspect) * 10000) / 10000 } : {}),

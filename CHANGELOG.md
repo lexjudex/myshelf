@@ -2,6 +2,11 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.3.3 (Nov 2026)
+
+- **Separate phone layout for shelf decorations.** Switch the Settings preview to **Phone**, and the sliders edit phones only: position, size, tilt, turn, and **Show on phones**. Until you change something there, phones follow desktop at about two-thirds size. **Match desktop again** undoes it. Frame and Mirror are shared.
+- Fixed: decorations no longer shrink as they get close to the right edge.
+
 ## 0.3.2 (Nov 2026)
 
 - **Turn** for shelf decorations: angle one on the shelf in 3D, the way you'd set a frame at an angle instead of head-on. Framed pictures shade the side turning away. **Tilt** (leaning flat) is still there, and the two can be combined. New JPGs start framed and turned slightly.

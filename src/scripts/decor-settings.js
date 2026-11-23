@@ -1,14 +1,15 @@
 // Manage → Settings → Shelf decorations: up to three images on top of the bookcase (main Shelves page).
-// Drag them in the preview (or use the arrow keys), or set exact numbers below. Every change saves by itself.
+// The Desktop / Phone switch picks which layout you see AND edit: phones follow desktop (smaller) until you change
+// something in Phone view, then they keep their own placement. Every change saves by itself.
 import { esc, token } from './friends-ui.js';
-import { decorStyle, decorClasses, decorInner, decorMax, keepInside } from '../lib/decor.js';
+import { decorStyle, decorClasses, decorInner, decorMaxStyle, keepInside, phoneOf } from '../lib/decor.js';
 
 const $ = (s, root = document) => root.querySelector(s);
 const FRAMES = [['none', 'None'], ['wood', 'Wood'], ['black', 'Black'], ['gold', 'Gold'], ['white', 'White']];
 const MAX = 3;
 const FIELDS = {
   x: { min: 0, max: 100, step: 0.5, unit: '%', label: 'Position', hint: 'from the left edge' },
-  height: { min: 30, max: 240, step: 1, unit: 'px', label: 'Size', hint: 'tall' },
+  height: { min: 20, max: 240, step: 1, unit: 'px', label: 'Size', hint: 'tall' },
   tilt: { min: -20, max: 20, step: 0.5, unit: '°', label: 'Tilt', hint: 'lean it flat: minus leans left, plus leans right' },
   turn: { min: -50, max: 50, step: 1, unit: '°', label: 'Turn', hint: 'angle it on the shelf: minus faces left, plus faces right' },
 };
@@ -31,14 +32,18 @@ const msg = (text, error = false) => {
   el.classList.toggle('error', error);
 };
 
-// ───────── preview ─────────
+// ───────── which layout we're looking at and editing ─────────
 // The canvas is laid out at the bookcase's real width (desktop: the widest the page gets; phone: a typical phone),
-// using the Shelves page's own styles, then shrunk to fit this panel. So sizes, frames, shadows and edges match.
-const MODES = {
-  desktop: { width: 1240, scale: 1 },   // main column (1280) minus its side padding
-  phone: { width: 366, scale: 0.68 },   // a 390px-wide phone minus padding; phones draw decorations at 68%
-};
+// using the Shelves page's own styles, then shrunk to fit this panel.
+const MODES = { desktop: { width: 1240 }, phone: { width: 366 } };
 let mode = 'desktop';
+const placement = (d) => (mode === 'phone' ? phoneOf(d) : d);
+// Editing in Phone view gives that decoration its own phone placement (starting from what it showed).
+function setPlacement(i, patch) {
+  const d = decor[i];
+  decor[i] = mode === 'phone' ? { ...d, phone: { ...phoneOf(d), ...patch } } : { ...d, ...patch };
+}
+
 const preview = $('#decor-preview');
 const canvas = $('#decor-canvas');
 const stage = $('#decor-stage');
@@ -46,28 +51,29 @@ function scalePreview() {
   const m = MODES[mode];
   canvas.style.width = `${m.width}px`;
   canvas.classList.toggle('phone', mode === 'phone');
-  stage.style.setProperty('--decor-scale', String(m.scale));
+  stage.classList.toggle('as-phone', mode === 'phone');
+  stage.classList.toggle('as-desktop', mode === 'desktop');
   const fit = Math.min(1, preview.clientWidth / m.width);
   canvas.style.transform = `scale(${fit})`;
-  // Phone: show it at the phone's size, centered, rather than stretched across the panel.
   canvas.style.left = `${Math.max(0, (preview.clientWidth - m.width * fit) / 2)}px`;
   preview.style.height = `${Math.ceil(canvas.offsetHeight * fit)}px`;
 }
 document.querySelectorAll('[data-decor-mode]').forEach((b) => b.addEventListener('click', () => {
   mode = b.dataset.decorMode;
   document.querySelectorAll('[data-decor-mode]').forEach((x) => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); });
-  scalePreview();
-  keepInside(stage);
+  render();
 }));
+
+// ───────── preview ─────────
 function renderStage() {
-  stage.style.setProperty('--decor-max', `${decorMax(decor)}px`);
+  stage.setAttribute('style', decorMaxStyle(decor));
   stage.innerHTML = decor.length
     ? decor.map((d, i) => `<span class="${decorClasses(d)}" style="${decorStyle(d)}" data-i="${i}" tabindex="0" role="slider"
-        aria-label="Decoration ${i + 1} position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${d.x}"
+        aria-label="Decoration ${i + 1} position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${placement(d).x}"
         title="Drag to move · arrow keys nudge (Shift for bigger steps)">${decorInner(d, esc)}</span>`).join('')
     : '<p class="decor-empty">Your decorations will stand here, on top of the bookcase.</p>';
   scalePreview();
-  stage.querySelectorAll('img').forEach((img) => { if (!img.complete) img.addEventListener('load', () => keepInside(stage), { once: true }); });
+  stage.querySelectorAll('img').forEach((img) => { if (!img.complete) img.addEventListener('load', () => { scalePreview(); keepInside(stage); }, { once: true }); });
   keepInside(stage);
 }
 // Update one decoration in place (keeps focus and drag state).
@@ -76,34 +82,49 @@ function refreshOne(i) {
   if (el) {
     el.className = decorClasses(decor[i]);
     el.setAttribute('style', decorStyle(decor[i]));
-    el.setAttribute('aria-valuenow', decor[i].x);
+    el.setAttribute('aria-valuenow', placement(decor[i]).x);
   }
-  stage.style.setProperty('--decor-max', `${decorMax(decor)}px`);
+  stage.setAttribute('style', decorMaxStyle(decor));
   scalePreview();
   keepInside(stage);
   const row = $(`#decor-list .decor-row[data-i="${i}"]`);
-  if (row) for (const k of Object.keys(FIELDS)) {
-    row.querySelectorAll(`[data-field="${k}"]`).forEach((inp) => { if (document.activeElement !== inp) inp.value = decor[i][k]; });
+  if (!row) return;
+  const p = placement(decor[i]);
+  for (const k of Object.keys(FIELDS)) {
+    row.querySelectorAll(`[data-field="${k}"]`).forEach((inp) => { if (document.activeElement !== inp) inp.value = p[k]; });
   }
+  const note = row.querySelector('.decor-phone-note');
+  if (note) note.innerHTML = phoneNote(decor[i], i);
 }
 
 // ───────── rows ─────────
 const options = (list, value) => list.map(([v, l]) => `<option value="${v}"${v === value ? ' selected' : ''}>${l}</option>`).join('');
-const fieldHtml = (k, d) => {
+const fieldHtml = (k, p) => {
   const f = FIELDS[k];
   return `<label class="decor-field" title="${f.hint}">${f.label}
-    <input type="range" data-field="${k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${d[k]}">
-    <span class="decor-num"><input type="number" data-field="${k}" min="${f.min}" max="${f.max}" step="${k === 'x' ? 0.1 : f.step}" value="${d[k]}">${f.unit}</span>
+    <input type="range" data-field="${k}" min="${f.min}" max="${f.max}" step="${f.step}" value="${p[k]}">
+    <span class="decor-num"><input type="number" data-field="${k}" min="${f.min}" max="${f.max}" step="${k === 'x' ? 0.1 : f.step}" value="${p[k]}">${f.unit}</span>
   </label>`;
 };
+const phoneNote = (d, i) => (d.phone
+  ? `Phone has its own placement. <button type="button" class="linkish" data-decor-follow="${i}">Match desktop again</button>`
+  : 'Following desktop (smaller). Change anything here to give phones their own placement.');
 function render() {
   renderStage();
-  $('#decor-list').innerHTML = decor.map((d, i) => `
-    <li class="decor-row" data-i="${i}">
+  const phone = mode === 'phone';
+  $('#decor-editing').innerHTML = phone
+    ? 'Editing the <strong>phone</strong> layout. Frame and Mirror are shared with desktop.'
+    : 'Editing the <strong>desktop</strong> layout.';
+  $('#decor-list').innerHTML = decor.map((d, i) => {
+    const p = placement(d);
+    return `
+    <li class="decor-row${phone && p.hidden ? ' is-hidden' : ''}" data-i="${i}">
       <img class="decor-thumb" src="${esc(d.image)}" alt="Decoration ${i + 1}">
       <div class="decor-controls">
-        ${fieldHtml('x', d)}${fieldHtml('height', d)}${fieldHtml('tilt', d)}${fieldHtml('turn', d)}
+        ${phone ? `<p class="decor-phone-note muted small">${phoneNote(d, i)}</p>` : ''}
+        ${fieldHtml('x', p)}${fieldHtml('height', p)}${fieldHtml('tilt', p)}${fieldHtml('turn', p)}
         <div class="decor-options">
+          ${phone ? `<label class="check"><input type="checkbox" data-field="showOnPhone"${p.hidden ? '' : ' checked'}> Show on phones</label>` : ''}
           <label>Frame <select data-field="frame">${options(FRAMES, d.frame || 'none')}</select></label>
           <label class="check"><input type="checkbox" data-field="flip"${d.flip ? ' checked' : ''}> Mirror</label>
           <button type="button" class="btn ghost small" data-decor-center="${i}" title="Put it in the exact middle">Center it</button>
@@ -111,7 +132,8 @@ function render() {
           <button type="button" class="btn ghost small danger" data-decor-del="${i}">Remove</button>
         </div>
       </div>
-    </li>`).join('');
+    </li>`;
+  }).join('');
   $('#decor-add').hidden = decor.length >= MAX;
 }
 
@@ -122,12 +144,14 @@ function saveSoon(delay = 450) {
   msg('Saving…');
   saveTimer = setTimeout(save, delay);
 }
+const sameNumbers = (a, b) => Object.keys(FIELDS).every((k) => Number(a?.[k]) === Number(b?.[k]));
 async function save(okText = 'Saved. Your Shelves page shows it right away.') {
   clearTimeout(saveTimer);
   try {
     const saved = await call('PUT', { decor });
     // Keep what's on screen unless the server changed a value (out of range, rounding).
-    const same = saved.length === decor.length && saved.every((d, i) => Object.keys(FIELDS).every((k) => d[k] === Number(decor[i][k])));
+    const same = saved.length === decor.length && saved.every((d, i) => sameNumbers(d, decor[i]) && Boolean(d.phone) === Boolean(decor[i].phone)
+      && (!d.phone || (sameNumbers(d.phone, decor[i].phone) && d.phone.hidden === decor[i].phone.hidden)));
     decor = saved;
     if (!same) render();
     msg(okText);
@@ -140,18 +164,16 @@ async function load() {
   try { decor = await call('GET'); render(); } catch (err) { msg(err.message, true); }
 }
 
-const clampField = (k, v) => {
-  const f = FIELDS[k];
-  const n = Number(v);
-  return Number.isFinite(n) ? Math.min(f.max, Math.max(f.min, n)) : null;
-};
 function setField(i, k, v) {
   if (k in FIELDS) {
-    const n = clampField(k, v);
-    if (n == null) return;
-    decor[i] = { ...decor[i], [k]: n };
+    const f = FIELDS[k];
+    const n = Number(v);
+    if (!Number.isFinite(n)) return;
+    setPlacement(i, { [k]: Math.min(f.max, Math.max(f.min, n)) });
+  } else if (k === 'showOnPhone') {
+    setPlacement(i, { hidden: !v });
   } else {
-    decor[i] = { ...decor[i], [k]: v };
+    decor[i] = { ...decor[i], [k]: v }; // frame, flip: shared by both layouts
   }
   refreshOne(i);
 }
@@ -165,10 +187,20 @@ $('#decor-list').addEventListener('input', (e) => {
 $('#decor-list').addEventListener('change', (e) => {
   const k = e.target.dataset.field;
   if (!k || k in FIELDS) return;
-  setField(Number(e.target.closest('.decor-row').dataset.i), k, k === 'flip' ? e.target.checked : e.target.value);
+  const i = Number(e.target.closest('.decor-row').dataset.i);
+  setField(i, k, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
+  if (k === 'showOnPhone') e.target.closest('.decor-row').classList.toggle('is-hidden', !e.target.checked);
   save();
 });
 $('#decor-list').addEventListener('click', (e) => {
+  const follow = e.target.closest('[data-decor-follow]');
+  if (follow) {
+    const i = Number(follow.dataset.decorFollow);
+    decor[i] = { ...decor[i], phone: null };
+    render();
+    save('Phones follow desktop again.');
+    return;
+  }
   const center = e.target.closest('[data-decor-center]');
   if (center) { setField(Number(center.dataset.decorCenter), 'x', 50); save(); return; }
   const del = e.target.closest('[data-decor-del]');
@@ -194,7 +226,7 @@ stage.addEventListener('pointerdown', (e) => {
   const i = Number(el.dataset.i);
   const box = stage.getBoundingClientRect();
   // Keep the grab point under the pointer instead of jumping the middle to it.
-  drag = { i, el, offset: e.clientX - (box.left + (decor[i].x / 100) * box.width) };
+  drag = { i, el, offset: e.clientX - (box.left + (placement(decor[i]).x / 100) * box.width) };
   el.setPointerCapture(e.pointerId);
   el.classList.add('dragging');
 });
@@ -218,7 +250,7 @@ stage.addEventListener('keydown', (e) => {
   e.preventDefault();
   const i = Number(el.dataset.i);
   const step = (e.shiftKey ? 5 : 0.5) * (e.key === 'ArrowLeft' ? -1 : 1);
-  setField(i, 'x', Math.round((decor[i].x + step) * 10) / 10);
+  setField(i, 'x', Math.round((placement(decor[i]).x + step) * 10) / 10);
   saveSoon();
 });
 new ResizeObserver(() => { scalePreview(); keepInside(stage); }).observe(preview);

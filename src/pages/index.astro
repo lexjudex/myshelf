@@ -6,7 +6,7 @@ import CopyLink from '../components/CopyLink.astro';
 import '../styles/decor.css';
 import { getSite } from '../../server/site.js';
 import { getDecor } from '../../server/decor.js';
-import { decorStyle, decorClasses, decorInner, decorMax } from '../lib/decor.js';
+import { decorStyle, decorClasses, decorInner, decorMaxStyle } from '../lib/decor.js';
 import { getItems, getShelves } from '../lib/items.js';
 import { sortShelf, inShelf, showsOnHome } from '../lib/sorting.js';
 import { TYPES, TYPE_KEYS } from '../lib/types.js';
@@ -27,7 +27,7 @@ const latestThought = items.find((e) => e.data.featured === true && hasNotes(e))
 
   {/* Shelf decorations (Manage → Settings): up to three images standing on top of the bookcase. */}
   {decor.length > 0 && (
-    <div class="bookcase-top" aria-hidden="true" style={`--decor-max:${decorMax(decor)}px`}>
+    <div class="bookcase-top" aria-hidden="true" style={decorMaxStyle(decor)}>
       {decor.map((d) => (
         <span class={decorClasses(d)} style={decorStyle(d)} set:html={decorInner(d, escAttr)} />
       ))}
