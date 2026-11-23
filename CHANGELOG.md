@@ -2,6 +2,12 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.3.1 (Nov 2026)
+
+- **Exact placement for shelf decorations.** Drag each decoration along the shelf in the Settings preview, or nudge it with the arrow keys (hold Shift for bigger steps). Position, size and tilt are now sliders with exact number fields, so things line up precisely. There's also a **Center it** button. Older decorations keep where they were.
+- **Tilt.** Lean any decoration left or right, up to 20°. It pivots on its bottom corner, so it still rests on the shelf. JPGs start in a frame leaning slightly.
+- Decorations near an edge no longer hang off the screen on phones.
+
 ## 0.3.0 (Nov 2026)
 
 - **Comments on friends' entries.** A public thread under each entry on the Friends page and on the item's own page. You can reply on your own items and delete any comment there; friends can delete their own comments. New comments show up in your inbox.

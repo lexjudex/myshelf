@@ -1,14 +1,12 @@
 // Shelf decorations: up to three images (a framed photo, a teddy bear, a mini figure…) that stand on
 // top of the bookcase on the main Shelves page. Set in Manage → Settings. The images live in KV next to the covers
-// (as decor-*.png / .webp) and the list lives in D1 settings.
+// (as decor-*.png / .webp / .jpg) and the list lives in D1 settings.
 import { HttpError } from './util.js';
 import { getSetting, setSetting } from './db.js';
 import { IMG_PREFIX, storedCoverName, aspectOf } from './covers.js';
 
 export const MAX_DECOR = 3;
 const MAX_BYTES = 2 * 1024 * 1024;
-export const POSITIONS = ['left', 'left-center', 'center', 'right-center', 'right'];
-export const SIZES = ['small', 'medium', 'large'];
 export const FRAMES = ['none', 'wood', 'black', 'gold', 'white'];
 
 const isDecorImage = (path) => {
@@ -21,12 +19,26 @@ export async function getDecor(env) {
   return Array.isArray(list) ? cleanDecor(list) : []; // cleaned on the way out too, so older entries get defaults
 }
 
+// Placement: x = where the middle of the image sits, in % of the bookcase's width (0 = left edge, 100 = right);
+// height in px on a desktop screen (phones scale it down); tilt in degrees (negative leans left, positive right).
+export const LIMITS = { x: [0, 100], height: [30, 240], tilt: [-20, 20] };
+// Earlier versions had five spots and three sizes; they turn into the same numbers.
+const OLD_X = { left: 10, 'left-center': 30, center: 50, 'right-center': 70, right: 90 };
+const OLD_H = { small: 70, medium: 110, large: 150 };
+
+const num = (v, [lo, hi], fallback, step = 1) => {
+  const n = Number(v);
+  if (v === '' || v == null || !Number.isFinite(n)) return fallback;
+  return Math.min(hi, Math.max(lo, Number((Math.round(n / step) * step).toFixed(2))));
+};
+
 export function cleanDecor(list) {
   if (!Array.isArray(list)) throw new HttpError(400, 'decorations must be a list');
   return list.filter((d) => isDecorImage(d?.image)).slice(0, MAX_DECOR).map((d) => ({
     image: d.image,
-    position: POSITIONS.includes(d.position) ? d.position : 'center',
-    size: SIZES.includes(d.size) ? d.size : 'medium',
+    x: num(d.x, LIMITS.x, OLD_X[d.position] ?? 50, 0.1),
+    height: num(d.height, LIMITS.height, OLD_H[d.size] ?? 110),
+    tilt: num(d.tilt, LIMITS.tilt, 0, 0.5),
     flip: d.flip === true,
     frame: FRAMES.includes(d.frame) ? d.frame : 'none', // a picture frame around the image (for photos)
     ...(Number(d.aspect) > 0 ? { aspect: Math.round(Number(d.aspect) * 10000) / 10000 } : {}),
@@ -66,9 +78,9 @@ export async function addDecor(env, buf) {
   if (!env?.COVERS) throw new HttpError(500, 'Cover storage (the COVERS KV binding) isn’t connected.');
   const name = `decor-${Date.now().toString(36)}-${crypto.randomUUID().slice(0, 6)}.${kind.ext}`;
   await env.COVERS.put(name, buf, { metadata: { type: kind.type } });
-  const used = new Set(list.map((d) => d.position));
-  const position = ['left', 'right', 'center', 'left-center', 'right-center'].find((p) => !used.has(p)) || 'center';
-  // A JPG can't be see-through, so it starts out in a wood frame (switch it off in Settings if you like).
-  const frame = kind.ext === 'jpg' ? 'wood' : 'none';
-  return saveDecor(env, [...list, { image: IMG_PREFIX + name, position, size: 'medium', frame, aspect: aspectOf(buf) }]);
+  // New ones start at the first free spot: left, right, then the middle.
+  const x = [10, 90, 50, 30, 70].find((p) => !list.some((d) => Math.abs(d.x - p) < 8)) ?? 50;
+  // A JPG can't be see-through, so it starts out in a wood frame, leaning a little (change both in Settings).
+  const jpg = kind.ext === 'jpg';
+  return saveDecor(env, [...list, { image: IMG_PREFIX + name, x, height: 110, tilt: jpg ? -4 : 0, frame: jpg ? 'wood' : 'none', aspect: aspectOf(buf) }]);
 }
