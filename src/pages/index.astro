@@ -114,7 +114,8 @@ const latestThought = items.find((e) => e.data.featured === true && hasNotes(e))
       e.preventDefault();
       el.focus({ preventScroll: true });
       const r = el.getBoundingClientRect();
-      drag = { i: Number(el.dataset.i), el, offset: e.clientX - (r.left + r.width / 2), nudge: parseFloat(el.style.getPropertyValue('--nudge')) || 0 };
+      const y0 = parseFloat(getComputedStyle(el).getPropertyValue('--Y')) || 0;
+      drag = { i: Number(el.dataset.i), el, offset: e.clientX - (r.left + r.width / 2), nudge: parseFloat(el.style.getPropertyValue('--nudge')) || 0, startY: e.clientY, y0 };
       el.setPointerCapture(e.pointerId);
       el.classList.add('dragging');
     });
@@ -122,7 +123,11 @@ const latestThought = items.find((e) => e.data.featured === true && hasNotes(e))
       if (!drag) return;
       const box = top.getBoundingClientRect();
       const x = ((e.clientX - drag.offset - drag.nudge - box.left) / box.width) * 100;
-      tell({ type: 'myshelf:decor-move', i: drag.i, x: Math.round(Math.min(100, Math.max(0, x)) * 10) / 10 });
+      // Up the screen = higher above the shelf. Ignore the first few px of up/down, so a sideways drag stays level.
+      const dy = drag.startY - e.clientY;
+      if (Math.abs(dy) > 6) drag.vertical = true;
+      const y = drag.y0 + (drag.vertical ? dy : 0);
+      tell({ type: 'myshelf:decor-move', i: drag.i, x: Math.round(Math.min(100, Math.max(0, x)) * 10) / 10, y: Math.round(y) });
     });
     const end = () => {
       if (!drag) return;
@@ -134,9 +139,12 @@ const latestThought = items.find((e) => e.data.featured === true && hasNotes(e))
     top.addEventListener('pointercancel', end);
     top.addEventListener('keydown', (e) => {
       const el = e.target.closest('.decor[data-i]');
-      if (!el || !['ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+      if (!el || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
       e.preventDefault();
-      tell({ type: 'myshelf:decor-nudge', i: Number(el.dataset.i), step: (e.shiftKey ? 5 : 0.5) * (e.key === 'ArrowLeft' ? -1 : 1) });
+      const horizontal = e.key === 'ArrowLeft' || e.key === 'ArrowRight';
+      const sign = e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 1;
+      // Left/right in % of the width (0.5, or 5 with Shift); up/down in px (1, or 10 with Shift).
+      tell({ type: 'myshelf:decor-nudge', i: Number(el.dataset.i), field: horizontal ? 'x' : 'y', step: sign * (horizontal ? (e.shiftKey ? 5 : 0.5) : (e.shiftKey ? 10 : 1)) });
     });
     tell({ type: 'myshelf:decor-ready' });
   }

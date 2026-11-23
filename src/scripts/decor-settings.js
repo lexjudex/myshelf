@@ -8,7 +8,8 @@ const $ = (s, root = document) => root.querySelector(s);
 const FRAMES = [['none', 'None'], ['wood', 'Wood'], ['black', 'Black'], ['gold', 'Gold'], ['white', 'White']];
 const MAX = 3;
 const FIELDS = {
-  x: { min: 0, max: 100, step: 0.5, unit: '%', label: 'Position', hint: 'from the left edge' },
+  x: { min: 0, max: 100, step: 0.5, unit: '%', label: 'Left / right', hint: 'from the left edge of the bookcase' },
+  y: { min: -20, max: 160, step: 1, unit: 'px', label: 'Up / down', hint: 'raised above the shelf (0 = standing on it)' },
   height: { min: 20, max: 240, step: 1, unit: 'px', label: 'Size', hint: 'tall' },
   tilt: { min: -20, max: 20, step: 0.5, unit: '°', label: 'Tilt', hint: 'lean it flat: minus leans left, plus leans right' },
   turn: { min: -50, max: 50, step: 1, unit: '°', label: 'Turn', hint: 'angle it on the shelf: minus faces left, plus faces right' },
@@ -87,8 +88,10 @@ window.addEventListener('message', (e) => {
   } else if (m.type === 'myshelf:decor-move' && decor[m.i]) {
     if (m.done) return save();
     setField(m.i, 'x', m.x);
+    if (m.y != null) setField(m.i, 'y', m.y);
   } else if (m.type === 'myshelf:decor-nudge' && decor[m.i]) {
-    setField(m.i, 'x', Math.round((placement(decor[m.i]).x + m.step) * 10) / 10, m.i);
+    const k = m.field === 'y' ? 'y' : 'x';
+    setField(m.i, k, Math.round(((Number(placement(decor[m.i])[k]) || 0) + m.step) * 10) / 10, m.i);
     saveSoon();
   }
 });
@@ -140,7 +143,7 @@ function render() {
       <img class="decor-thumb" src="${esc(d.image)}" alt="Decoration ${i + 1}">
       <div class="decor-controls">
         ${phone ? `<p class="decor-phone-note muted small">${phoneNote(d, i)}</p>` : ''}
-        ${fieldHtml('x', p)}${fieldHtml('height', p)}${fieldHtml('tilt', p)}${fieldHtml('turn', p)}
+        ${fieldHtml('x', p)}${fieldHtml('y', p)}${fieldHtml('height', p)}${fieldHtml('tilt', p)}${fieldHtml('turn', p)}
         <div class="decor-options">
           ${phone ? `<label class="check"><input type="checkbox" data-field="showOnPhone"${p.hidden ? '' : ' checked'}> Show on phones</label>` : ''}
           <label>Frame <select data-field="frame">${options(FRAMES, d.frame || 'none')}</select></label>
@@ -162,7 +165,7 @@ function saveSoon(delay = 450) {
   msg('Saving…');
   saveTimer = setTimeout(save, delay);
 }
-const sameNumbers = (a, b) => Object.keys(FIELDS).every((k) => Number(a?.[k]) === Number(b?.[k]));
+const sameNumbers = (a, b) => Object.keys(FIELDS).every((k) => Number(a?.[k] ?? 0) === Number(b?.[k] ?? 0));
 async function save(okText = 'Saved. Your Shelves page shows it right away.') {
   clearTimeout(saveTimer);
   try {

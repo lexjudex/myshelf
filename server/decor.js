@@ -20,10 +20,11 @@ export async function getDecor(env) {
 }
 
 // Placement: x = where the middle of the image sits, in % of the bookcase's width (0 = left edge, 100 = right);
+// y = how far it's raised above the shelf in px (0 = standing on it; a little below 0 sinks it into the edge);
 // height in px on a desktop screen (phones scale it down); tilt in degrees: leaning flat, like a picture hung
 // crooked (negative leans left, positive right); turn in degrees: angled on the shelf in 3D, like a frame set at
 // an angle instead of head-on (negative faces left, positive faces right).
-export const LIMITS = { x: [0, 100], height: [20, 240], tilt: [-20, 20], turn: [-50, 50] };
+export const LIMITS = { x: [0, 100], y: [-20, 160], height: [20, 240], tilt: [-20, 20], turn: [-50, 50] };
 // Earlier versions had five spots and three sizes; they turn into the same numbers.
 const OLD_X = { left: 10, 'left-center': 30, center: 50, 'right-center': 70, right: 90 };
 const OLD_H = { small: 70, medium: 110, large: 150 };
@@ -34,12 +35,13 @@ const num = (v, [lo, hi], fallback, step = 1) => {
   return Math.min(hi, Math.max(lo, Number((Math.round(n / step) * step).toFixed(2))));
 };
 
-// Phones: `phone` is null (follow desktop, drawn at PHONE_SCALE) or its own { x, height, tilt, turn, hidden }.
+// Phones: `phone` is null (follow desktop, drawn at PHONE_SCALE) or its own { x, y, height, tilt, turn, hidden }.
 export const PHONE_SCALE = 0.68;
 function cleanPhone(p) {
   if (!p || typeof p !== 'object') return null;
   return {
     x: num(p.x, LIMITS.x, 50, 0.1),
+    y: num(p.y, LIMITS.y, 0),
     height: num(p.height, LIMITS.height, 75),
     tilt: num(p.tilt, LIMITS.tilt, 0, 0.5),
     turn: num(p.turn, LIMITS.turn, 0),
@@ -52,6 +54,7 @@ export function cleanDecor(list) {
   return list.filter((d) => isDecorImage(d?.image)).slice(0, MAX_DECOR).map((d) => ({
     image: d.image,
     x: num(d.x, LIMITS.x, OLD_X[d.position] ?? 50, 0.1),
+    y: num(d.y, LIMITS.y, 0),
     height: num(d.height, LIMITS.height, OLD_H[d.size] ?? 110),
     tilt: num(d.tilt, LIMITS.tilt, 0, 0.5),
     turn: num(d.turn, LIMITS.turn, 0),

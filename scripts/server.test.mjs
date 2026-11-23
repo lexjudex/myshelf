@@ -515,8 +515,10 @@ test('shelf decorations: PNG/WebP only, up to three, removed images are deleted,
   assert.deepEqual(saved.map((d) => [d.x, d.height, d.tilt, d.turn, d.flip, d.frame]), [[37.3, 240, -20, -50, true, 'none'], [50, 110, 3.5, 22, false, 'gold']]);
   // Phone settings: null follows desktop; a set of its own is cleaned the same way.
   assert.equal(saved[0].phone, null);
-  const withPhone = await saveDecor(env, [{ ...saved[0], phone: { x: 120, height: 64, tilt: 2, turn: -10, hidden: true } }, saved[1]]);
-  assert.deepEqual(withPhone[0].phone, { x: 100, height: 64, tilt: 2, turn: -10, hidden: true });
+  const withPhone = await saveDecor(env, [{ ...saved[0], y: 500, phone: { x: 120, y: 12.4, height: 64, tilt: 2, turn: -10, hidden: true } }, saved[1]]);
+  assert.equal(withPhone[0].y, 160);
+  assert.equal(withPhone[1].y, 0);
+  assert.deepEqual(withPhone[0].phone, { x: 100, y: 12, height: 64, tilt: 2, turn: -10, hidden: true });
   // Older entries (five spots, three sizes) become numbers.
   const { cleanDecor } = await import('../server/decor.js');
   assert.deepEqual(cleanDecor([{ image: list[0].image, position: 'right-center', size: 'large' }]).map((d) => [d.x, d.height, d.turn]), [[70, 150, 0]]);

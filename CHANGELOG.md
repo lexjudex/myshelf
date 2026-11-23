@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.3.6 (Nov 2026)
+
+- **Up / down for shelf decorations.** A new slider raises a decoration above the shelf (0 = standing on it), next to **Left / right**. Dragging in the preview moves it both ways (a sideways drag stays level), and the up/down arrow keys nudge it 1px at a time, or 10px with Shift. Phones get their own up/down too.
+
 ## 0.3.5 (Nov 2026)
 
 - **The decorations preview is your real Shelves page.** Settings shows your actual home page in a small window, at desktop width or at your phone's width, with your changes drawn live. It can't differ from what visitors see, on any phone or browser. Drag and arrow-key nudges work right in it.

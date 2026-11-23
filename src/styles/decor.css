@@ -1,19 +1,19 @@
 /* Shelf decorations: up to three images standing on top of the bookcase (main Shelves page), and the
    preview of them in Manage → Settings. Each decoration carries two sets of variables (see src/lib/decor.js):
-   --x --h --tilt --turn … for desktop and --xm --hm … for phones. The rules below copy one set into the
+   --x --y --h --tilt --turn … for desktop and --xm --ym --hm … for phones. The rules below copy one set into the
    working variables (--X --H …), phones by screen width. (The Settings preview is this page in a frame.) */
 .bookcase-top {
   position: relative; margin-top: 8px; pointer-events: none; --M: var(--decor-max, 120px); height: calc(var(--M) + 10px);
   overflow-x: clip; /* never wider than the page, even before keepInside() has run (phones would zoom out) */
 }
-.decor { --X: var(--x); --H: var(--h); --T: var(--tilt); --O: var(--origin); --R: var(--turn); --S: var(--shade); --SD: var(--shade-dir); --D: var(--show); }
+.decor { --X: var(--x); --Y: var(--y); --H: var(--h); --T: var(--tilt); --O: var(--origin); --R: var(--turn); --S: var(--shade); --SD: var(--shade-dir); --D: var(--show); }
 @media (max-width: 760px) {
   .bookcase-top { --M: var(--decor-max-m, 80px); }
-  .bookcase-top .decor { --X: var(--xm); --H: var(--hm); --T: var(--tiltm); --O: var(--originm); --R: var(--turnm); --S: var(--shadem); --SD: var(--shade-dirm); --D: var(--showm); }
+  .bookcase-top .decor { --X: var(--xm); --Y: var(--ym); --H: var(--hm); --T: var(--tiltm); --O: var(--originm); --R: var(--turnm); --S: var(--shadem); --SD: var(--shade-dirm); --D: var(--showm); }
 }
 
 .decor {
-  position: absolute; bottom: -3px; /* stands on the top board */
+  position: absolute; bottom: calc(var(--Y, 0px) - 3px); /* stands on the top board, or raised by --Y */
   left: var(--X, 50%);
   display: var(--D, block);
   height: var(--H, 110px);

@@ -10,7 +10,7 @@ export const PHONE_SCALE = 0.68; // matches server/decor.js: phones follow deskt
 /** The phone placement: its own if set, otherwise desktop's, smaller. */
 export function phoneOf(d) {
   if (d.phone) return d.phone;
-  return { x: Number(d.x ?? 50), height: Math.round((Number(d.height) || 110) * PHONE_SCALE), tilt: Number(d.tilt) || 0, turn: Number(d.turn) || 0, hidden: false };
+  return { x: Number(d.x ?? 50), y: Math.round((Number(d.y) || 0) * PHONE_SCALE), height: Math.round((Number(d.height) || 110) * PHONE_SCALE), tilt: Number(d.tilt) || 0, turn: Number(d.turn) || 0, hidden: false };
 }
 
 function vars(p, suffix) {
@@ -18,6 +18,7 @@ function vars(p, suffix) {
   const turn = Number(p.turn) || 0;
   return [
     [`--x${suffix}`, `${Number(p.x ?? 50)}%`],
+    [`--y${suffix}`, `${Number(p.y) || 0}px`],
     [`--h${suffix}`, `${Number(p.height) || 110}px`],
     [`--tilt${suffix}`, `${tilt}deg`],
     [`--origin${suffix}`, tilt > 0 ? '100%' : tilt < 0 ? '0%' : '50%'], // a tilt pivots on the corner it leans towards
@@ -53,7 +54,7 @@ function tallest(list) {
     const z = (w / 2) * Math.sin((Math.abs(Number(p.turn) || 0) * Math.PI) / 180); // how far a turned one's near edge comes forward
     const h = h0 * (PERSPECTIVE / (PERSPECTIVE - z));
     const a = (Math.abs(Number(p.tilt) || 0) * Math.PI) / 180; // a tilt lifts a corner
-    return h * Math.cos(a) + w * Math.sin(a);
+    return h * Math.cos(a) + w * Math.sin(a) + Math.max(0, Number(p.y) || 0); // raised ones need the room too
   })));
 }
 
