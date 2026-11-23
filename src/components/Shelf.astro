@@ -1,6 +1,7 @@
 ---
 import Book3D from './Book3D.astro';
 import { filterData } from '../lib/filters.js';
+import { isVinyl } from '../lib/types.js';
 import '../styles/shelf3d.css';
 import '../styles/arrange.css';
 interface Props { items: any[]; title?: string; href?: string; description?: string; scroll?: boolean; limit?: number; height?: number; empty?: string; collection?: string; arrangeKey?: string; filterable?: boolean; seeAll?: boolean }
@@ -9,13 +10,14 @@ const editable = Boolean(collection || arrangeKey);
 // SEE ALL only appears once a collection has more than 10 items.
 const showSeeAll = seeAll && href && items.length > 10;
 const shown = limit ? items.slice(0, limit) : items;
-// Some things stand taller than books (movies/TV ~1.1x, board game boxes up to 1.3x), so the row
-// grows to fit the tallest type on the shelf, with a little headroom.
+// Some things stand taller than books (movies/TV ~1.1x, vinyl sleeves ~1.2x, board game boxes up to 1.3x),
+// so the row grows to fit the tallest type on the shelf, with a little headroom.
 const ROW_SCALE = { boardgame: 1.35, movie: 1.15, tv: 1.15 };
-const rowHeight = Math.round(height * Math.max(1, ...shown.map((e) => ROW_SCALE[e.data.type] || 1)));
+const scaleOf = (d) => (isVinyl(d) ? 1.22 : ROW_SCALE[d.type] || 1);
+const rowHeight = Math.round(height * Math.max(1, ...shown.map((e) => scaleOf(e.data))));
 // Row height without board games (0 if it's all board games): used when phones draw boxes smaller.
 const others = shown.filter((e) => e.data.type !== 'boardgame');
-const rowHeightNoBoxes = others.length ? Math.round(height * Math.max(1, ...others.map((e) => ROW_SCALE[e.data.type] || 1))) : 0;
+const rowHeightNoBoxes = others.length ? Math.round(height * Math.max(1, ...others.map((e) => scaleOf(e.data)))) : 0;
 ---
 <section class="shelf-section">
   {title && (

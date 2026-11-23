@@ -114,6 +114,12 @@ const MIGRATIONS = [
       `CREATE INDEX IF NOT EXISTS comments_uid ON comments (uid, created_at)`,
     ],
   },
+  {
+    version: 6, // your own private nicknames for friends (shown only to you, when signed in)
+    sql: [
+      `ALTER TABLE friends ADD COLUMN nickname TEXT NOT NULL DEFAULT ''`,
+    ],
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

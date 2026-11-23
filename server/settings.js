@@ -21,6 +21,7 @@ export function cleanCollections(collections) {
     seen.add(slug);
     const out = { slug, name, description: String(c.description || '').trim() };
     if (['in-progress', 'finished', 'want'].includes(c.auto)) out.auto = c.auto;
+    if ([3, 3.5, 4, 4.5, 5].includes(Number(c.minRating))) out.minRating = Number(c.minRating); // only items rated at least this
     if (['type', 'both'].includes(c.show)) out.show = c.show; // default (shelves) is left out
     if (SORTS.includes(c.sort) && c.sort !== 'newest') out.sort = c.sort;
     if ([30, 90, 182, 365, 730].includes(Number(c.within))) out.within = Number(c.within); // only items from the last N days

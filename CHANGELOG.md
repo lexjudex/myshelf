@@ -2,6 +2,14 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.4.0 (Nov 2026)
+
+- **Spotify playlists.** Music search now finds public playlists too, alongside albums and songs. A playlist is saved with its cover, description, owner and a **View on Spotify** link (Spotify only shares a playlist's track list with its owner).
+- **Paste a Spotify link.** Under the Music search, paste an album, song or playlist link (Share → Copy link in Spotify) to add exactly that one. Pasting it into the search box works too.
+- **Vinyl on the shelf.** Albums, compilations and playlists now stand as record sleeves, taller than a CD. Singles and songs stay CDs. Albums already on your shelf switch over automatically.
+- **Nicknames for friends.** In Manage → Friends, give any friend a nickname. Only you see it, when you're signed in: it replaces their name in your inbox, friends list, groups, comments and the Friends page. Visitors still see their own name.
+- **Starter shelves.** Manage → Collections has ready-made shelves to tick: **Currently** (in progress), **Recently Finished** (finished in the last year) and **Favorites** (rated 5 stars). A brand-new site offers them the first time you sign in. Collections can now also fill themselves by rating.
+
 ## 0.3.7 (Nov 2026)
 
 - Fixed: in the decorations preview, the shelf's edge drew on top of decorations that overlap it. They now always draw in front of the bookcase, as on the live page.

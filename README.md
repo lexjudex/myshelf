@@ -68,6 +68,7 @@ Add each one in your Worker → **Settings → Variables and Secrets** → **Add
 | GitHub (updates, optional) | Forks only. github.com/settings/personal-access-tokens → **Generate new token** → *Only select repositories*: your fork → **Repository permissions → Contents: Read and write**. Lets **Manage → Settings → Updates** pull in new versions for you. | `GITHUB_TOKEN` |
 
 Without Spotify, or if it ever fails, music search uses **MusicBrainz + Cover Art Archive** automatically.
+With Spotify you can also add public playlists, and paste an album, song or playlist link (Share → Copy link) into the box under the Music search. Spotify only sends a playlist's track list to its owner, so a playlist is saved with its name, cover, description and link.
 
 ## Using it
 

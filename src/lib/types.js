@@ -53,3 +53,8 @@ export function stars(rating) {
   const half = rating - full >= 0.5;
   return '★'.repeat(full) + (half ? '½' : '');
 }
+
+// Music drawn as a vinyl record sleeve instead of a CD case: albums, compilations and playlists
+// (from Spotify or MusicBrainz). Singles, songs, EPs and anything without a kind stay CDs.
+export const VINYL_KINDS = new Set(['album', 'compilation', 'playlist']);
+export const isVinyl = (item) => item?.type === 'music' && VINYL_KINDS.has(String(item.details?.kind || '').trim().toLowerCase());

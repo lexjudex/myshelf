@@ -121,7 +121,7 @@ try { comments = await itemComments(env, Astro.url.href, slug); } catch {}
 
 <script>
   // Comments: signed in on this browser, you can reply and delete (the section shows even when it's empty).
-  import { token, api, bindThreads } from '../../scripts/friends-ui.js';
+  import { token, api, bindThreads, setNicknames } from '../../scripts/friends-ui.js';
   const section = document.getElementById('comments');
   const toastEl = document.getElementById('fr-toast');
   let toastTimer;
@@ -135,6 +135,8 @@ try { comments = await itemComments(env, Astro.url.href, slug); } catch {}
   if (section && token()) {
     api('ping').then(() => {
       section.hidden = false;
+      // Your private nicknames for friends, on their comments (only you see them).
+      api('friends?nicknames=1').then(({ nicknames }) => setNicknames(nicknames, section)).catch(() => {});
       bindThreads(section, { me: location.origin, toast: say });
       if (location.hash === '#comments') section.scrollIntoView({ block: 'start' });
     }).catch(() => bindThreads(section, { toast: say }));

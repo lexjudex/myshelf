@@ -1,8 +1,8 @@
 ---
 // An item rendered as a 3D object that matches its media type:
-// books, game cartridges, CD jewel cases, VHS boxes and board game boxes.
+// books, game cartridges, CD jewel cases, vinyl record sleeves, VHS boxes and board game boxes.
 // Front face = cover art; side face = spine/edge with the title.
-import { TYPES } from '../lib/types.js';
+import { TYPES, isVinyl } from '../lib/types.js';
 // height = the slot (row) height; unit = the size a book is drawn at. They're the same unless the
 // shelf holds board games, which get a taller row so their boxes can stand bigger than the books.
 interface Props { item: any; height?: number; unit?: number; href: string; front?: boolean }
@@ -18,8 +18,10 @@ const SHAPES = {
   movie:     { kind: 'bluray', bh: 1.1,  w: 0.7,  d: 0.1,  min: 14 },
   tv:        { kind: 'vhs',  bh: 1.1,  w: 0.64, d: 0.18, min: 17 },
   boardgame: { kind: 'box',  bh: 1.25, w: 1.25, d: 0.3,  min: 24 },
+  // A record sleeve: square, a good bit taller than a CD (and a book), and thin.
+  vinyl:     { kind: 'vinyl', bh: 1.18, w: 1.18, d: 0.06, min: 10 },
 };
-const s = SHAPES[item.type] || SHAPES.book;
+const s = (isVinyl(item) && SHAPES.vinyl) || SHAPES[item.type] || SHAPES.book;
 let bh = Math.round(u * s.bh);
 let w = Math.round(u * s.w);
 // Board game boxes come in all shapes: size the box to the cover's real proportions,

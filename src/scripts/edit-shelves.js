@@ -94,7 +94,7 @@ async function editCollection(mod, lib, slug) {
     title: c.name,
     items,
     canRemove: (i) => (i.collections || []).includes(slug), // automatic (status) members can't be taken off by hand
-    onAdd: c.auto ? null : () => { location.href = addHref; },
+    onAdd: c.auto || c.minRating ? null : () => { location.href = addHref; },
     onSave: async (order, removed = []) => {
       if (removed.length) await api('collection-items', { method: 'POST', body: { collection: slug, remove: removed } });
       // Only switch to a custom order if you actually dragged things around.

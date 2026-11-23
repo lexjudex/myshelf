@@ -2,7 +2,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildMarkdown, parseMarkdown, normalizeItem } from '../server/markdown.js';
-import { parseBggSearch, parseBggThings, search, details, igdbScore, rankBggHits, bggIdFromUrl } from '../server/providers.js';
+import { parseBggSearch, parseBggThings, search, details, igdbScore, rankBggHits, bggIdFromUrl, spotifyRefFromUrl } from '../server/providers.js';
+import { isVinyl } from '../src/lib/types.js';
+import { inShelf, findStarter, STARTER_SHELVES } from '../src/lib/sorting.js';
+import { cleanCollections } from '../server/settings.js';
 import { saveItem, deleteItem } from '../server/save.js';
 import { checkAuth } from '../server/auth.js';
 import { GET as searchHandler } from '../src/pages/api/search.js';
@@ -171,6 +174,69 @@ test('Spotify search uses client credentials and limit=10; falls back to MusicBr
   const fb = await search('music', 'abbey road', env);
   assert.equal(fb[0].source, 'musicbrainz');
   assert.equal(fb[0].cover, 'https://coverartarchive.org/release-group/rg1/front-500');
+});
+
+test('Spotify playlists in search, and pasted Spotify links', async () => {
+  assert.deepEqual(spotifyRefFromUrl('https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M?si=abc'), { kind: 'playlist', id: '37i9dQZF1DXcBWIGoYBM5M' });
+  assert.deepEqual(spotifyRefFromUrl('https://open.spotify.com/intl-de/album/4aawyAB9vmqN3uQ7FjRGTy'), { kind: 'album', id: '4aawyAB9vmqN3uQ7FjRGTy' });
+  assert.deepEqual(spotifyRefFromUrl('spotify:track:6rqhFgbbKwnb9MLmUQDhG6'), { kind: 'track', id: '6rqhFgbbKwnb9MLmUQDhG6' });
+  assert.equal(spotifyRefFromUrl('https://open.spotify.com/artist/0OdUWJ0sBjDrqHygGUXeCF'), null);
+  const env = { SPOTIFY_CLIENT_ID: 'id', SPOTIFY_CLIENT_SECRET: 'secret' };
+  let calls = mockFetch([
+    ['accounts.spotify.com', () => ({ access_token: 'abc', expires_in: 3600 })],
+    ['api.spotify.com/v1/search', () => ({
+      albums: { items: [] }, tracks: { items: [] },
+      playlists: { items: [null, { id: 'p1', name: 'Road Trip', description: 'Songs &amp; more', owner: { display_name: 'lex' }, images: [{ url: 'https://i.scdn.co/p.jpg' }], items: { total: 42 }, external_urls: { spotify: 'https://open.spotify.com/playlist/p1' } }] },
+    })],
+  ]);
+  const res = await search('music', 'road trip', env);
+  assert.equal(res.length, 1);
+  assert.equal(res[0].details.kind, 'Playlist');
+  assert.equal(res[0].details.tracks, 42);
+  assert.equal(res[0].creator, 'lex');
+  assert.equal(res[0].description, 'Songs & more');
+  assert.equal(res[0].sourceId, 'playlist:p1');
+  assert.match(calls.find((c) => c.url.includes('/v1/search')).url, /type=album,track,playlist/);
+
+  calls = mockFetch([
+    ['accounts.spotify.com', () => ({ access_token: 'abc', expires_in: 3600 })],
+    ['api.spotify.com/v1/albums/a1', () => ({ id: 'a1', name: 'Greatest Hits', album_type: 'compilation', total_tracks: 20, release_date: '1981', artists: [{ name: 'Queen' }], images: [{ url: 'https://i.scdn.co/q.jpg' }] })],
+  ]);
+  const [alb] = await search('music', 'https://open.spotify.com/album/a1AAAAAAAAAA?si=x', env);
+  assert.equal(alb.title, 'Greatest Hits');
+  assert.equal(alb.details.kind, 'Compilation');
+  assert.equal(alb.url, 'https://open.spotify.com/album/a1');
+  assert.ok(!calls.some((c) => c.url.includes('/v1/search')));
+
+  mockFetch([
+    ['accounts.spotify.com', () => ({ access_token: 'abc', expires_in: 3600 })],
+    ['api.spotify.com/v1/playlists', () => new Response('{}', { status: 404 })],
+  ]);
+  await assert.rejects(search('music', 'https://open.spotify.com/playlist/zzzzzzzzzzzz', env), /is the playlist public/);
+  await assert.rejects(search('music', 'https://open.spotify.com/album/zzzzzzzzzzzz', {}), /Spotify keys/);
+});
+
+test('vinyl sleeves: albums, compilations and playlists; singles and songs stay CDs', () => {
+  const m = (kind) => ({ type: 'music', details: { kind } });
+  assert.ok(isVinyl(m('Album')) && isVinyl(m('Compilation')) && isVinyl(m('Playlist')));
+  assert.ok(!isVinyl(m('Single')) && !isVinyl(m('Song')) && !isVinyl(m('EP')) && !isVinyl({ type: 'music' }));
+  assert.ok(!isVinyl({ type: 'book', details: { kind: 'Album' } }));
+});
+
+test('starter shelves: Currently, Recently Finished (a year), Favorites (5 stars)', () => {
+  const [cur, recent, fav] = STARTER_SHELVES.map((s) => cleanCollections([s.collection])[0]);
+  assert.deepEqual(recent, { slug: 'recently-finished', name: 'Recently Finished', description: '', auto: 'finished', within: 365 });
+  assert.equal(fav.minRating, 5);
+  const now = Date.parse('2026-11-23');
+  assert.ok(inShelf({ status: 'in-progress' }, cur, now));
+  assert.ok(inShelf({ status: 'finished', dateFinished: '2026-03-01' }, recent, now));
+  assert.ok(!inShelf({ status: 'finished', dateFinished: '2025-03-01' }, recent, now));
+  assert.ok(inShelf({ status: 'finished', rating: 5 }, fav, now));
+  assert.ok(!inShelf({ status: 'finished', rating: 4.5 }, fav, now));
+  assert.ok(!inShelf({ status: 'want' }, fav, now));
+  // An existing shelf with the same rules counts as having it, even renamed.
+  assert.ok(findStarter([{ slug: 'now', name: 'Now playing', auto: 'in-progress' }], STARTER_SHELVES[0]));
+  assert.ok(!findStarter([{ slug: 'favorites', name: 'Favorites' }], STARTER_SHELVES[2])); // a hand-picked one isn't
 });
 
 test('IGDB search via Twitch token', async () => {

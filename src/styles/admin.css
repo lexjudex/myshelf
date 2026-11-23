@@ -334,3 +334,19 @@ html.embed .editor::backdrop { background: transparent; }
 .decor-preview iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; background: transparent; }
 .decor-loading { position: absolute; inset: 0; display: grid; place-items: center; margin: 0; color: #c9b79c; font-size: 0.88rem; }
 .decor-loading[hidden] { display: none; }
+
+/* Friend nickname editor (Manage → Friends) */
+.nick-form { flex: 1 0 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.nick-form[hidden] { display: none; }
+.nick-form input { flex: 0 1 240px; min-width: 0; }
+.nick-form .muted { flex: 1 0 100%; }
+
+/* Starter shelves (Collections tab, and the welcome box on a brand-new site) */
+.starter-box { margin: 4px 0 18px; padding: 12px 14px; border: 1px dashed #d8c9a8; border-radius: 10px; }
+.starter-box h3 { margin: 0 0 4px; font-size: 1rem; }
+.starter-box > p { margin: 0 0 8px; }
+.starter-picks { display: grid; gap: 6px; margin: 6px 0 10px; }
+.starter-pick { align-items: flex-start; }
+.starter-pick input { margin-top: 3px; }
+.starter-welcome { margin-bottom: 18px; }
+.starter-welcome[hidden] { display: none; }

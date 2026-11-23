@@ -67,8 +67,42 @@ function windowDate(item, shelf) {
   return by || item.dateFinished || item.dateStarted || item.dateAdded || null;
 }
 
+/** Does a collection fill itself (by status and/or rating) instead of you adding items by hand? */
+export const isAutoShelf = (shelf) => Boolean(shelf?.auto || shelf?.minRating);
+
+/** For automatic collections: does this item meet the rules (status, minimum rating)? */
+export function autoMatch(item, shelf) {
+  if (!isAutoShelf(shelf)) return false;
+  if (shelf.auto && item.status !== shelf.auto) return false;
+  if (shelf.minRating && !(Number(item.rating) >= Number(shelf.minRating))) return false;
+  return true;
+}
+
+/** Ratings a collection can require (Favorites = 5 stars). */
+export const RATING_RULES = [3, 3.5, 4, 4.5, 5];
+
+/**
+ * Starter shelves: ready-made automatic collections a new site can add to its Shelves page in one click
+ * (Manage → Collections, or the welcome box on first sign-in). Recognized by their rules, not their names,
+ * so renaming one keeps it ticked.
+ */
+export const STARTER_SHELVES = [
+  { key: 'currently', label: 'Currently', hint: 'Everything you’re reading, watching, listening to or playing now',
+    collection: { slug: 'currently', name: 'Currently', description: '', auto: 'in-progress' } },
+  { key: 'recently-finished', label: 'Recently Finished', hint: 'Things you finished in the last year, newest first',
+    collection: { slug: 'recently-finished', name: 'Recently Finished', description: '', auto: 'finished', within: 365 } },
+  { key: 'favorites', label: 'Favorites', hint: 'Everything you’ve rated 5 stars',
+    collection: { slug: 'favorites', name: 'Favorites', description: '', minRating: 5 } },
+];
+// Same rules = same status and rating rule; a time window counts only as "has one or not" (a Recently Finished
+// kept for 6 months is still Recently Finished).
+const sameRules = (c, s) => (c.auto || '') === (s.auto || '') && Number(c.minRating || 0) === Number(s.minRating || 0) && !c.within === !s.within;
+/** The collection in this list that is the given starter shelf, if you have it. */
+export const findStarter = (collections, starter) => (collections || []).find((c) => sameRules(c, starter.collection))
+  || (collections || []).find((c) => c.slug === starter.collection.slug && isAutoShelf(c));
+
 export function inShelf(item, shelf, now = Date.now()) {
-  const member = (item.collections || []).includes(shelf.slug) || (!!shelf.auto && item.status === shelf.auto);
+  const member = (item.collections || []).includes(shelf.slug) || autoMatch(item, shelf);
   if (!member || !shelf.within) return member;
   const d = windowDate(item, shelf);
   if (!d) return true; // no date to judge by: keep it

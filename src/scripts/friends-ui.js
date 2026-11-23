@@ -50,9 +50,34 @@ export function reviewHtml(md) {
 // A thread is either on a friend's item (data-friend + data-uid: comments go to their site) or on one of your
 // own items (data-own-slug: comments are stored here). bindThreads() wires up both kinds.
 
+// ───────── your private nicknames for friends ─────────
+// Pages are drawn with friends' own names (that's what visitors see). Signed in, setNicknames() swaps in the
+// nicknames you've given them (Manage → Friends) on this page, and in anything drawn afterwards.
+let NICKS = {};
+const nick = (url) => (url && NICKS[String(url).replace(/\/+$/, '')]) || '';
+
+/** nicknames: { friendUrl: nickname }, or the friends list from /api/friends. Updates [data-nick-url] elements. */
+export function setNicknames(nicknames, root = document) {
+  NICKS = Array.isArray(nicknames)
+    ? Object.fromEntries(nicknames.filter((f) => f.nickname).map((f) => [f.url, f.nickname]))
+    : { ...(nicknames || {}) };
+  if (typeof document === 'undefined' || !root) return;
+  root.querySelectorAll('[data-nick-url]').forEach((el) => {
+    const n = nick(el.dataset.nickUrl);
+    if (!n) return;
+    if (el.hasAttribute('data-nick-initial')) el.textContent = n.slice(0, 1).toUpperCase();
+    else el.textContent = n;
+  });
+  root.querySelectorAll('[data-name][data-friend-url]').forEach((el) => { const n = nick(el.dataset.friendUrl); if (n) el.dataset.name = n; });
+  root.querySelectorAll('.comment[data-author-url] .c-author').forEach((el) => {
+    const n = nick(el.closest('.comment').dataset.authorUrl);
+    if (n) el.textContent = n;
+  });
+}
+
 export function commentHtml(c) {
   return `<li class="comment" data-id="${esc(c.id)}" data-author-url="${esc(c.authorUrl)}">
-    <p class="c-meta"><a class="c-author" href="${esc(c.authorUrl)}" target="_blank" rel="noopener">${esc(c.author || host(c.authorUrl))}</a>
+    <p class="c-meta"><a class="c-author" href="${esc(c.authorUrl)}" target="_blank" rel="noopener">${esc(nick(c.authorUrl) || c.author || host(c.authorUrl))}</a>
       <span class="c-when">${esc(fmt(c.createdAt))}</span>
       <button type="button" class="c-del" data-del-comment hidden>Delete</button></p>
     <p class="c-text">${esc(c.text)}</p>
@@ -214,7 +239,7 @@ export function inboxHtml(inbox, friends, TYPES) {
         <button class="btn ghost small danger" data-inbox-del-comment="${esc(p.commentId || m.id)}" title="Remove this comment from your item">Delete comment</button>`;
     } else if (m.kind === 'comment-reply') {
       const it = p.item || {};
-      const author = p.author || 'Someone';
+      const author = nick(p.authorUrl) || p.author || 'Someone';
       const whose = author === m.fromName ? 'their' : `${esc(m.fromName)}’s`;
       const title = it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title);
       body = `<span class="inbox-item">${thumb(TYPES, it.cover, it.title, it.type)}<span><strong>${esc(author)}</strong> also commented on ${whose} <strong>${title}</strong></span></span>`;

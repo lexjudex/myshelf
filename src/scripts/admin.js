@@ -1,6 +1,6 @@
 // Admin UI: search external databases, add/edit/delete items, manage collections.
 import { marked } from 'marked';
-import { SORTS, sortShelf, inShelf, AUTO_RULES, SHOW_OPTIONS, WITHIN_OPTIONS } from '../lib/sorting.js';
+import { SORTS, sortShelf, inShelf, AUTO_RULES, SHOW_OPTIONS, WITHIN_OPTIONS, RATING_RULES, isAutoShelf, autoMatch, STARTER_SHELVES, findStarter } from '../lib/sorting.js';
 import { openArrange, updateItem as updateArrangeItem } from './arrange.js';
 import Sortable from 'sortablejs';
 const $ = (sel, root = document) => root.querySelector(sel);
@@ -177,9 +177,23 @@ $$('.type-btn').forEach((b) =>
   }),
 );
 
-// "Paste a BGG link" — only for board games.
+// "Paste a link" — BoardGameGeek for board games, Spotify for music.
+const LINK_FORMS = {
+  boardgame: {
+    placeholder: 'Can\'t find it? Paste a BoardGameGeek link…',
+    ok: (url) => /boardgamegeek\.com\/(boardgame|boardgameexpansion|thing)\/\d+/i.test(url),
+    error: 'That doesn\'t look like a BoardGameGeek game link (boardgamegeek.com/boardgame/…).',
+  },
+  music: {
+    placeholder: 'Paste a Spotify album, song or playlist link…',
+    ok: (url) => /open\.spotify\.com\/(intl-[a-z-]+\/)?(album|track|playlist)\/\w+|^spotify:(album|track|playlist):\w+|^https?:\/\/(spotify\.link|spoti\.fi)\//i.test(url),
+    error: 'That doesn\'t look like a Spotify link. In Spotify, use Share → Copy link on an album, song or playlist.',
+  },
+};
 function syncLinkForm() {
-  $('#link-form').hidden = state.type !== 'boardgame';
+  const f = LINK_FORMS[state.type];
+  $('#link-form').hidden = !f;
+  if (f) $('#link-url').placeholder = f.placeholder;
 }
 syncLinkForm();
 
@@ -217,8 +231,10 @@ $('#search-form').addEventListener('submit', (e) => {
 $('#link-form').addEventListener('submit', (e) => {
   e.preventDefault();
   const url = $('#link-url').value.trim();
-  if (!/boardgamegeek\.com\/(boardgame|boardgameexpansion|thing)\/\d+/i.test(url)) {
-    toast('That doesn\'t look like a BoardGameGeek game link (boardgamegeek.com/boardgame/…).', 'error');
+  const f = LINK_FORMS[state.type];
+  if (!f) return;
+  if (!f.ok(url)) {
+    toast(f.error, 'error');
     return;
   }
   runSearch(url);
@@ -284,11 +300,16 @@ function renderCoverPreview() {
   const item = { type: form.type.value, title: form.title.value, cover: form.cover.value.trim() };
   $('#cover-preview').innerHTML = coverThumb(item, 240);
 }
+const editorAutoItem = () => ({ status: form.status.value, rating: form.rating.value === '' ? null : Number(form.rating.value) });
+function syncAutoChecks() {
+  $$('#editor-collections input[data-auto-i]').forEach((cb) => (cb.checked = autoMatch(editorAutoItem(), state.collections[Number(cb.dataset.autoI)] || {})));
+}
+form.rating.addEventListener('change', syncAutoChecks);
 function renderCollectionChecks(selected = []) {
   $('#editor-collections').innerHTML = state.collections.length
     ? state.collections
-        .map((c) => c.auto
-          ? `<label class="check muted" title="Fills automatically from status"><input type="checkbox" disabled ${form.status.value === c.auto ? 'checked' : ''} data-auto="${esc(c.auto)}"> ${esc(c.name)} <span class="small">(automatic)</span></label>`
+        .map((c, i) => isAutoShelf(c)
+          ? `<label class="check muted" title="Fills automatically from ${c.minRating ? (c.auto ? 'status and rating' : 'rating') : 'status'}"><input type="checkbox" disabled ${autoMatch(editorAutoItem(), c) ? 'checked' : ''} data-auto-i="${i}"> ${esc(c.name)} <span class="small">(automatic)</span></label>`
           : `<label class="check"><input type="checkbox" value="${esc(c.slug)}" ${selected.includes(c.slug) ? 'checked' : ''}> ${esc(c.name)}</label>`)
         .join('')
     : '<span class="muted small">No collections yet — create some in the Collections tab.</span>';
@@ -403,7 +424,7 @@ form.body.addEventListener('input', () => { if (form.featured.checked) updateFea
 form.cover.addEventListener('input', renderCoverPreview);
 form.type.addEventListener('change', () => { updateCreatorLabel(); renderCoverPreview(); renderExpansionsField(); });
 form.status.addEventListener('change', () => {
-  $$('#editor-collections input[data-auto]').forEach((cb) => (cb.checked = form.status.value === cb.dataset.auto));
+  syncAutoChecks();
   const today = new Date().toISOString().slice(0, 10);
   // Moving off Finished clears the finished date; switching back brings it back (or today's date).
   if (form.status.value !== 'finished' && form.dateFinished.value) {
@@ -707,12 +728,14 @@ async function loadCollections() {
   try {
     const { collections } = await api('collections');
     state.collections = collections;
+    state.collectionsLoaded = true;
   } catch (err) {
     toast(err.message, 'error');
   }
   renderCollections();
 }
 function renderCollections() {
+  renderStarterPicks();
   $('#col-list').innerHTML = state.collections
     .map((c, i) => `
     <li class="col-row" data-i="${i}">
@@ -742,7 +765,7 @@ function renderCollections() {
           ${Object.entries(WITHIN_OPTIONS).map(([k, label]) => `<option value="${k}" ${String(c.within || '') === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}
         </select>
       </label>
-      <span class="muted small col-slug">${c.auto ? `auto: ${esc(AUTO_RULES[c.auto] || c.auto)}` : c.slug ? '/shelf/' + esc(c.slug) : 'new'}</span>
+      <span class="muted small col-slug">${isAutoShelf(c) ? `auto: ${[c.auto && esc(AUTO_RULES[c.auto] || c.auto), c.minRating && `${c.minRating}★+`].filter(Boolean).join(', ')}` : c.slug ? '/shelf/' + esc(c.slug) : 'new'}</span>
       <button class="btn ghost small danger" data-remove aria-label="Remove">✕</button>
     </li>`)
     .join('') || '<li class="muted">No collections yet.</li>';
@@ -824,6 +847,71 @@ $('#col-save').addEventListener('click', async () => {
   }
 });
 
+// ───────── starter shelves ─────────
+// Ready-made automatic collections (Currently, Recently Finished, Favorites). Ticked = you have it. In the
+// Collections tab, ticking adds it to the front of the Shelves page and saves; unticking removes it.
+// A brand-new site (no collections) gets a welcome box offering all of them on first sign-in.
+const STARTER_SKIP_KEY = 'myshelf_starter_skipped';
+function renderStarterPicks() {
+  const settings = $('[data-starter-picks="settings"]');
+  if (settings) settings.innerHTML = STARTER_SHELVES.map((st) => `
+    <label class="check starter-pick"><input type="checkbox" data-starter="${st.key}" ${findStarter(state.collections, st) ? 'checked' : ''}>
+      <span><strong>${esc(st.label)}</strong> <span class="muted small">${esc(st.hint)}</span></span></label>`).join('');
+  const welcome = $('#starter-welcome');
+  let skipped = false;
+  try { skipped = localStorage.getItem(STARTER_SKIP_KEY) === '1'; } catch {}
+  if (welcome) {
+    welcome.hidden = state.collections.length > 0 || skipped || !state.collectionsLoaded;
+    $('[data-starter-picks="welcome"]').innerHTML = STARTER_SHELVES.map((st) => `
+      <label class="check starter-pick"><input type="checkbox" data-starter-welcome="${st.key}" checked>
+        <span><strong>${esc(st.label)}</strong> <span class="muted small">${esc(st.hint)}</span></span></label>`).join('');
+  }
+}
+async function saveCollectionList(list, msg) {
+  const { collections } = await api('collections', { method: 'POST', body: { collections: list.filter((c) => c.name.trim()) } });
+  state.collections = collections;
+  renderCollections();
+  toast(msg);
+}
+const starterCopies = (keys) => STARTER_SHELVES.filter((st) => keys.includes(st.key) && !findStarter(state.collections, st)).map((st) => structuredClone(st.collection));
+$('[data-starter-picks="settings"]').addEventListener('change', async (e) => {
+  const cb = e.target.closest('[data-starter]');
+  if (!cb) return;
+  syncCollectionsFromInputs();
+  const st = STARTER_SHELVES.find((x) => x.key === cb.dataset.starter);
+  const have = findStarter(state.collections, st);
+  const list = cb.checked
+    ? [...starterCopies([st.key]), ...state.collections]
+    : state.collections.filter((c) => c !== have);
+  cb.disabled = true;
+  try {
+    await saveCollectionList(list, cb.checked ? `Added “${st.label}” to your Shelves page.` : `Removed “${have?.name || st.label}”.`);
+  } catch (err) {
+    cb.checked = !cb.checked;
+    toast(err.message, 'error');
+  } finally {
+    cb.disabled = false;
+  }
+});
+$('#starter-add').addEventListener('click', async () => {
+  const keys = $$('[data-starter-welcome]').filter((cb) => cb.checked).map((cb) => cb.dataset.starterWelcome);
+  if (!keys.length) return $('#starter-skip').click();
+  const btn = $('#starter-add');
+  btn.disabled = true;
+  try {
+    await saveCollectionList([...starterCopies(keys), ...state.collections], `Added ${keys.length === 1 ? 'a shelf' : `${keys.length} shelves`} to your Shelves page.`);
+  } catch (err) {
+    toast(err.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+$('#starter-skip').addEventListener('click', () => {
+  try { localStorage.setItem(STARTER_SKIP_KEY, '1'); } catch {}
+  $('#starter-welcome').hidden = true;
+  toast('No problem. Starter shelves are in Collections whenever you want them.');
+});
+
 // ───────── arrange a collection (shared drag & drop dialog) ─────────
 function openArrangeFor(index) {
   const c = state.collections[index];
@@ -840,7 +928,7 @@ function openArrangeFor(index) {
       toast(`Saved “${saved.title}”.`);
       loadLibrary();
     }),
-    onAdd: c.slug && !c.auto ? () => {
+    onAdd: c.slug && !isAutoShelf(c) ? () => {
       document.querySelector('.ar-dialog')?.close();
       startAddingTo(c.slug, types.size === 1 ? [...types][0] : null);
     } : null,
@@ -978,7 +1066,7 @@ function handleHash() {
 }
 
 function startAddingTo(slug, type) {
-  const c = state.collections.find((x) => x.slug === slug && !x.auto);
+  const c = state.collections.find((x) => x.slug === slug && !isAutoShelf(x));
   if (!c) return toast('That collection was not found.', 'error');
   state.addTo = c.slug;
   showTab('add');

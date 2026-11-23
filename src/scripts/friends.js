@@ -16,7 +16,8 @@ function toast(msg, kind = 'ok') {
 
 // ───────── friends tab ─────────
 const state = { me: null, friends: [], inbox: [], groups: [], loaded: false };
-const friendName = (f) => f.owner || f.name || f.url;
+// Your private nickname for them first (only you see it), then their own name.
+const friendName = (f) => f.nickname || f.owner || f.name || f.url;
 
 async function loadFriends() {
   try {
@@ -58,17 +59,56 @@ function renderFriends() {
   list.innerHTML = state.friends.map((f) => `
     <li class="friend-row">
       <span class="friend-text">
-        <strong>${esc(friendName(f))}</strong>${f.owner && f.name ? ` <span class="muted">· ${esc(f.name)}</span>` : ''}
+        <strong>${esc(friendName(f))}</strong>${f.nickname ? ` <span class="muted">· ${esc(f.owner || f.name || '')}</span>` : f.owner && f.name ? ` <span class="muted">· ${esc(f.name)}</span>` : ''}
         <span class="muted small">${esc(f.url.replace(/^https?:\/\//, ''))}</span>
         ${label[f.status] ? `<span class="vis-badge">${label[f.status]}</span>` : ''}
       </span>
       <span class="friend-actions">
         ${f.status === 'accepted' ? `<a class="btn ghost small" href="${esc(f.url)}" target="_blank" rel="noopener">View shelf ↗</a>` : ''}
+        ${f.status !== 'blocked' ? `<button class="btn ghost small" data-nick-edit="${esc(f.id)}" aria-expanded="false">${f.nickname ? 'Edit nickname' : 'Nickname'}</button>` : ''}
         ${f.status === 'pending' ? `<button class="btn primary small" data-friend-act="accept" data-id="${esc(f.id)}">Accept</button>` : ''}
         <button class="btn ghost small danger" data-friend-act="remove" data-id="${esc(f.id)}">${f.status === 'requested' ? 'Cancel' : f.status === 'blocked' ? 'Unblock' : 'Remove'}</button>
       </span>
+      <form class="nick-form" data-nick-form="${esc(f.id)}" hidden>
+        <input name="nickname" maxlength="60" value="${esc(f.nickname || '')}" placeholder="${esc(f.owner || f.name || 'Nickname')}" aria-label="Nickname for ${esc(f.owner || f.name || f.url)}" />
+        <button class="btn primary small" type="submit">Save</button>
+        ${f.nickname ? '<button class="btn ghost small" type="button" data-nick-clear>Use their name</button>' : ''}
+        <span class="muted small">Only you see this, when you’re signed in. It replaces their name across your site.</span>
+      </form>
     </li>`).join('');
 }
+
+// Nicknames: private names for friends, saved on your site only.
+$('#friend-list').addEventListener('click', (e) => {
+  const edit = e.target.closest('[data-nick-edit]');
+  if (edit) {
+    const form = $(`[data-nick-form="${CSS.escape(edit.dataset.nickEdit)}"]`);
+    form.hidden = !form.hidden;
+    edit.setAttribute('aria-expanded', String(!form.hidden));
+    if (!form.hidden) form.nickname.focus();
+    return;
+  }
+  const clear = e.target.closest('[data-nick-clear]');
+  if (clear) {
+    const form = clear.closest('form');
+    form.nickname.value = '';
+    form.requestSubmit();
+  }
+});
+$('#friend-list').addEventListener('submit', async (e) => {
+  const form = e.target.closest('[data-nick-form]');
+  if (!form) return;
+  e.preventDefault();
+  try {
+    const { nickname } = await api('friends', { method: 'POST', body: { action: 'nickname', id: form.dataset.nickForm, nickname: form.nickname.value } });
+    const f = state.friends.find((x) => x.id === form.dataset.nickForm);
+    if (f) f.nickname = nickname;
+    toast(nickname ? `Nickname saved: ${nickname}` : 'Nickname removed.');
+    await loadFriends(); // inbox names use it too
+  } catch (err) {
+    toast(err.message, 'error');
+  }
+});
 
 // ───────── groups ─────────
 // Edited here, saved all at once. Only you see them: they filter your Friends page and fill in the Recommend dialog.

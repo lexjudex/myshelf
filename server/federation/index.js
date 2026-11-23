@@ -50,7 +50,7 @@ export async function wellKnown(env, requestUrl) {
 
 // ───────── storage ─────────
 
-const rowToFriend = (r) => r && ({ id: r.id, url: r.url, name: r.name, owner: r.owner, status: r.status, publicKey: r.public_key, createdAt: r.created_at, updatedAt: r.updated_at });
+const rowToFriend = (r) => r && ({ id: r.id, url: r.url, name: r.name, owner: r.owner, nickname: r.nickname || '', status: r.status, publicKey: r.public_key, createdAt: r.created_at, updatedAt: r.updated_at });
 // What the admin page gets: no keys.
 const publicFriend = (f) => { if (!f) return f; const { publicKey, ...rest } = f; return rest; };
 
@@ -459,11 +459,27 @@ export async function overview(env, requestUrl) {
     friends: [...byUrl.values()].map(publicFriend),
     inbox: (inbox.results || []).map((r) => {
       const f = byUrl.get(r.from_url);
-      return { id: r.id, from: r.from_url, fromName: f?.owner || f?.name || r.from_url, friendId: f?.id || null, kind: r.kind, payload: JSON.parse(r.payload), status: r.status, createdAt: r.created_at };
+      return { id: r.id, from: r.from_url, fromName: f?.nickname || f?.owner || f?.name || r.from_url, friendId: f?.id || null, kind: r.kind, payload: JSON.parse(r.payload), status: r.status, createdAt: r.created_at };
     }),
     unread: (inbox.results || []).filter((r) => r.status === 'unread').length,
     groups: await getGroups(env),
   };
+}
+
+/** Your private nickname for a friend ('' clears it). Never sent to them or shown to visitors. */
+export async function setNickname(env, id, nickname) {
+  const f = await friendById(env, id);
+  const nick = String(nickname ?? '').replace(/\s+/g, ' ').trim().slice(0, 60);
+  const DB = await ensureSchema(env);
+  await DB.prepare('UPDATE friends SET nickname = ? WHERE id = ?').bind(nick, f.id).run();
+  return { ok: true, id: f.id, nickname: nick };
+}
+
+/** { friendUrl: nickname } for friends you've given one (for pages that swap names in when you're signed in). */
+export async function nicknames(env) {
+  const DB = await ensureSchema(env);
+  const { results } = await DB.prepare(`SELECT url, nickname FROM friends WHERE nickname != ''`).all();
+  return Object.fromEntries((results || []).map((r) => [r.url, r.nickname]));
 }
 
 export async function addFriend(env, requestUrl, url, note = '', fetcher = fetch) {

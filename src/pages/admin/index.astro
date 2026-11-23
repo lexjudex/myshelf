@@ -39,6 +39,17 @@ const typesJson = JSON.stringify(TYPES);
 
       <div id="storage-banner" class="storage-banner" hidden></div>
 
+      <!-- First sign-in on a new site (no collections yet): offer the starter shelves. -->
+      <div id="starter-welcome" class="panel starter-welcome" hidden>
+        <h2>Start your Shelves page</h2>
+        <p class="muted">Your Shelves page shows your collections, and you don’t have any yet. Add these ready-made shelves? They fill themselves as you set statuses and ratings. You can rename, reorder or remove them any time in <strong>Collections</strong>.</p>
+        <div class="starter-picks" data-starter-picks="welcome"></div>
+        <div class="row">
+          <button id="starter-add" class="btn primary" type="button">Add these shelves</button>
+          <button id="starter-skip" class="btn ghost" type="button">No thanks</button>
+        </div>
+      </div>
+
       <!-- Add / search -->
       <div class="tabpanel" data-panel="add">
         <div class="panel">
@@ -54,7 +65,7 @@ const typesJson = JSON.stringify(TYPES);
             <button class="btn ghost" type="button" id="manual-add">Add manually</button>
           </form>
           <form id="link-form" class="row link-form" hidden>
-            <input id="link-url" type="url" inputmode="url" placeholder="Can't find it? Paste a BoardGameGeek link…" autocomplete="off" />
+            <input id="link-url" type="text" inputmode="url" spellcheck="false" placeholder="Can't find it? Paste a BoardGameGeek link…" autocomplete="off" />
             <button class="btn ghost" type="submit">Look up</button>
           </form>
           <p id="search-msg" class="muted"></p>
@@ -86,6 +97,11 @@ const typesJson = JSON.stringify(TYPES);
         <div class="panel">
           <h2>Collections</h2>
           <p class="muted">Each collection becomes a shelf, in this order. <em>Show on</em> picks where it appears: the Shelves page, the media pages (showing only that page’s type, e.g. its board games on Board Games), or both. Drag the <span aria-hidden="true">⠿</span> handle to change the order collections appear in, then save. Choose <em>Custom</em> sorting to drag items into your own order.</p>
+          <div class="starter-box">
+            <h3>Starter shelves</h3>
+            <p class="muted small">Tick one to add it to the front of your Shelves page, already set up. Untick to remove it.</p>
+            <div class="starter-picks" data-starter-picks="settings"></div>
+          </div>
           <ul id="col-list" class="col-list"></ul>
           <div class="row">
             <button id="col-add" class="btn ghost" type="button">＋ New collection</button>

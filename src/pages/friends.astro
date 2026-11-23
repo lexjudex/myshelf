@@ -59,7 +59,7 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
                   <span class="bgf-label">{g.label}</span>
                   <div class="bgf-chips" data-filter={g.key}>
                     <button type="button" class="bgf-chip on" data-value="" aria-pressed="true">All</button>
-                    {g.options.map(([v, l]) => <button type="button" class="bgf-chip" data-value={v} aria-pressed="false">{l}</button>)}
+                    {g.options.map(([v, l]) => <button type="button" class="bgf-chip" data-value={v} data-nick-url={g.key === 'friend' ? v : undefined} aria-pressed="false">{l}</button>)}
                   </div>
                 </div>
               ))}
@@ -75,7 +75,7 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
                     {i.cover ? <img src={i.cover} alt="" loading="lazy" referrerpolicy="no-referrer" /> : <span>{(i.title || '?').slice(0, 1)}</span>}
                   </a>
                   <div class="feed-text">
-                    <p class="eyebrow"><a href={i.friend.url} target="_blank" rel="noopener">{who(i.friend)}</a> · {STATUS_LABEL(i.type, i.status)}{i.date && <> · {fmtDate(i.date)}</>}</p>
+                    <p class="eyebrow"><a href={i.friend.url} target="_blank" rel="noopener" data-nick-url={i.friend.url}>{who(i.friend)}</a> · {STATUS_LABEL(i.type, i.status)}{i.date && <> · {fmtDate(i.date)}</>}</p>
                     <h3><a href={link} target="_blank" rel="noopener">{i.title}</a> {i.rating != null && <span class="rating">{stars(i.rating)}</span>}</h3>
                     <p class="creator">{t.label}{i.creator && <> · {i.creator}</>}{i.year && <> · {i.year}</>}</p>
                     {i.review && <div class="review clamp" title="Show all" set:html={reviewHtml(i.review)} />}
@@ -99,9 +99,9 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
             {friends.map((f) => (
               <li>
                 <button type="button" class="friend-card" data-friend-url={f.url} data-name={who(f)} aria-controls="fr-shelf">
-                  <span class="friend-initial" aria-hidden="true">{who(f).slice(0, 1).toUpperCase()}</span>
+                  <span class="friend-initial" aria-hidden="true" data-nick-url={f.url} data-nick-initial>{who(f).slice(0, 1).toUpperCase()}</span>
                   <span class="friend-card-text">
-                    <strong>{who(f)}</strong>
+                    <strong data-nick-url={f.url}>{who(f)}</strong>
                     <span>{f.owner && f.name ? `${f.name} · ` : ''}{host(f.url)}</span>
                   </span>
                   <span class="friend-go" aria-hidden="true">→</span>
@@ -118,7 +118,7 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
 </Base>
 
 <script>
-  import { esc, api, token, inboxHtml, markSeen, bindFriendActions, bindThreads, shelfHtml } from '../scripts/friends-ui.js';
+  import { esc, api, token, inboxHtml, markSeen, bindFriendActions, bindThreads, shelfHtml, setNicknames } from '../scripts/friends-ui.js';
 
   const page = document.getElementById('friends-page');
   const TYPES = JSON.parse(page.dataset.types);
@@ -269,6 +269,8 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
       overview = await api('friends');
     } catch { return; } // not signed in (or an old token): leave the page as everyone sees it
     me = overview.me?.url || '';
+    // Your private nicknames for friends replace their names, for you only.
+    setNicknames(overview.friends, page);
 
     // Inbox at the top.
     inboxBox.hidden = false;

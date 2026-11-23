@@ -142,38 +142,99 @@ async function getSpotifyToken(env) {
   return spotifyToken.token;
 }
 
+const spotifyArtists = (list) => (list || []).map((x) => x.name).join(', ');
+const spotifyKind = (albumType) => (albumType === 'single' ? 'Single' : albumType === 'compilation' ? 'Compilation' : 'Album');
+
+const spotifyAlbum = (a) => result({
+  type: 'music',
+  source: 'spotify',
+  sourceId: `album:${a.id}`,
+  title: a.name,
+  creator: spotifyArtists(a.artists),
+  year: yearOf(a.release_date),
+  cover: a.images?.[0]?.url || '',
+  genres: a.genres || [],
+  details: { kind: spotifyKind(a.album_type), tracks: a.total_tracks },
+  url: a.external_urls?.spotify || `https://open.spotify.com/album/${a.id}`,
+});
+
+const spotifyTrack = (t) => result({
+  type: 'music',
+  source: 'spotify',
+  sourceId: `track:${t.id}`,
+  title: t.name,
+  creator: spotifyArtists(t.artists),
+  year: yearOf(t.album?.release_date),
+  cover: t.album?.images?.[0]?.url || '',
+  description: t.album?.name ? `From ${t.album.name}` : '',
+  details: { kind: 'Song' },
+  url: t.external_urls?.spotify || `https://open.spotify.com/track/${t.id}`,
+});
+
+// Playlists: Spotify only sends a playlist's tracks to its owner, so we keep its details, cover and link.
+// (Feb 2026 renamed `tracks` to `items`; read either.)
+const spotifyPlaylist = (p) => {
+  const total = p.items?.total ?? p.tracks?.total;
+  return result({
+    type: 'music',
+    source: 'spotify',
+    sourceId: `playlist:${p.id}`,
+    title: p.name,
+    creator: p.owner?.display_name || p.owner?.id || '',
+    cover: p.images?.[0]?.url || '',
+    description: truncate(stripHtml(decodeEntities(p.description || ''))),
+    details: { kind: 'Playlist', ...(total ? { tracks: total } : {}) },
+    url: p.external_urls?.spotify || `https://open.spotify.com/playlist/${p.id}`,
+  });
+};
+
+/**
+ * A Spotify link or URI → { kind, id }, else null. Handles open.spotify.com/album/…, /intl-xx/track/…,
+ * /playlist/… (with or without ?si=…) and spotify:album:… URIs.
+ */
+export function spotifyRefFromUrl(input) {
+  const s = String(input || '').trim();
+  const m = s.match(/open\.spotify\.com\/(?:intl-[a-z-]+\/)?(?:embed\/)?(album|track|playlist)\/([A-Za-z0-9]{10,})/i)
+    || s.match(/^spotify:(album|track|playlist):([A-Za-z0-9]{10,})$/i);
+  return m ? { kind: m[1].toLowerCase(), id: m[2] } : null;
+}
+
+const SPOTIFY_SHORT = /^https?:\/\/(spotify\.link|spoti\.fi)\//i;
+
+/** Look up one album, song or playlist from a pasted Spotify link. */
+async function spotifyFromUrl(input, env) {
+  let ref = spotifyRefFromUrl(input);
+  if (!ref && SPOTIFY_SHORT.test(input.trim())) {
+    // Share-sheet short links redirect to the open.spotify.com address.
+    try {
+      const res = await fetch(input.trim(), { redirect: 'follow', headers: { 'user-agent': userAgent(env) } });
+      ref = spotifyRefFromUrl(res.url) || spotifyRefFromUrl(await res.text());
+    } catch { /* fall through */ }
+  }
+  if (!ref) throw new HttpError(400, 'That doesn’t look like a Spotify album, song or playlist link.');
+  if (!(env.SPOTIFY_CLIENT_ID && env.SPOTIFY_CLIENT_SECRET)) throw new HttpError(400, 'Spotify links need Spotify keys (SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET). Search by name instead.');
+  const token = await getSpotifyToken(env);
+  const path = { album: 'albums', track: 'tracks', playlist: 'playlists' }[ref.kind];
+  const res = await fetch(`https://api.spotify.com/v1/${path}/${ref.id}`, { headers: { authorization: `Bearer ${token}` } });
+  if (res.status === 404 || res.status === 400) throw new HttpError(404, `No ${ref.kind === 'track' ? 'song' : ref.kind} found at that Spotify link${ref.kind === 'playlist' ? ' (is the playlist public?)' : ''}.`);
+  if (!res.ok) throw new HttpError(502, `Spotify lookup failed (${res.status})`);
+  const data = await res.json();
+  return [ref.kind === 'album' ? spotifyAlbum(data) : ref.kind === 'track' ? spotifyTrack(data) : spotifyPlaylist(data)];
+}
+
 async function searchSpotify(q, env) {
   const token = await getSpotifyToken(env);
-  // Development Mode caps `limit` at 10 (Feb 2026 change).
+  // Development Mode caps `limit` at 10 (Feb 2026 change). The limit is per type.
   const data = await fetchJson(
-    `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=album,track&limit=10`,
+    `https://api.spotify.com/v1/search?q=${encodeURIComponent(q)}&type=album,track,playlist&limit=10`,
     { headers: { authorization: `Bearer ${token}` } },
     'Spotify',
   );
-  const albums = (data.albums?.items || []).map((a) => result({
-    type: 'music',
-    source: 'spotify',
-    sourceId: `album:${a.id}`,
-    title: a.name,
-    creator: (a.artists || []).map((x) => x.name).join(', '),
-    year: yearOf(a.release_date),
-    cover: a.images?.[0]?.url || '',
-    details: { kind: a.album_type === 'single' ? 'Single' : a.album_type === 'compilation' ? 'Compilation' : 'Album', tracks: a.total_tracks },
-    url: a.external_urls?.spotify || '',
-  }));
-  const tracks = (data.tracks?.items || []).map((t) => result({
-    type: 'music',
-    source: 'spotify',
-    sourceId: `track:${t.id}`,
-    title: t.name,
-    creator: (t.artists || []).map((x) => x.name).join(', '),
-    year: yearOf(t.album?.release_date),
-    cover: t.album?.images?.[0]?.url || '',
-    description: t.album?.name ? `From ${t.album.name}` : '',
-    details: { kind: 'Song' },
-    url: t.external_urls?.spotify || '',
-  }));
-  return [...albums, ...tracks];
+  const albums = (data.albums?.items || []).filter(Boolean).map(spotifyAlbum);
+  const tracks = (data.tracks?.items || []).filter(Boolean).map(spotifyTrack);
+  // Spotify's search sometimes returns null entries for playlists; skip them. Playlists go last.
+  const playlists = (data.playlists?.items || []).filter((p) => p && p.id).slice(0, 5).map(spotifyPlaylist);
+  return [...albums, ...tracks, ...playlists];
 }
 
 async function searchMusicBrainz(q, env) {
@@ -190,12 +251,14 @@ async function searchMusicBrainz(q, env) {
     creator: (rg['artist-credit'] || []).map((a) => (a.name || a.artist?.name || '') + (a.joinphrase || '')).join('').trim(),
     year: yearOf(rg['first-release-date']),
     cover: `https://coverartarchive.org/release-group/${rg.id}/front-500`,
-    details: { kind: rg['primary-type'] || 'Album' },
+    details: { kind: (rg['secondary-types'] || []).includes('Compilation') && (rg['primary-type'] || 'Album') === 'Album' ? 'Compilation' : (rg['primary-type'] || 'Album') },
     url: `https://musicbrainz.org/release-group/${rg.id}`,
   }));
 }
 
 async function searchMusic(q, env) {
+  // A pasted Spotify link goes straight to that album, song or playlist.
+  if (spotifyRefFromUrl(q) || SPOTIFY_SHORT.test(String(q).trim())) return spotifyFromUrl(String(q), env);
   if (env.SPOTIFY_CLIENT_ID && env.SPOTIFY_CLIENT_SECRET) {
     try {
       return await searchSpotify(q, env);

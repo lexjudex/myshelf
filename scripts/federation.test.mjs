@@ -167,6 +167,17 @@ test('friends: request, accept, friends-only shelf, borrow, recommend', async ()
   const rec2 = (await fed.overview(alex, `${A}/api/friends`)).inbox.find((m) => m.kind === 'recommend' && m.payload.item.title === 'Wingspan');
   assert.equal(rec2.payload.alreadyHave, 'boardgame-wingspan');
 
+  // Alex's private nickname for Bea: used in his inbox and nickname list, never on public pages or sent to Bea.
+  await fed.setNickname(alex, av.friends[0].id, '  Bea from  book club ');
+  const nv = await fed.overview(alex, `${A}/api/friends`);
+  assert.equal(nv.friends[0].nickname, 'Bea from book club');
+  assert.equal(nv.inbox.find((m) => m.kind === 'recommend').fromName, 'Bea from book club');
+  assert.deepEqual(await fed.nicknames(alex), { [B]: 'Bea from book club' });
+  assert.equal((await fed.publicFriends(alex))[0].nickname, undefined);
+  assert.equal((await fed.overview(bea, `${B}/api/friends`)).friends[0].nickname, '');
+  await fed.setNickname(alex, av.friends[0].id, '');
+  assert.deepEqual(await fed.nicknames(alex), {});
+
   // Removing ends it on both sides.
   await fed.removeFriend(alex, `${A}/api/friends`, av.friends[0].id, net);
   assert.equal((await fed.overview(bea, `${B}/api/friends`)).friends.length, 0);
