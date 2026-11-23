@@ -2,7 +2,10 @@
    preview of them in Manage → Settings. Each decoration carries two sets of variables (see src/lib/decor.js):
    --x --h --tilt --turn … for desktop and --xm --hm … for phones. The rules below copy one set into the
    working variables (--X --H …): phones by screen width, or .as-phone / .as-desktop in the Settings preview. */
-.bookcase-top { position: relative; margin-top: 8px; pointer-events: none; --M: var(--decor-max, 120px); height: calc(var(--M) + 10px); }
+.bookcase-top {
+  position: relative; margin-top: 8px; pointer-events: none; --M: var(--decor-max, 120px); height: calc(var(--M) + 10px);
+  overflow-x: clip; /* never wider than the page, even before keepInside() has run (phones would zoom out) */
+}
 .decor { --X: var(--x); --H: var(--h); --T: var(--tilt); --O: var(--origin); --R: var(--turn); --S: var(--shade); --SD: var(--shade-dir); --D: var(--show); }
 @media (max-width: 760px) {
   .bookcase-top { --M: var(--decor-max-m, 80px); }
@@ -33,12 +36,17 @@
   transform-origin: 50% 100%;
 }
 .decor img { display: block; height: 100%; width: auto; max-width: none; object-fit: contain; object-position: bottom; -webkit-user-drag: none; }
+/* Exact sizes from the image's proportions (--a), so every browser draws it the same:
+   the picture is (height − frame) tall and that × --a wide; the frame (--edge each side: border + mat) goes around it. */
+.decor.sized { --edge: 0px; width: calc((var(--H, 110px) - 2 * var(--edge)) * var(--a) + 2 * var(--edge)); }
+.decor.sized .decor-face { width: 100%; }
+.decor.sized img { width: 100%; }
 .decor.flip img { transform: scaleX(-1); }
 
 /* "Frame": for photos (a JPG, or anything with a background) — a picture frame with a mat around the image. */
+.decor.framed { --fw: max(4px, calc(var(--H, 110px) * 0.07)); --mat: max(3px, calc(var(--H, 110px) * 0.045)); --edge: calc(var(--fw) + var(--mat)); }
 .decor.framed .decor-face {
-  --fw: max(4px, calc(var(--H, 110px) * 0.07));
-  border: var(--fw) solid; padding: max(3px, calc(var(--H, 110px) * 0.045));
+  border: var(--fw) solid; padding: var(--mat);
   background: #f4efe4;
   box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), inset 0 2px 6px rgba(0,0,0,0.25);
 }

@@ -2,6 +2,11 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.3.4 (Nov 2026)
+
+- **Manage in the phone menu.** The bubble menu now has Manage under Journal, so you don't have to scroll to the footer.
+- Fixed: shelf decorations could sit off-center or get extra space inside their frame on iPhones (Safari, which every iPhone browser uses, sized them differently from the Settings preview). Each decoration now gets an exact width from its image's proportions, so every browser draws it the same. The decoration area also can't make a phone page wider than the screen.
+
 ## 0.3.3 (Nov 2026)
 
 - **Separate phone layout for shelf decorations.** Switch the Settings preview to **Phone**, and the sliders edit phones only: position, size, tilt, turn, and **Show on phones**. Until you change something there, phones follow desktop at about two-thirds size. **Match desktop again** undoes it. Frame and Mirror are shared.

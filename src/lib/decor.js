@@ -30,12 +30,15 @@ function vars(p, suffix) {
 
 /** CSS variables for one decoration, for desktop and for phones. */
 export function decorStyle(d) {
-  return `${vars(d, '')};${vars(phoneOf(d), 'm')}`;
+  // --a (width ÷ height of the image) lets decor.css give it an exact width instead of leaving browsers to work it
+  // out (Safari, which every iPhone browser uses, gets that wrong for images sized by height).
+  const a = Number(d.aspect) > 0 ? `;--a:${Number(d.aspect)}` : '';
+  return `${vars(d, '')};${vars(phoneOf(d), 'm')}${a}`;
 }
 
 export function decorClasses(d) {
   const framed = d.frame && d.frame !== 'none';
-  return ['decor', d.flip && 'flip', framed && 'framed', framed && `frame-${d.frame}`].filter(Boolean).join(' ');
+  return ['decor', Number(d.aspect) > 0 && 'sized', d.flip && 'flip', framed && 'framed', framed && `frame-${d.frame}`].filter(Boolean).join(' ');
 }
 
 /** The inside of one decoration (the face and its image). */
