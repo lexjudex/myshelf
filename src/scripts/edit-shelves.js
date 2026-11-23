@@ -33,6 +33,9 @@ function reorderOnPage(selector, order) {
       return pos.has(s) ? pos.get(s) : Infinity;
     };
     slots.sort((a, b) => key(a) - key(b)).forEach((slot) => shelf.appendChild(slot));
+    // Keep the "+N more" card at the end.
+    const more = shelf.querySelector(':scope > .shelf-more');
+    if (more) shelf.appendChild(more);
     shelf.scrollLeft = 0;
     shelf.dispatchEvent(new CustomEvent('shelf:reorder'));
   });

@@ -147,6 +147,31 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 20px 60px; }
   content: ''; position: absolute; left: 4px; right: 4px; bottom: calc(var(--plank) - 4px); height: 8px;
   background: radial-gradient(ellipse at center, rgba(0,0,0,0.6), transparent 70%); z-index: 0;
 }
+/* "+N more" card at the end of a shelf that's showing only part of its collection */
+.shelf-more {
+  height: var(--row);
+  display: flex; align-items: flex-end;
+  padding: 0 6px var(--plank);
+  flex: 0 0 auto;
+  text-decoration: none;
+}
+.shelf-more-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  width: calc(var(--h0, 180px) * 0.5); height: calc(var(--h0, 180px) * 0.75);
+  max-height: calc(var(--row) - var(--plank) - 8px);
+  border: 2px dashed color-mix(in srgb, var(--accent) 65%, transparent);
+  border-radius: 4px;
+  background: rgba(217, 154, 78, 0.06);
+  color: var(--accent);
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+.shelf-more-n { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+.shelf-more-label { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.shelf-more:hover .shelf-more-card, .shelf-more:focus-visible .shelf-more-card {
+  background: rgba(217, 154, 78, 0.14); border-color: var(--accent); transform: translateY(-3px);
+}
+.shelf-more:focus-visible { outline: none; }
+.shelf-more:focus-visible .shelf-more-card { outline: 2px solid var(--accent); outline-offset: 3px; }
 .shelf-empty { color: var(--cream-soft); font-style: italic; align-self: center; margin: 0; padding-bottom: var(--plank); }
 
 /* Covers */

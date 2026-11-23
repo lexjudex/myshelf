@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.4.1 (Nov 2026)
+
+- **Bigger home page shelves.** Each collection on the home page now shows up to 24 items (was 12). A collection with more than that ends with a **+N more** card that opens the full collection, so nothing goes missing without a sign.
+
 ## 0.4.0 (Nov 2026)
 
 - **Spotify playlists.** Music search now finds public playlists too, alongside albums and songs. A playlist is saved with its cover, description, owner and a **View on Spotify** link (Spotify only shares a playlist's track list with its owner).

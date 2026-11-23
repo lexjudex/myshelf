@@ -42,7 +42,7 @@ const latestThought = items.find((e) => e.data.featured === true && hasNotes(e))
   <div class="bookcase scroll-motion">
     {shelves.filter(showsOnHome).map((s) => {
       const list = sortShelf(items.filter((e) => inShelf(e.data, s)), s);
-      return <Shelf title={s.name} description={s.description} items={list} href={`/shelf/${s.slug}/`} seeAll scroll limit={12} empty="No items on this shelf yet." collection={s.slug} />;
+      return <Shelf title={s.name} description={s.description} items={list} href={`/shelf/${s.slug}/`} seeAll scroll limit={24} empty="No items on this shelf yet." collection={s.slug} />;
     })}
   </div>
 

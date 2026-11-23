@@ -10,6 +10,8 @@ const editable = Boolean(collection || arrangeKey);
 // SEE ALL only appears once a collection has more than 10 items.
 const showSeeAll = seeAll && href && items.length > 10;
 const shown = limit ? items.slice(0, limit) : items;
+// When a limit hides some items, the shelf ends with a "+N more" card linking to the full collection.
+const hiddenCount = items.length - shown.length;
 // Some things stand taller than books (movies/TV ~1.1x, vinyl sleeves ~1.2x, board game boxes up to 1.3x),
 // so the row grows to fit the tallest type on the shelf, with a little headroom.
 const ROW_SCALE = { boardgame: 1.35, movie: 1.15, tv: 1.15 };
@@ -40,6 +42,11 @@ const rowHeightNoBoxes = others.length ? Math.round(height * Math.max(1, ...othe
         <Book3D item={e.data} height={rowHeight} unit={height} href={`/item/${e.id}/`} front={i === 0} />
       </div>
     ))}
+    {href && hiddenCount > 0 && (
+      <a class="shelf-more" href={href} aria-label={`See all ${items.length} items in ${title || 'this collection'}`}>
+        <span class="shelf-more-card"><span class="shelf-more-n">+{hiddenCount}</span><span class="shelf-more-label">more</span></span>
+      </a>
+    )}
   </div>
 </section>
 
