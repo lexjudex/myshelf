@@ -3,6 +3,7 @@ import Base from '../layouts/Base.astro';
 import Shelf from '../components/Shelf.astro';
 import JournalCard from '../components/JournalCard.astro';
 import CopyLink from '../components/CopyLink.astro';
+import '../styles/decor.css';
 import { getSite } from '../../server/site.js';
 import { getDecor } from '../../server/decor.js';
 import { getItems, getShelves } from '../lib/items.js';
@@ -26,8 +27,9 @@ const latestThought = items.find((e) => e.data.featured === true && hasNotes(e))
   {decor.length > 0 && (
     <div class="bookcase-top" aria-hidden="true">
       {decor.map((d) => (
-        <img class:list={['decor', `decor-${d.size}`, `decor-${d.position}`, { flip: d.flip }]} src={d.image} alt="" decoding="async"
-          style={d.aspect ? `aspect-ratio:${d.aspect}` : undefined} />
+        <span class:list={['decor', `decor-${d.size}`, `decor-${d.position}`, { flip: d.flip, framed: d.frame !== 'none', [`frame-${d.frame}`]: d.frame !== 'none' }]}>
+          <img src={d.image} alt="" decoding="async" style={d.aspect ? `aspect-ratio:${d.aspect}` : undefined} />
+        </span>
       ))}
     </div>
   )}

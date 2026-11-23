@@ -310,12 +310,7 @@ html.embed .editor::backdrop { background: transparent; }
 
 /* Shelf decorations (Settings) */
 .decor-preview { position: relative; margin: 10px 0 4px; padding: 0 0 0; border-radius: 10px; background: linear-gradient(180deg, #2a2b30, #1e1f22); overflow: hidden; }
-.decor-stage { position: relative; height: 130px; }
-.decor-stage .decor { position: absolute; bottom: -2px; transform: translateX(-50%); width: auto; max-width: 40%; object-fit: contain; filter: drop-shadow(0 4px 4px rgba(0,0,0,0.55)); }
-.decor-stage .decor.flip { transform: translateX(-50%) scaleX(-1); }
-.decor-stage .decor-small { height: 54px; } .decor-stage .decor-medium { height: 86px; } .decor-stage .decor-large { height: 118px; }
-.decor-stage .decor-left { left: 10%; } .decor-stage .decor-left-center { left: 30%; } .decor-stage .decor-center { left: 50%; }
-.decor-stage .decor-right-center { left: 70%; } .decor-stage .decor-right { left: 90%; }
+.decor-stage.bookcase-top { height: 132px; margin: 0; --d-small: 54px; --d-medium: 86px; --d-large: 118px; }
 .decor-board { height: 14px; background: linear-gradient(180deg, #6f6964, #36322f 30%, #282523 70%, #171514); }
 .decor-preview .decor-empty { position: absolute; inset: 0; display: grid; place-items: center; color: #c9b79c; font-size: 0.88rem; }
 .decor-list { list-style: none; padding: 0; margin: 8px 0 0; }

@@ -5,6 +5,7 @@ import { esc, token } from './friends-ui.js';
 const $ = (s) => document.querySelector(s);
 const POSITIONS = [['left', 'Left'], ['left-center', 'Left of center'], ['center', 'Center'], ['right-center', 'Right of center'], ['right', 'Right']];
 const SIZES = [['small', 'Small'], ['medium', 'Medium'], ['large', 'Large']];
+const FRAMES = [['none', 'None'], ['wood', 'Wood'], ['black', 'Black'], ['gold', 'Gold'], ['white', 'White']];
 const MAX = 3;
 let decor = [];
 
@@ -25,7 +26,10 @@ const msg = (text, error = false) => {
   el.classList.toggle('error', error);
 };
 
-const imgTag = (d) => `<img class="decor decor-${esc(d.size)} decor-${esc(d.position)}${d.flip ? ' flip' : ''}" src="${esc(d.image)}" alt="">`;
+const imgTag = (d) => {
+  const frame = d.frame && d.frame !== 'none' ? ` framed frame-${esc(d.frame)}` : '';
+  return `<span class="decor decor-${esc(d.size)} decor-${esc(d.position)}${d.flip ? ' flip' : ''}${frame}"><img src="${esc(d.image)}" alt=""${d.aspect ? ` style="aspect-ratio:${Number(d.aspect)}"` : ''}></span>`;
+};
 const options = (list, value) => list.map(([v, l]) => `<option value="${v}"${v === value ? ' selected' : ''}>${l}</option>`).join('');
 
 function render() {
@@ -35,6 +39,7 @@ function render() {
       <img class="decor-thumb" src="${esc(d.image)}" alt="Decoration ${i + 1}">
       <label>Position <select data-field="position">${options(POSITIONS, d.position)}</select></label>
       <label>Size <select data-field="size">${options(SIZES, d.size)}</select></label>
+      <label>Frame <select data-field="frame">${options(FRAMES, d.frame || 'none')}</select></label>
       <label class="check"><input type="checkbox" data-field="flip"${d.flip ? ' checked' : ''}> Mirror</label>
       <span class="spacer"></span>
       <button type="button" class="btn ghost small danger" data-decor-del="${i}">Remove</button>
@@ -83,12 +88,12 @@ $('#decor-file').addEventListener('change', async (e) => {
   const file = e.target.files[0];
   e.target.value = '';
   if (!file) return;
-  if (!/^image\/(png|webp)$/.test(file.type)) return msg('Use a PNG (or WebP) image, ideally with a transparent background.', true);
+  if (!/^image\/(png|webp|jpeg)$/.test(file.type)) return msg('Use a PNG, WebP or JPG image.', true);
   if (file.size > 2 * 1024 * 1024) return msg('That image is over 2 MB. Try a smaller one.', true);
   msg('Uploading…');
   try {
     decor = await call('POST', file, true);
-    msg('Added. Pick where it stands and how big it is below.');
+    msg(file.type === 'image/jpeg' ? 'Added in a wood frame (a JPG can’t be see-through). Change the frame, spot and size below.' : 'Added. Pick where it stands, how big it is, and whether it gets a frame below.');
   } catch (err) {
     msg(err.message, true);
   }

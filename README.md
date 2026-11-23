@@ -20,7 +20,7 @@ Friends' MyShelf sites ◄──► /federation/v1/* (signed messages; see "Frie
 
 - **Your entries** (details, notes, collections, shelf orders, friends, inbox) live in your **Cloudflare D1** database. The tables create and upgrade themselves.
 - **Cover images** live in **Cloudflare KV** and are served from `/img/…`.
-- **Site name, tagline and your name** are set in **Manage → Settings**, along with **shelf decorations**: up to three transparent PNGs (a framed photo, a teddy bear, a mini figure) that stand on top of the bookcase on your main Shelves page.
+- **Site name, tagline and your name** are set in **Manage → Settings**, along with **shelf decorations**: up to three images (a teddy bear, a mini figure, or a photo in a picture frame) that stand on top of the bookcase on your main Shelves page.
 - **Backups:** Manage → Settings → **Download backup** saves everything as one JSON file. Do this now and then.
 
 ## Set up your own MyShelf (about 20–40 minutes, mostly collecting free API keys)

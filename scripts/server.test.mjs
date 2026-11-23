@@ -502,19 +502,25 @@ test('shelf decorations: PNG/WebP only, up to three, removed images are deleted,
   const env = fakeEnv();
   // 1×1 transparent PNG
   const png = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=='), (c) => c.charCodeAt(0)).buffer;
-  await assert.rejects(addDecor(env, new TextEncoder().encode('GIF89a nope').buffer), /PNG/);
+  await assert.rejects(addDecor(env, new TextEncoder().encode('GIF89a nope').buffer), /PNG, WebP or JPG/);
   await addDecor(env, png);
   await addDecor(env, png);
   const list = await addDecor(env, png);
   assert.equal(list.length, 3);
   assert.deepEqual(list.map((d) => d.position), ['left', 'right', 'center']);
-  assert.ok(list.every((d) => /^\/img\/decor-[a-z0-9-]+\.png$/.test(d.image) && d.size === 'medium' && d.aspect === 1));
+  assert.ok(list.every((d) => /^\/img\/decor-[a-z0-9-]+\.png$/.test(d.image) && d.size === 'medium' && d.frame === 'none' && d.aspect === 1));
   await assert.rejects(addDecor(env, png), /up to 3/);
   // Bad values are cleaned; outside images aren't accepted.
-  const saved = await saveDecor(env, [{ ...list[0], size: 'huge', position: 'nowhere', flip: true }, list[1], { image: 'https://evil.example/x.png' }]);
-  assert.deepEqual(saved.map((d) => [d.size, d.position, d.flip]), [['medium', 'center', true], ['medium', 'right', false]]);
+  const saved = await saveDecor(env, [{ ...list[0], size: 'huge', position: 'nowhere', flip: true, frame: 'neon' }, { ...list[1], frame: 'gold' }, { image: 'https://evil.example/x.png' }]);
+  assert.deepEqual(saved.map((d) => [d.size, d.position, d.flip, d.frame]), [['medium', 'center', true, 'none'], ['medium', 'right', false, 'gold']]);
   assert.equal(env.COVERS._store.has(list[2].image.slice(5)), false); // the removed one is gone from storage
   assert.equal(env.COVERS._store.has(list[0].image.slice(5)), true);
+  // A JPG goes straight into a wood frame.
+  const jpg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0, 16, 74, 70, 73, 70]).buffer;
+  const withJpg = await addDecor(env, jpg);
+  assert.equal(withJpg.at(-1).frame, 'wood');
+  assert.match(withJpg.at(-1).image, /\.jpg$/);
+  await saveDecor(env, withJpg.slice(0, 2));
   const backup = await exportBackup(env, 'https://old.example');
   assert.equal(backup.decor.length, 2);
   const fresh = fakeEnv();

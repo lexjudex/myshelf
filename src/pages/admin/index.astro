@@ -2,6 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import { TYPES, TYPE_KEYS } from '../../lib/types.js';
 import '../../styles/admin.css';
+import '../../styles/decor.css';
 export const prerender = true;
 const typesJson = JSON.stringify(TYPES);
 ---
@@ -155,11 +156,11 @@ const typesJson = JSON.stringify(TYPES);
             <div class="row span2"><button class="btn primary" type="submit">Save</button><span id="site-msg" class="muted small"></span></div>
           </form>
           <h2>Shelf decorations</h2>
-          <p class="muted">Add up to three images that stand on top of the bookcase on your main Shelves page, like a framed photo, a teddy bear or a mini figure. Use PNGs with a transparent background (up to 2 MB each). Changes save as you make them.</p>
-          <div class="decor-preview" id="decor-preview" aria-hidden="true"><div class="decor-stage" id="decor-stage"></div><div class="decor-board"></div></div>
+          <p class="muted">Add up to three images that stand on top of the bookcase on your main Shelves page, like a framed photo, a teddy bear or a mini figure. Use PNGs with a transparent background, or put a photo (a JPG, or anything with a background) in a frame. Up to 2 MB each. Changes save as you make them.</p>
+          <div class="decor-preview" id="decor-preview" aria-hidden="true"><div class="decor-stage bookcase-top" id="decor-stage"></div><div class="decor-board"></div></div>
           <ul id="decor-list" class="decor-list"></ul>
           <div class="row">
-            <label class="btn ghost file-btn" id="decor-add">＋ Add a decoration… <input id="decor-file" type="file" accept="image/png,image/webp" hidden /></label>
+            <label class="btn ghost file-btn" id="decor-add">＋ Add a decoration… <input id="decor-file" type="file" accept="image/png,image/webp,image/jpeg" hidden /></label>
             <span id="decor-msg" class="muted small"></span>
           </div>
           <h2>Updates</h2>

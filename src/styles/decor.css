@@ -1,0 +1,38 @@
+/* Shelf decorations: up to three images standing on top of the bookcase (main Shelves page), and the
+   preview of them in Manage → Settings. Sizes come from variables so the preview can be smaller. */
+.bookcase-top { position: relative; height: var(--decor-h); margin-top: 8px; pointer-events: none;
+  --d-small: 70px; --d-medium: 110px; --d-large: 150px; --decor-h: calc(var(--d-small) + 6px); }
+.bookcase-top:has(.decor-medium) { --decor-h: calc(var(--d-medium) + 6px); }
+.bookcase-top:has(.decor-large) { --decor-h: calc(var(--d-large) + 10px); }
+@media (max-width: 760px) { .bookcase-top { --d-small: 52px; --d-medium: 76px; --d-large: 100px; } }
+
+.decor {
+  position: absolute; bottom: -3px; /* stands on the top board */
+  display: block; max-width: 40%;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 6px 6px rgba(0,0,0,0.55));
+  user-select: none;
+}
+.decor img { display: block; height: 100%; width: auto; max-width: 100%; object-fit: contain; object-position: bottom; -webkit-user-drag: none; }
+.decor.flip img { transform: scaleX(-1); }
+.decor-small { height: var(--d-small); }
+.decor-medium { height: var(--d-medium); }
+.decor-large { height: var(--d-large); }
+.decor-left { left: 10%; }
+.decor-left-center { left: 30%; }
+.decor-center { left: 50%; }
+.decor-right-center { left: 70%; }
+.decor-right { left: 90%; }
+
+/* "Frame": for photos (a JPG, or anything with a background) — a picture frame with a mat around the image. */
+.decor.framed { --fw: max(5px, calc(var(--fh, 110px) * 0.07)); --mat: max(3px, calc(var(--fh, 110px) * 0.045));
+  border: var(--fw) solid; padding: var(--mat); background: #f4efe4; box-sizing: border-box;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25), inset 0 2px 6px rgba(0,0,0,0.25); }
+.decor.framed img { object-fit: cover; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.2); }
+.decor.framed.decor-small { --fh: var(--d-small); }
+.decor.framed.decor-medium { --fh: var(--d-medium); }
+.decor.framed.decor-large { --fh: var(--d-large); }
+.decor.framed.frame-wood { border-color: #7a4e2a #5e3a1e #4a2d16 #6b4423; }
+.decor.framed.frame-black { border-color: #2a2a2a #1b1b1b #111 #222; }
+.decor.framed.frame-gold { border-color: #e2bd62 #c79a3a #a87d26 #d4ab4e; }
+.decor.framed.frame-white { border-color: #faf8f3 #e9e5dc #dcd7cc #f0ece4; }
