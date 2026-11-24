@@ -557,8 +557,9 @@ async function searchBgg(q, env) {
 }
 
 // ───────────────────────── YouTube: videos and channels ─────────────────────────
-// With YOUTUBE_API_KEY (free, YouTube Data API v3 in Google Cloud), search finds videos and channels and a
-// pasted channel link works. Without it, a pasted video link still works (YouTube's public oEmbed).
+// No key needed to paste links: videos come from YouTube's public oEmbed, channels from the public info on the
+// channel's own page. Search by name (and video lengths, subscriber counts) needs the YouTube Data API v3, which
+// uses YOUTUBE_API_KEY, or else your GOOGLE_BOOKS_KEY if YouTube is switched on in that Google Cloud project.
 
 /** A YouTube link → { kind: 'video', id } | { kind: 'channel', id? , handle?, user? }, else null. */
 export function youtubeRefFromUrl(input) {
@@ -582,9 +583,56 @@ export function isoMinutes(d) {
   return mins > 0 ? Math.max(1, Math.round(mins)) : undefined;
 }
 
-function youtube(env, path, params) {
-  const usp = new URLSearchParams({ ...params, key: env.YOUTUBE_API_KEY });
-  return fetchJson(`https://www.googleapis.com/youtube/v3/${path}?${usp}`, {}, 'YouTube');
+const ytKey = (env) => env.YOUTUBE_API_KEY || env.GOOGLE_BOOKS_KEY || '';
+
+/** YouTube Data API call. Throws NO_YT_API when there's no key, or the key isn't allowed to use YouTube. */
+const NO_YT_API = 'no-youtube-api';
+async function youtube(env, path, params) {
+  const key = ytKey(env);
+  if (!key) throw Object.assign(new HttpError(400, 'No YouTube key'), { code: NO_YT_API });
+  const usp = new URLSearchParams({ ...params, key });
+  const res = await fetch(`https://www.googleapis.com/youtube/v3/${path}?${usp}`);
+  // 403: the Google Cloud project behind the key doesn't have YouTube Data API v3 switched on (common when it's
+  // the Books key). 400 with a bad key looks the same to us. Either way, behave as if there's no key.
+  if (res.status === 403 || res.status === 400) throw Object.assign(new HttpError(400, 'YouTube API not enabled for this key'), { code: NO_YT_API });
+  if (!res.ok) throw new HttpError(502, `YouTube failed (${res.status})`);
+  return res.json();
+}
+const noApi = (err) => err?.code === NO_YT_API;
+
+const metaTag = (html, prop) => {
+  const m = html.match(new RegExp(`<meta[^>]+(?:property|name)="${prop}"[^>]+content="([^"]*)"`, 'i'))
+    || html.match(new RegExp(`<meta[^>]+content="([^"]*)"[^>]+(?:property|name)="${prop}"`, 'i'));
+  return m ? decodeEntities(m[1]) : '';
+};
+
+/** A channel without a key: the name, picture and description its own page shares (for link previews). */
+async function youtubeChannelPage(ref, env) {
+  const path = ref.id ? `channel/${ref.id}` : ref.handle ? `@${ref.handle}` : `user/${ref.user}`;
+  let html = '';
+  try {
+    const res = await fetch(`https://www.youtube.com/${path}`, {
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; MyShelf)', 'accept-language': 'en-US,en;q=0.8', cookie: 'CONSENT=YES+1' },
+    });
+    if (res.status === 404) throw new HttpError(404, 'No channel found at that YouTube link.');
+    if (!res.ok) throw new HttpError(502, `YouTube answered ${res.status}`);
+    html = await res.text();
+  } catch (err) {
+    if (err instanceof HttpError) throw err;
+    throw new HttpError(502, 'Couldn’t reach YouTube. Try again in a moment.');
+  }
+  const title = metaTag(html, 'og:title');
+  if (!title) throw new HttpError(502, 'YouTube didn’t share that channel’s details. Try again, or add it manually.');
+  const id = (html.match(/<link rel="canonical" href="https:\/\/www\.youtube\.com\/channel\/(UC[\w-]{20,})"/) || html.match(/"(?:channelId|externalId)":"(UC[\w-]{20,})"/) || [])[1] || ref.id || '';
+  const handle = (html.match(/"canonicalBaseUrl":"\/(@[\w.-]+)"/) || [])[1] || (ref.handle ? `@${ref.handle}` : '');
+  return result({
+    type: 'video', source: 'youtube', sourceId: `channel:${id || handle || path}`,
+    title, creator: handle,
+    cover: metaTag(html, 'og:image'),
+    description: truncate(metaTag(html, 'og:description')),
+    details: { kind: 'Channel', handle: handle || undefined },
+    url: handle ? `https://www.youtube.com/${handle}` : id ? `https://www.youtube.com/channel/${id}` : `https://www.youtube.com/${path}`,
+  });
 }
 
 // The biggest picture YouTube has without black bars: maxres, else the 320×180 "mq" one (hq/sd are letterboxed 4:3).
@@ -654,25 +702,36 @@ async function youtubeOembed(id, env) {
 async function youtubeFromUrl(input, env) {
   const ref = youtubeRefFromUrl(input);
   if (!ref) throw new HttpError(400, 'That doesn’t look like a YouTube video or channel link.');
+  // With the API: fuller details. Without it (or if the key can't use YouTube): the public info, no key needed.
   if (ref.kind === 'video') {
-    if (!env.YOUTUBE_API_KEY) return [await youtubeOembed(ref.id, env)];
-    const res = await youtubeVideos(env, [ref.id]);
-    if (!res.length) throw new HttpError(404, 'No public video found at that YouTube link.');
-    return res;
+    try {
+      const res = await youtubeVideos(env, [ref.id]);
+      if (res.length) return res;
+      throw new HttpError(404, 'No public video found at that YouTube link.');
+    } catch (err) {
+      if (!noApi(err)) throw err;
+      return [await youtubeOembed(ref.id, env)];
+    }
   }
-  if (!env.YOUTUBE_API_KEY) throw new HttpError(400, 'Adding channels needs a YouTube key (YOUTUBE_API_KEY). Video links work without one.');
-  const params = ref.id ? { id: ref.id } : ref.handle ? { forHandle: `@${ref.handle}` } : { forUsername: ref.user };
-  const res = await youtubeChannels(env, params);
-  if (!res.length) throw new HttpError(404, 'No channel found at that YouTube link.');
-  return res;
+  try {
+    const params = ref.id ? { id: ref.id } : ref.handle ? { forHandle: `@${ref.handle}` } : { forUsername: ref.user };
+    const res = await youtubeChannels(env, params);
+    if (res.length) return res;
+  } catch (err) {
+    if (!noApi(err)) throw err;
+  }
+  return [await youtubeChannelPage(ref, env)];
 }
 
 async function searchYoutube(q, env) {
   if (youtubeRefFromUrl(q)) return youtubeFromUrl(q, env);
-  if (!env.YOUTUBE_API_KEY) {
-    throw new HttpError(400, 'Searching YouTube needs a YouTube key (YOUTUBE_API_KEY). Until then, paste a video link below.');
+  let data;
+  try {
+    data = await youtube(env, 'search', { part: 'snippet', q, type: 'video,channel', maxResults: '15', safeSearch: 'none' });
+  } catch (err) {
+    if (!noApi(err)) throw err;
+    throw new HttpError(400, 'To search YouTube by name, switch on “YouTube Data API v3” in the Google Cloud project for your Google Books key (or add a YOUTUBE_API_KEY). Pasting a video or channel link below works without it.');
   }
-  const data = await youtube(env, 'search', { part: 'snippet', q, type: 'video,channel', maxResults: '15', safeSearch: 'none' });
   const items = data.items || [];
   const videoIds = items.filter((i) => i.id?.kind === 'youtube#video').map((i) => i.id.videoId);
   const channelIds = items.filter((i) => i.id?.kind === 'youtube#channel').map((i) => i.id.channelId);
@@ -777,6 +836,6 @@ export function configured(env) {
     spotify: Boolean(env.SPOTIFY_CLIENT_ID && env.SPOTIFY_CLIENT_SECRET),
     igdb: Boolean(env.TWITCH_CLIENT_ID && env.TWITCH_CLIENT_SECRET),
     bgg: Boolean(env.BGG_TOKEN),
-    youtube: Boolean(env.YOUTUBE_API_KEY),
+    youtube: Boolean(ytKey(env)),
   };
 }

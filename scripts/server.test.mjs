@@ -603,3 +603,39 @@ test('shelf decorations: PNG/WebP only, up to three, removed images are deleted,
   await restoreBackup(fresh, backup);
   assert.equal((await getDecor(fresh)).length, 2);
 });
+
+test('YouTube: links work without a key; a Books key without YouTube enabled falls back quietly', async () => {
+  const { search } = await import('../server/providers.js');
+  const real = globalThis.fetch;
+  const calls = [];
+  globalThis.fetch = async (url, init = {}) => {
+    const u = String(url);
+    calls.push(u);
+    if (u.includes('googleapis.com/youtube')) return new Response('{"error":{}}', { status: 403 });
+    if (u.includes('youtube.com/oembed')) return Response.json({ title: 'A Video', author_name: 'Some Channel' });
+    if (u.includes('i.ytimg.com')) return new Response('', { status: init.method === 'HEAD' ? 200 : 200 });
+    if (u.includes('youtube.com/@veritasium')) {
+      return new Response(`<html><head><meta property="og:title" content="Veritasium"><meta property="og:image" content="https://yt3.example/avatar.jpg">
+        <meta property="og:description" content="An element of truth &amp; more"><link rel="canonical" href="https://www.youtube.com/channel/UCHnyfMqiRRG1u-2MsSQLbXA"></head>
+        <script>{"canonicalBaseUrl":"/@veritasium"}</script></html>`, { headers: { 'content-type': 'text/html' } });
+    }
+    return new Response('nope', { status: 404 });
+  };
+  try {
+    const env = { GOOGLE_BOOKS_KEY: 'books-only' };
+    const [v] = await search('video', 'https://youtu.be/dQw4w9WgXcQ', env);
+    assert.equal(v.title, 'A Video');
+    assert.equal(v.creator, 'Some Channel');
+    assert.equal(v.sourceId, 'video:dQw4w9WgXcQ');
+    assert.ok(calls.some((c) => c.includes('key=books-only')), 'tried the Books key first');
+    const [c] = await search('video', 'https://www.youtube.com/@veritasium', {});
+    assert.equal(c.title, 'Veritasium');
+    assert.equal(c.sourceId, 'channel:UCHnyfMqiRRG1u-2MsSQLbXA');
+    assert.equal(c.details.kind, 'Channel');
+    assert.equal(c.cover, 'https://yt3.example/avatar.jpg');
+    assert.equal(c.description, 'An element of truth & more');
+    await assert.rejects(search('video', 'cats', env), /YouTube Data API v3/);
+  } finally {
+    globalThis.fetch = real;
+  }
+});

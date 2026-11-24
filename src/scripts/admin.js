@@ -100,7 +100,6 @@ function renderConfig(c, types) {
   if (!c.igdb && on('videogame')) missing.push('IGDB');
   if (!c.bgg && on('boardgame')) missing.push('BGG');
   if (!c.spotify && on('music')) missing.push('Spotify (using MusicBrainz)');
-  if (!c.youtube && on('video')) missing.push('YouTube (paste links only)');
   $('#config-status').innerHTML = missing.length
     ? `<span class="warn" title="Add these as secrets: Worker → Settings → Variables and Secrets">Missing keys: ${esc(missing.join(', '))}</span>`
     : '<span class="okay">All sources connected</span>';
@@ -178,7 +177,7 @@ $$('.type-btn').forEach((b) =>
   b.addEventListener('click', () => {
     state.type = b.dataset.type;
     $$('.type-btn').forEach((x) => x.classList.toggle('active', x === b));
-    $('#search-q').placeholder = `Search ${TYPES[state.type].plural.toLowerCase()}…`;
+    $('#search-q').placeholder = `Search ${state.type === 'video' ? 'YouTube' : TYPES[state.type].plural.toLowerCase()}…`;
     syncLinkForm();
     $('#results').innerHTML = '';
     $('#search-msg').textContent = '';

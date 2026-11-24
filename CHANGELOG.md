@@ -2,6 +2,11 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.5.1 (Nov 2026)
+
+- **YouTube without a new key.** Pasting a channel link now works with no key at all (video links already did). Searching YouTube by name uses your existing Google Books key once **YouTube Data API v3** is switched on in that Google Cloud project (one click); `YOUTUBE_API_KEY` is only needed to use a separate key. The "Missing keys" note no longer mentions YouTube.
+- Fixed: the "paste a link" box (YouTube, Spotify, BoardGameGeek) was too narrow to see the link. The YouTube search box now says "Search YouTube…".
+
 ## 0.5.0 (Nov 2026)
 
 - **YouTube.** A new media type for videos and channels. Search needs a free YouTube key (`YOUTUBE_API_KEY`); without one, paste a video link under the search. Videos stand on the shelf as cute little grey computers (rounded case, chunky stand, a tiny light in your accent colour) and play right on their item page; channels get a square one with their avatar. Existing sites get YouTube turned on; switch it off in Settings if you don't want it.

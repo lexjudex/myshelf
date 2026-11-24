@@ -62,14 +62,14 @@ Add each one in your Worker → **Settings → Variables and Secrets** → **Add
 | **IGDB** (video games) | dev.twitch.tv/console → Register Your Application (redirect URL `http://localhost`, client type Confidential). Your Twitch account needs 2FA turned on. | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` |
 | **BoardGameGeek** | boardgamegeek.com/applications → register a non-commercial app → create a token. Approval can take a while. | `BGG_TOKEN` |
 | **Spotify** (music, optional) | developer.spotify.com/dashboard → Create app → check **Web API** → redirect URI `http://127.0.0.1:8788/callback` (required, but unused). | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` |
-| **YouTube** (optional) | console.cloud.google.com → pick or create a project → **APIs & Services → Library** → enable **YouTube Data API v3** → **Credentials → Create credentials → API key**. (Already have a Google Books key? Enable YouTube on the same project and reuse it.) | `YOUTUBE_API_KEY` |
+| **YouTube** (optional, no new key) | Pasting video and channel links needs nothing. For **search by name**: console.cloud.google.com → the project your Google Books key is in → **APIs & Services → Library** → enable **YouTube Data API v3**. MyShelf then uses `GOOGLE_BOOKS_KEY` for YouTube too. (No Books key? Create an API key there and add it as either secret.) | `YOUTUBE_API_KEY` (only to use a separate key) |
 | Open Library | No key needed. | |
 | Google Books | Optional. Works without a key at low volume. | `GOOGLE_BOOKS_KEY` |
 | Contact email | Optional. Sent to Open Library and MusicBrainz, as they request. | `CONTACT_EMAIL` |
 | GitHub (updates, optional) | Forks only. github.com/settings/personal-access-tokens → **Generate new token** → *Only select repositories*: your fork → **Repository permissions → Contents: Read and write**. Lets **Manage → Settings → Updates** pull in new versions for you. | `GITHUB_TOKEN` |
 
 Without Spotify, or if it ever fails, music search uses **MusicBrainz + Cover Art Archive** automatically.
-Without a YouTube key you can still add a video by pasting its link (under the YouTube search); searching and channels need the key.
+YouTube needs no key of its own: paste a video or channel link under the YouTube search. Searching by name works once YouTube Data API v3 is switched on for your Google Books key.
 
 You only need keys for the media you track: turn a type off in **Manage → Settings** and its missing key stops showing in the header.
 
