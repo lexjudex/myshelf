@@ -89,51 +89,48 @@
   max-height: calc(var(--bh) * 0.32);
 }
 
-/* YouTube: a cute little computer. A rounded light grey case (the top 80%) with a rounded screen, a thicker chin with
-   a tiny accent-coloured light in the middle, then a short chunky neck and a soft oval foot. Channels get a square
-   screen with their round avatar. */
-.kind-screen { --scr: 80%; --case: #e4e4e7; --case-lo: #b9b9bf; --case-edge: #a2a2a9; }
-.kind-screen .b3-front, .book3d.kind-screen.is-front .b3-front { background: transparent; box-shadow: none; border-radius: 0; overflow: visible; }
-.mon-screen {
-  position: absolute; left: 0; right: 0; top: 0; height: var(--scr);
-  padding: 7% 7% 13%;
-  border-radius: calc(var(--w) * 0.11);
-  background: linear-gradient(170deg, var(--case), var(--case-lo));
-  box-shadow: inset 0 2px 0 rgba(255,255,255,0.7), inset 0 -3px 0 rgba(0,0,0,0.08), inset 0 0 0 1px var(--case-edge);
+/* YouTube: a framed award plaque. A black board in a thin dark frame, a brushed-platinum round play emblem
+   near the top, and the picture below it in a platinum mat. Videos get a widescreen picture, channels a square one. */
+.kind-plaque { --plat-hi: #f6f7f9; --plat: #cdd0d6; --plat-lo: #8e939b; --board: #19191c; }
+.kind-plaque .b3-front, .book3d.kind-plaque.is-front .b3-front {
+  border-radius: 3px;
+  background: radial-gradient(120% 80% at 50% 0%, #2c2c31, var(--board) 60%), var(--board);
+  box-shadow: inset 0 0 0 2px #3b3b41, inset 0 0 0 4px #0b0b0c, inset 0 0 0 5px rgba(255,255,255,0.08);
 }
-.book3d.kind-screen.is-front .mon-screen { box-shadow: inset 0 2px 0 rgba(255,255,255,0.7), inset 0 -3px 0 rgba(0,0,0,0.08), inset 0 0 0 1px var(--case-edge), 6px 10px 20px rgba(0,0,0,0.5); }
-/* the little light, centred on the chin */
-.mon-screen::after {
-  content: ''; position: absolute; left: 50%; bottom: 4.5%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%;
-  background: var(--accent, #d99a4e); box-shadow: 0 0 0 1.5px rgba(255,255,255,0.6), 0 0 6px var(--accent, #d99a4e);
+.book3d.kind-plaque.is-front .b3-front { box-shadow: inset 0 0 0 2px #3b3b41, inset 0 0 0 4px #0b0b0c, inset 0 0 0 5px rgba(255,255,255,0.08), 6px 10px 22px rgba(0,0,0,0.55); }
+.plq-board {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8%;
+  padding: 11% 12% 13%;
 }
-.mon-screen > img, .mon-screen > .b3-ph {
-  display: block; width: 100%; height: 100%; object-fit: cover;
-  border-radius: calc(var(--w) * 0.06);
-  box-shadow: 0 0 0 2px #2a2622, inset 0 0 0 1px rgba(0,0,0,0.2);
-  background: #2a2622;
+.plq-emblem {
+  position: relative; flex: none; width: 34%; aspect-ratio: 1; border-radius: 50%;
+  background: conic-gradient(from 200deg, var(--plat-lo), var(--plat-hi), var(--plat), var(--plat-lo), var(--plat-hi), var(--plat-lo));
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.9), inset 0 -2px 3px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.6);
 }
-.mon-screen > img + .b3-ph { display: none; }
-.mon-screen .b3-ph { padding: 8px; }
-.mon-screen .b3-ph-title { font-size: calc(var(--u, var(--h)) * 0.07); -webkit-line-clamp: 3; }
-.mon-glare { position: absolute; inset: 7% 7% 13%; border-radius: calc(var(--w) * 0.06); pointer-events: none; background: linear-gradient(125deg, rgba(255,255,255,0.22), rgba(255,255,255,0.04) 32%, transparent 45%); }
-.mon-neck {
-  position: absolute; left: 50%; top: calc(var(--scr) - 2px); width: 22%; height: calc(100% - var(--scr) - 4%);
-  transform: translateX(-50%); border-radius: 0 0 4px 4px;
-  background: linear-gradient(90deg, var(--case-lo), var(--case) 45%, var(--case-lo));
+.plq-play {
+  position: absolute; left: 39%; top: 29%; width: 32%; height: 42%;
+  background: linear-gradient(180deg, #2a2a2e, #111113);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
-.mon-foot {
-  position: absolute; left: 50%; bottom: 0; width: 52%; height: 8%; min-height: 5px;
-  transform: translateX(-50%); border-radius: 999px;
-  background: linear-gradient(180deg, var(--case), var(--case-lo));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 4px rgba(0,0,0,0.45);
+.plq-pic {
+  position: relative; flex: none; width: 100%; aspect-ratio: 16 / 9; overflow: hidden;
+  padding: max(2px, calc(var(--w) * 0.025));
+  border-radius: 2px;
+  background: linear-gradient(135deg, var(--plat-hi), var(--plat-lo) 45%, var(--plat-hi) 70%, var(--plat-lo));
+  box-shadow: 0 2px 4px rgba(0,0,0,0.6);
 }
-/* Edge-on: the case's rounded side in grey, with the neck and foot below it. */
-.kind-screen .b3-spine { color: #3d3d44; background: linear-gradient(90deg, var(--case-lo), var(--case) 40%, var(--case-lo)); height: var(--scr); top: 0; padding: 8px 0; justify-content: center; border-radius: 5px; overflow: visible; }
-.kind-screen.has-cover .b3-spine::before { display: none; }
-.kind-screen .b3-spine::after { display: block; inset: auto; left: 30%; right: 30%; top: calc(100% - 1px); height: calc(var(--bh) * 0.2); border-radius: 0 0 3px 3px; background: linear-gradient(90deg, var(--case-lo), var(--case), var(--case-lo)); }
-.kind-screen .b3-spine-title { text-shadow: none; max-height: calc(var(--bh) * 0.62); font-size: clamp(8px, calc(var(--d) * 0.42), 12px); }
-.kind-screen .b3-spine-creator { display: none; }
+.book3d[data-kind='channel'] .plq-pic { width: 80%; aspect-ratio: 1; }
+.plq-pic > img, .plq-pic > .b3-ph { display: block; width: 100%; height: 100%; object-fit: cover; }
+.plq-pic > img + .b3-ph { display: none; }
+.plq-pic .b3-ph { padding: 5px; justify-content: center; }
+.plq-pic .b3-ph-title { font-size: calc(var(--u, var(--h)) * 0.06); -webkit-line-clamp: 3; }
+.plq-shine { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(125deg, rgba(255,255,255,0.12), rgba(255,255,255,0.02) 30%, transparent 42%); }
+/* Edge-on: the board's black edge with a thin platinum line down the middle. */
+.kind-plaque .b3-spine { color: var(--plat); background: linear-gradient(90deg, #0b0b0c, #2a2a2e 50%, #0b0b0c); justify-content: center; }
+.kind-plaque.has-cover .b3-spine::before { display: none; }
+.kind-plaque .b3-spine-title { text-shadow: none; font-size: clamp(8px, calc(var(--d) * 0.42), 12px); }
+.kind-plaque .b3-spine-creator { display: none; }
 
 /* Active item: lift and shadow. */
 .book3d.is-front .b3-front { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 6px 10px 22px rgba(0,0,0,0.55); }

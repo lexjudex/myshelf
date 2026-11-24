@@ -5,6 +5,9 @@ The version number lives in `package.json` and shows in **Manage → Settings �
 ## 0.5.5 (Nov 2026)
 
 - **Fix: the ＋ by a media page's title** said "That collection was not found" instead of opening Manage → Add. The pencil next to it (Edit shelves) was caught by the same mix-up and works again too.
+- **Media page titles** now go Title → ✎ Edit shelves → ＋ Add → copy link.
+- **Bubble menu** ends Journal → Friends → Manage.
+- **YouTube items are award plaques** instead of little monitors: a black framed board with a platinum play emblem on top and the video's picture (or the channel's, square) below it.
 
 ## 0.5.4 (Nov 2026)
 

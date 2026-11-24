@@ -3,8 +3,8 @@
 // Only shown to you, in a browser signed in to Manage. See src/scripts/page-shelves.js.
 // addable: shelves that could be put on this page: [{ id: 'c:<slug>' | 's:<status>' | 'starter:<key>', name, note }]
 import '../styles/page-shelves.css';
-// inline (media pages): a small round ✎ (edit shelves) after the title's copy-link icon.
-// part="add" draws just the ＋ (add one of these), which goes between the title and the copy-link icon.
+// inline (media pages): a small round ✎ (edit shelves) right after the title.
+// part="add" draws just the ＋ (add one of these), which goes after the ✎ and before the copy-link icon.
 // addLabel/addHref: what the ＋ adds, e.g. "Add a book" → /admin/#type=book. Both only show when you're signed in.
 interface Props { page: string; addable?: { id: string; name: string; note?: string }[]; inline?: boolean; addLabel?: string; addHref?: string; part?: string }
 const { page, addable = [], inline = false, addLabel = '', addHref = '', part = '' } = Astro.props;

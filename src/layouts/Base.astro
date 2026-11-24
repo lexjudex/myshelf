@@ -34,8 +34,8 @@ const ICONS = {
 const navItems = [
   { href: '/', label: 'Shelves', icon: 'shelves', active: path === '/' },
   ...site.types.map((t) => ({ href: `/type/${t}/`, label: TYPES[t].plural, icon: t, active: path.startsWith(`/type/${t}`) })),
-  { href: '/friends/', label: 'Friends', icon: 'friends', active: path.startsWith('/friends') },
   { href: '/journal/', label: 'Journal', icon: 'journal', active: path.startsWith('/journal') },
+  { href: '/friends/', label: 'Friends', icon: 'friends', active: path.startsWith('/friends') },
 ];
 // The bubble menu (phones) also has Manage at the end, so you don't have to scroll to the footer for it.
 const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage', active: path.startsWith('/admin') }];
@@ -100,8 +100,8 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
       <ul class="fab-menu" id="fab-menu">
         {fabItems.map((n, i) => (
           <>
-          {/* A thin divider between the media pages and Friends / Journal / Manage */}
-          {n.href === '/friends/' && <li class="fab-divider" aria-hidden="true" style={`--i:${fabItems.length - 1 - i}`}></li>}
+          {/* A thin divider between the media pages and Journal / Friends / Manage */}
+          {n.href === '/journal/' && <li class="fab-divider" aria-hidden="true" style={`--i:${fabItems.length - 1 - i}`}></li>}
           <li style={`--i:${fabItems.length - 1 - i}`}>
             <a href={n.href} class:list={['fab-item', { active: n.active }]} aria-current={n.active ? 'page' : undefined}>
               <span class="fab-label">{n.label}</span>

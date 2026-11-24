@@ -1,6 +1,6 @@
 ---
 // An item rendered as a 3D object that matches its media type:
-// books, game cartridges, CD jewel cases, vinyl record sleeves, VHS boxes and board game boxes.
+// books, game cartridges, CD jewel cases, vinyl record sleeves, VHS boxes, board game boxes and award plaques (YouTube).
 // Front face = cover art; side face = spine/edge with the title.
 import { TYPES, isVinyl, isChannel } from '../lib/types.js';
 // height = the slot (row) height; unit = the size a book is drawn at. They're the same unless the
@@ -20,9 +20,10 @@ const SHAPES = {
   boardgame: { kind: 'box',  bh: 1.25, w: 1.25, d: 0.3,  min: 24 },
   // A record sleeve: square, a good bit taller than a CD (and a book), and thin.
   vinyl:     { kind: 'vinyl', bh: 1.18, w: 1.18, d: 0.06, min: 10 },
-  // YouTube: a little computer monitor on a stand (the screen is the top 78%); channels get a square screen.
-  video:     { kind: 'screen', bh: 0.84, w: 1.0,  d: 0.08, min: 11 },
-  channel:   { kind: 'screen', bh: 1.0,  w: 0.82, d: 0.08, min: 11 },
+  // YouTube: a framed platinum award plaque — a silver play emblem on top, the picture below it.
+  // Videos get a widescreen picture, channels a square one.
+  video:     { kind: 'plaque', bh: 1.0,  w: 0.86, d: 0.1, min: 12 },
+  channel:   { kind: 'plaque', bh: 1.05, w: 0.8,  d: 0.1, min: 12 },
 };
 const s = (isVinyl(item) && SHAPES.vinyl) || (isChannel(item) && SHAPES.channel) || SHAPES[item.type] || SHAPES.book;
 let bh = Math.round(u * s.bh);
@@ -56,19 +57,17 @@ const onErr = "this.closest('.book3d').classList.remove('has-cover');this.remove
 >
   <span class="b3-box" aria-hidden="true">
     <span class="b3-front">
-      {s.kind === 'screen' ? (
-        <>
-          <span class="mon-screen">
+      {s.kind === 'plaque' ? (
+        <span class="plq-board">
+          <span class="plq-emblem"><span class="plq-play"></span></span>
+          <span class="plq-pic">
             {item.cover && <img src={item.cover} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror={onErr} />}
             <span class="b3-ph">
               <span class="b3-ph-title">{item.title}</span>
-              {item.creator && <span class="b3-ph-creator">{item.creator}</span>}
             </span>
-            <span class="mon-glare"></span>
           </span>
-          <span class="mon-neck"></span>
-          <span class="mon-foot"></span>
-        </>
+          <span class="plq-shine"></span>
+        </span>
       ) : s.kind === 'cart' ? (
         <span class="cart-label">
           {item.cover && <img src={item.cover} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror={onErr} />}
