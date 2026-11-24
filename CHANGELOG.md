@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.5.5 (Nov 2026)
+
+- **Fix: the ＋ by a media page's title** said "That collection was not found" instead of opening Manage → Add. The pencil next to it (Edit shelves) was caught by the same mix-up and works again too.
+
 ## 0.5.4 (Nov 2026)
 
 - **Size slider.** Collection pages, media pages and "see all" pages have a **Size** slider between Sort and Filters. Slide it to make the items smaller (more per row) or bigger. Rows re-pack to fit. It's remembered in your browser; **Reset** puts it back.

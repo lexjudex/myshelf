@@ -148,7 +148,9 @@ async function editTypeShelf(mod, lib, key, title) {
 }
 
 if (token) {
-  document.querySelectorAll('.shelf-edit').forEach((btn) => {
+  // Only the arrange (✎) buttons: the media pages' ＋ link and Edit-shelves pencil share the
+  // .shelf-edit look but are handled elsewhere (a plain link / page-shelves.js).
+  document.querySelectorAll('.shelf-edit[data-collection], .shelf-edit[data-arrange-key]').forEach((btn) => {
     btn.hidden = false;
     btn.addEventListener('click', async (e) => {
       e.preventDefault();
