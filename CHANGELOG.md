@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.5.7 (Nov 2026)
+
+- **YouTube plaques get a nameplate.** Under the picture, a small engraved platinum plate shows the video's or channel's title (up to two lines).
+
 ## 0.5.6 (Nov 2026)
 
 - **Each media page has its own shelves.** In **Edit shelves** (the ✎ by a media page's title), ✕ on a collection now hides it on that page only; the other media pages keep it. Hidden collections are listed under **＋ Add a shelf → Put back or add** ("Hidden on this page"). A collection that wasn't on any media page, or a new shelf you make there, shows up on that page only, and you can put it on others the same way.

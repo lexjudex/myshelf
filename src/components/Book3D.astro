@@ -20,10 +20,10 @@ const SHAPES = {
   boardgame: { kind: 'box',  bh: 1.25, w: 1.25, d: 0.3,  min: 24 },
   // A record sleeve: square, a good bit taller than a CD (and a book), and thin.
   vinyl:     { kind: 'vinyl', bh: 1.18, w: 1.18, d: 0.06, min: 10 },
-  // YouTube: a framed platinum award plaque — a silver play emblem on top, the picture below it.
-  // Videos get a widescreen picture, channels a square one.
-  video:     { kind: 'plaque', bh: 1.0,  w: 0.86, d: 0.1, min: 12 },
-  channel:   { kind: 'plaque', bh: 1.05, w: 0.8,  d: 0.1, min: 12 },
+  // YouTube: a framed platinum award plaque — a silver play emblem on top, the picture below it, and an
+  // engraved nameplate with the title. Videos get a widescreen picture, channels a square one.
+  video:     { kind: 'plaque', bh: 1.08, w: 0.86, d: 0.1, min: 12 },
+  channel:   { kind: 'plaque', bh: 1.14, w: 0.8,  d: 0.1, min: 12 },
 };
 const s = (isVinyl(item) && SHAPES.vinyl) || (isChannel(item) && SHAPES.channel) || SHAPES[item.type] || SHAPES.book;
 let bh = Math.round(u * s.bh);
@@ -66,6 +66,7 @@ const onErr = "this.closest('.book3d').classList.remove('has-cover');this.remove
               <span class="b3-ph-title">{item.title}</span>
             </span>
           </span>
+          <span class="plq-name"><span>{item.title}</span></span>
           <span class="plq-shine"></span>
         </span>
       ) : s.kind === 'cart' ? (
