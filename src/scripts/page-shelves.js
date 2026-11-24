@@ -66,7 +66,7 @@ function init() {
         <span class="pshelf-btns">
           <button type="button" class="pshelf-btn" data-move="-1" aria-label="Move ${esc(title)} up" title="Move up">↑</button>
           <button type="button" class="pshelf-btn" data-move="1" aria-label="Move ${esc(title)} down" title="Move down">↓</button>
-          <button type="button" class="pshelf-btn pshelf-remove" data-remove aria-label="Take ${esc(title)} off this page" title="Take it off this page">✕</button>
+          <button type="button" class="pshelf-btn pshelf-remove" data-remove aria-label="Hide ${esc(title)} on this page" title="Hide it on this page">Hide</button>
         </span>
       </div>`);
   }
@@ -78,12 +78,13 @@ function init() {
     sections().forEach((sec) => {
       if (sec.classList.contains('shelf-edit-only')) sec.hidden = false;
       decorate(sec);
+      if (sec.hasAttribute('data-off-page')) setOff(sec, true); // hidden on this page: listed, dimmed, with Show
     });
     bookcase.querySelectorAll(':scope > .shelf-section:not([data-shelf-id])').forEach((s) => s.classList.add('pshelf-ignore'));
     bar = document.createElement('div');
     bar.className = 'pshelf-actions';
     bar.innerHTML = `
-      <p class="pshelf-hint">Drag shelves by the <span aria-hidden="true">⠿</span> handle (or use ↑ ↓). ✕ takes a shelf off this page; it isn't deleted${home ? '' : ', and other media pages keep it'}.</p>
+      <p class="pshelf-hint">Drag shelves by the <span aria-hidden="true">⠿</span> handle (or use ↑ ↓). <strong>Hide</strong> takes a shelf off this page without deleting it${home ? '' : ' (other media pages keep it)'}. Hidden shelves stay in this list, dimmed: press <strong>Show</strong> to bring one back.</p>
       <div class="pshelf-add-wrap">
         <button type="button" class="pshelf-cta ghost" data-add-open aria-expanded="false">＋ Add a shelf</button>
         <div class="pshelf-add" hidden>
@@ -168,12 +169,19 @@ function init() {
         sec.remove();
         return;
       }
-      const off = sec.classList.toggle('pshelf-removed');
-      rm.textContent = off ? '↺' : '✕';
-      rm.title = off ? 'Keep it on this page' : 'Take it off this page';
-      rm.setAttribute('aria-label', `${off ? 'Keep' : 'Take'} ${sec.dataset.shelfTitle} ${off ? 'on' : 'off'} this page`);
+      setOff(sec, !sec.classList.contains('pshelf-removed'));
     }
   });
+
+  // Hidden (dimmed, "Show" brings it back) or shown ("Hide").
+  function setOff(sec, off) {
+    sec.classList.toggle('pshelf-removed', off);
+    const rm = sec.querySelector(':scope > .pshelf-bar [data-remove]');
+    if (!rm) return;
+    rm.textContent = off ? 'Show' : 'Hide';
+    rm.title = off ? 'Show it on this page' : 'Hide it on this page';
+    rm.setAttribute('aria-label', `${off ? 'Show' : 'Hide'} ${sec.dataset.shelfTitle} on this page`);
+  }
 
   tools.querySelector('.pshelf-start').addEventListener('click', start);
 

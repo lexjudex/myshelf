@@ -22,27 +22,26 @@ const all = items.filter((e) => e.data.type === type);
 // so "Edit shelves" can still move it.
 const hiddenHere = new Set(layout.hidden || []);
 const typeCollections = shelves
-  .filter((c) => showsOnType(c) && !hiddenHere.has(`c:${c.slug}`))
-  .map((c) => ({ id: `c:${c.slug}`, c, items: sortShelf(all.filter((e) => inShelf(e.data, c)), c) }));
+  .filter(showsOnType)
+  .map((c) => ({ id: `c:${c.slug}`, c, off: hiddenHere.has(`c:${c.slug}`), items: sortShelf(all.filter((e) => inShelf(e.data, c)), c) }));
 const statuses = ['in-progress', 'finished', 'want', 'abandoned']
   .map((status) => {
     const key = `${type}:${status}`;
     const list = all.filter((e) => e.data.status === status);
     // Arranged with the pencil? Use that order (new items first); otherwise newest first.
     const items = arrangements[key] ? sortShelf(list, { sort: 'custom', order: arrangements[key] }) : list;
-    return { id: `s:${status}`, status, key, label: STATUS_LABEL(type, status), items };
-  })
-  .filter((g) => g.items.length);
-const groups = statuses.filter((g) => !(layout.hidden || []).includes(g.status));
+    return { id: `s:${status}`, status, key, label: STATUS_LABEL(type, status), items, off: hiddenHere.has(status) };
+  });
+// All four status shelves are always in the list: empty ones are drawn only while editing, and hidden ones stay
+// there (dimmed, with Show), so nothing you hide is ever out of reach.
+const groups = statuses;
 // This page's own order (set with "Edit shelves"); anything not in it yet keeps the usual spot: collections, then statuses.
 const pos = new Map((layout.order || []).map((id, i) => [id, i]));
 const rank = (id, fallback) => (pos.has(id) ? pos.get(id) : 1000 + fallback);
 const ordered = [...typeCollections.map((x, i) => ({ ...x, kind: 'c', r: rank(x.id, i) })), ...groups.map((g, i) => ({ ...g, kind: 's', r: rank(g.id, 100 + i) }))]
   .sort((a, b) => a.r - b.r);
-const hasShelves = ordered.some((x) => x.items.length);
+const hasShelves = ordered.some((x) => !x.off && x.items.length);
 const addable = [
-  ...statuses.filter((g) => (layout.hidden || []).includes(g.status)).map((g) => ({ id: g.id, name: g.label, note: `${g.items.length} ${g.items.length === 1 ? t.label.toLowerCase() : t.plural.toLowerCase()}` })),
-  ...shelves.filter((c) => showsOnType(c) && hiddenHere.has(`c:${c.slug}`)).map((c) => ({ id: `c:${c.slug}`, name: c.name, note: 'Hidden on this page' })),
   ...shelves.filter((c) => !showsOnType(c)).map((c) => ({ id: `c:${c.slug}`, name: c.name, note: isAutoShelf(c) ? 'Fills itself' : 'Your collection' })),
   ...STARTER_SHELVES.filter((st) => !findStarter(shelves, st)).map((st) => ({ id: `starter:${st.key}`, name: st.label, note: st.hint })),
 ];
@@ -58,9 +57,9 @@ const addable = [
     {/* Status shelves work like collections: one scrolling row, with SEE ALL once there are more than 10. */}
     {ordered.map((x) => x.kind === 'c' ? (
       <Shelf title={x.c.name} description={x.c.description} items={x.items} href={`/shelf/${x.c.slug}/`} seeAll scroll collection={x.c.slug}
-        height={type === 'music' ? 160 : 180} filterable shelfId={x.id} editOnly={x.items.length === 0} kind={isAutoShelf(x.c) ? 'auto' : 'manual'} empty={`No ${t.plural.toLowerCase()} on this shelf yet.`} />
+        height={type === 'music' ? 160 : 180} filterable shelfId={x.id} editOnly={x.items.length === 0} offPage={x.off} kind={isAutoShelf(x.c) ? 'auto' : 'manual'} empty={`No ${t.plural.toLowerCase()} on this shelf yet.`} />
     ) : (
-      <Shelf title={x.label} items={x.items} href={`/type/${type}/${x.status}/`} seeAll scroll arrangeKey={x.key} height={type === 'music' ? 160 : 180} filterable shelfId={x.id} kind="status" />
+      <Shelf title={x.label} items={x.off ? [] : x.items} href={`/type/${type}/${x.status}/`} seeAll scroll arrangeKey={x.key} height={type === 'music' ? 160 : 180} filterable shelfId={x.id} editOnly={x.items.length === 0} offPage={x.off} kind="status" />
     ))}
   </div>
 </Base>

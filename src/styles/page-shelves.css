@@ -32,13 +32,16 @@
 .pshelf-name span { font-size: 0.78rem; color: #c9b79c; }
 .pshelf-btns { display: flex; gap: 6px; }
 .pshelf-btn {
-  width: 34px; height: 34px; display: grid; place-items: center; font: 700 0.95rem/1 var(--sans); cursor: pointer;
+  min-width: 34px; height: 34px; padding: 0 8px; display: grid; place-items: center; font: 700 0.95rem/1 var(--sans); cursor: pointer;
   border-radius: 8px; border: 1px solid rgba(241, 230, 208, 0.2); background: transparent; color: #f1e6d0;
 }
 .pshelf-btn:hover, .pshelf-btn:focus-visible { border-color: var(--accent); color: var(--accent); outline: none; }
+.pshelf-btn.pshelf-remove { font-size: 0.8rem; font-weight: 600; }
 .pshelf-remove:hover { border-color: #e8907f; color: #e8907f; }
-.pshelf-removed .pshelf-bar { opacity: 0.45; border-style: dashed; }
-.pshelf-removed .pshelf-name strong { text-decoration: line-through; }
+/* Hidden on this page: dimmed and dashed, but the Show button stays bright. */
+.pshelf-removed .pshelf-bar { border-style: dashed; }
+.pshelf-removed .pshelf-handle, .pshelf-removed .pshelf-name, .pshelf-removed [data-move] { opacity: 0.45; }
+.pshelf-removed .pshelf-name span::after { content: ' · Hidden on this page'; }
 .pshelf-removed .pshelf-remove { opacity: 1; color: var(--accent); border-color: var(--accent); }
 .pshelf-added .pshelf-bar { border-color: color-mix(in srgb, var(--accent) 60%, transparent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
 .pshelf-ghost { opacity: 0.35; }
