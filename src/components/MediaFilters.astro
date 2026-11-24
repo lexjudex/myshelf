@@ -54,6 +54,14 @@ const noun = type === 'boardgame' ? ['game', 'games'] : type === 'video' ? ['vid
     </label>
     <label class="pref-toggle bgf-effects" title="Items turn to face you and shelves slide in as you scroll. Saved in this browser."><input type="checkbox" data-pref="effects" checked /> <span class="pref-track" aria-hidden="true"></span> Shelf effects</label>
   </div>
+  {/* Size: how big the items stand on the shelves (this browser only). */}
+  <div class="bgf-sizebar">
+    <label class="bgf-size" for="bgf-size"><span class="bgf-label">Size</span></label>
+    <svg class="bgf-size-ic small" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="7" y="7" width="10" height="12" rx="1.5" fill="currentColor"/></svg>
+    <input type="range" id="bgf-size" min="0.6" max="1.5" step="0.05" value="1" aria-label="Item size" />
+    <svg class="bgf-size-ic" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="4" y="3" width="16" height="19" rx="2" fill="currentColor"/></svg>
+    <button type="button" class="bgf-size-reset" id="bgf-size-reset" hidden>Reset</button>
+  </div>
   <div class="bgf-head" hidden={groups.length === 0}>
     <button type="button" class="bgf-toggle" aria-expanded="true" aria-controls="bgf-body">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"/></svg>

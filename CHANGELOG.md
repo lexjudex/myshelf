@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.5.4 (Nov 2026)
+
+- **Size slider.** Collection pages, media pages and "see all" pages have a **Size** slider between Sort and Filters. Slide it to make the items smaller (more per row) or bigger. Rows re-pack to fit. It's remembered in your browser; **Reset** puts it back.
+
 ## 0.5.3 (Nov 2026)
 
 - **Add a friend's item to your shelf.** On the Friends page, signed in, each entry in *What Your Friends Are Up To* has a **＋** button, and items on a friend's shelf have **Add to my shelf**. It opens your editor already filled in (title, creator, year, cover, and the same database link they used, so it shows as "You have this" for both of you). Pick a status, write your notes, save. Things you already have don't show the button.

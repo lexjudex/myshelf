@@ -71,6 +71,8 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
         var mode = ls.getItem('myshelf_mode');
         h.dataset.theme = mode === 'light' || mode === 'dark' ? mode : h.dataset.siteTheme;
         if (ls.getItem('myshelf_motion') === 'off') h.classList.add('flat-shelves');
+        var size = parseFloat(ls.getItem('myshelf_size'));
+        if (size >= 0.5 && size <= 2) h.style.setProperty('--shelf-zoom', String(size));
       } catch (e) {}
     </script>
   </head>

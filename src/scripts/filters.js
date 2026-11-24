@@ -47,6 +47,26 @@ function init() {
     sortSel.addEventListener('change', () => { applySort(); writeUrl(); });
   }
 
+  // ── Size: scale the shelves' items (saved in this browser; applied before the page draws by Base.astro).
+  const size = root.querySelector('#bgf-size');
+  const sizeReset = root.querySelector('#bgf-size-reset');
+  if (size) {
+    const cur = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--shelf-zoom')) || 1;
+    size.value = String(cur);
+    const show = (v) => {
+      document.documentElement.style.setProperty('--shelf-zoom', String(v));
+      sizeReset.hidden = Math.abs(v - 1) < 0.001;
+    };
+    show(cur);
+    size.addEventListener('input', () => show(Number(size.value)));
+    size.addEventListener('change', () => { try { localStorage.setItem('myshelf_size', size.value); } catch {} });
+    sizeReset.addEventListener('click', () => {
+      size.value = '1';
+      show(1);
+      try { localStorage.removeItem('myshelf_size'); } catch {}
+    });
+  }
+
   const state = {};
   const reset = () => {
     for (const g of groups) state[g.key] = g.multi ? [] : '';

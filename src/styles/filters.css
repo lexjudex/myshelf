@@ -48,3 +48,16 @@
 .bgf-effects { margin-left: auto; }
 .bgf-head[hidden] { display: none; }
 @media (max-width: 600px) { .bgf-effects { margin-left: 0; } }
+
+/* Size slider (between Sort and Filters): scales the items on the shelves of this page */
+.bgf-sizebar { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid color-mix(in srgb, var(--cream) 10%, transparent); color: var(--cream-soft); }
+.bg-filters:has(.bgf-head[hidden]) .bgf-sizebar { margin-bottom: 0; padding-bottom: 0; border-bottom: 0; }
+.bgf-size .bgf-label { width: auto; margin-right: 6px; }
+.bgf-sizebar input[type='range'] { flex: 0 1 260px; min-width: 120px; accent-color: var(--accent); cursor: pointer; }
+.bgf-size-ic { flex: 0 0 auto; opacity: 0.75; }
+.bgf-size-reset { font: inherit; font-size: 0.82rem; color: var(--accent); background: none; border: 0; padding: 2px 4px; cursor: pointer; }
+.bgf-size-reset:hover { text-decoration: underline; }
+.bgf-size-reset[hidden] { display: none; }
+/* Only on pages that have the slider (collection, media and "see all" pages). zoom re-lays out the shelf at the
+   new size, so rows re-pack to fit more (or fewer) items. */
+body:has(#bgf-size) .bookcase .shelf-3d { zoom: var(--shelf-zoom, 1); }
