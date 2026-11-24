@@ -113,3 +113,18 @@ export function inShelf(item, shelf, now = Date.now()) {
 export const SHOW_OPTIONS = { shelves: 'Shelves page', type: 'Media pages', both: 'Both', none: 'Nowhere (hidden)' };
 export const showsOnHome = (c) => !c.show || c.show === 'shelves' || c.show === 'both';
 export const showsOnType = (c) => c.show === 'type' || c.show === 'both';
+
+// After "Edit shelves" on a media page: what each media page hides. hidden lists status shelves by status and
+// collections as 'c:<slug>'. On this page, kept shelves come back and removed ones are hidden (only here).
+// turnedOn: collections that weren't on any media page before (or are brand new); they start out on this page only.
+export function hiddenAfterEdit({ page, pages, kept = [], removed = [], layouts = {}, turnedOn = [] }) {
+  const key = (id) => (id.startsWith('s:') ? id.slice(2) : id);
+  const keptKeys = new Set(kept.map(key));
+  const out = {};
+  out[page] = [...new Set([...(layouts[page]?.hidden || []).filter((h) => !keptKeys.has(h)), ...removed.map(key)])];
+  for (const p of pages) {
+    if (p === page || !turnedOn.length) continue;
+    out[p] = [...new Set([...(layouts[p]?.hidden || []), ...turnedOn.map((s) => `c:${s}`)])];
+  }
+  return out;
+}

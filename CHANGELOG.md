@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.5.6 (Nov 2026)
+
+- **Each media page has its own shelves.** In **Edit shelves** (the ✎ by a media page's title), ✕ on a collection now hides it on that page only; the other media pages keep it. Hidden collections are listed under **＋ Add a shelf → Put back or add** ("Hidden on this page"). A collection that wasn't on any media page, or a new shelf you make there, shows up on that page only, and you can put it on others the same way.
+
 ## 0.5.5 (Nov 2026)
 
 - **Fix: the ＋ by a media page's title** said "That collection was not found" instead of opening Manage → Add. The pencil next to it (Edit shelves) was caught by the same mix-up and works again too.

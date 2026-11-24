@@ -4,10 +4,12 @@
 //
 // Where it's stored:
 //   Shelves page: the collections' own order and their "show on" setting (the same as Manage → Collections).
-//   Media pages:  a per-type layout (order + hidden status shelves); collections there use "show on" too, and since
-//                 collections appear on every media page, adding or removing one changes them all.
+//   Media pages:  a per-type layout (order + hidden shelves). Taking a collection off a media page hides it on that
+//                 page only. One that wasn't on any media page (or a new one) is turned on for media pages and
+//                 starts out on this page only (hidden on the others, where it can be put back).
 import Sortable from 'sortablejs';
-import { STARTER_SHELVES } from '../lib/sorting.js';
+import { STARTER_SHELVES, hiddenAfterEdit, showsOnType } from '../lib/sorting.js';
+import { TYPE_KEYS } from '../lib/types.js';
 
 const tools = document.querySelector('[data-shelves-page]');
 const bookcase = document.querySelector('.bookcase');
@@ -51,7 +53,7 @@ function init() {
     if (id.startsWith('new:')) return 'New shelf · starts empty';
     if (id.startsWith('starter:')) return 'Starter shelf · fills itself';
     if (id.startsWith('s:')) return 'Fills itself by status';
-    return sec.dataset.shelfKind === 'auto' ? 'Fills itself' : home ? 'Your collection' : 'Your collection · on every media page';
+    return sec.dataset.shelfKind === 'auto' ? 'Fills itself' : 'Your collection';
   }
 
   function decorate(sec) {
@@ -81,7 +83,7 @@ function init() {
     bar = document.createElement('div');
     bar.className = 'pshelf-actions';
     bar.innerHTML = `
-      <p class="pshelf-hint">Drag shelves by the <span aria-hidden="true">⠿</span> handle (or use ↑ ↓). ✕ takes a shelf off this page; it isn't deleted${home ? '' : ', and collections come off every media page'}.</p>
+      <p class="pshelf-hint">Drag shelves by the <span aria-hidden="true">⠿</span> handle (or use ↑ ↓). ✕ takes a shelf off this page; it isn't deleted${home ? '' : ', and other media pages keep it'}.</p>
       <div class="pshelf-add-wrap">
         <button type="button" class="pshelf-cta ghost" data-add-open aria-expanded="false">＋ Add a shelf</button>
         <div class="pshelf-add" hidden>
@@ -200,6 +202,7 @@ function init() {
       const isNew = (id) => id.startsWith('new:') || id.startsWith('starter:');
       const freshOf = (id) => ({ ...(starterOf(id) || blank(titles[id])), show: home ? 'shelves' : 'type' });
       let next;
+      const turnedOn = [];
       if (home) {
         // The Shelves page shows collections in the collections' own order: kept shelves first, in the new order,
         // then everything else as it was.
@@ -216,9 +219,10 @@ function init() {
           next.push(removed.includes(`c:${c.slug}`) ? { ...c, show: showFor(c.show, false) } : c);
         }
       } else {
+        // Removing a collection here only hides it on this page (below). Putting one here that wasn't on any
+        // media page turns it on for media pages.
         next = collections.map((c) => {
-          if (removed.includes(`c:${c.slug}`)) return { ...c, show: showFor(c.show, false) };
-          if (kept.includes(`c:${c.slug}`)) return { ...c, show: showFor(c.show, true) };
+          if (kept.includes(`c:${c.slug}`) && !showsOnType(c)) { turnedOn.push(c.slug); return { ...c, show: showFor(c.show, true) }; }
           return c;
         });
         for (const id of kept.filter(isNew)) next.push(freshOf(id));
@@ -231,9 +235,11 @@ function init() {
         let k = 0;
         const order = kept.map((id) => (isNew(id) ? `c:${created[k++]?.slug || ''}` : id)).filter((id) => id !== 'c:');
         const { layouts } = await api('layouts');
-        const hiddenBefore = layouts[page]?.hidden || [];
-        const hidden = [...new Set([...hiddenBefore.filter((st) => !kept.includes(`s:${st}`)), ...removed.filter((id) => id.startsWith('s:')).map((id) => id.slice(2))])];
-        await api('layouts', { method: 'POST', body: { page, order, hidden } });
+        const hidden = hiddenAfterEdit({ page, pages: TYPE_KEYS, kept, removed, layouts, turnedOn: [...turnedOn, ...created.map((c) => c.slug)] });
+        await api('layouts', { method: 'POST', body: { page, order, hidden: hidden[page] } });
+        for (const p of Object.keys(hidden)) {
+          if (p !== page) await api('layouts', { method: 'POST', body: { page: p, order: layouts[p]?.order || [], hidden: hidden[p] } });
+        }
       }
       btn.textContent = 'Saved';
       location.reload();

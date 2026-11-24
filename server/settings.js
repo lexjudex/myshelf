@@ -9,8 +9,9 @@ const ARRANGE_KEY = /^(book|movie|tv|music|videogame|boardgame|video):(want|in-p
 export const getCollections = (env) => getSetting(env, 'collections', []);
 export const getArrangements = (env) => getSetting(env, 'arrangements', {});
 
-// ───────── page layouts: the order of shelves on each media page, and which status shelves are hidden ─────────
-// { book: { order: ['c:favorites', 's:finished', …], hidden: ['abandoned'] }, … }. Shelves a page doesn't list yet
+// ───────── page layouts: the order of shelves on each media page, and which shelves are hidden there ─────────
+// { book: { order: ['c:favorites', 's:finished', …], hidden: ['abandoned', 'c:currently'] }, … }. hidden holds status
+// shelves by status and collections as 'c:<slug>', so a collection can be on some media pages and not others. Shelves a page doesn't list yet
 // (a new collection, say) go after the listed ones in their usual order. The Shelves page uses the collections'
 // own order instead (Manage → Collections), so there's nothing to store for it here.
 const STATUSES = ['in-progress', 'finished', 'want', 'abandoned'];
@@ -20,7 +21,7 @@ export const getLayouts = (env) => getSetting(env, 'layouts', {});
 export function cleanLayout(layout = {}) {
   const ids = Array.isArray(layout.order) ? layout.order.map(String) : [];
   const order = [...new Set(ids.filter((id) => /^c:[a-z0-9][a-z0-9-]{0,120}$/.test(id) || STATUSES.some((s) => id === `s:${s}`)))].slice(0, 200);
-  const hidden = [...new Set((Array.isArray(layout.hidden) ? layout.hidden : []).map(String).filter((s) => STATUSES.includes(s)))];
+  const hidden = [...new Set((Array.isArray(layout.hidden) ? layout.hidden : []).map(String).filter((s) => STATUSES.includes(s) || /^c:[a-z0-9][a-z0-9-]{0,120}$/.test(s)))].slice(0, 200);
   return { order, hidden };
 }
 

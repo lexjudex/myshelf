@@ -18,9 +18,11 @@ const t = TYPES[type];
 const [items, shelves, arrangements, layouts] = await Promise.all([getItems(env), getShelves(env), getArrangements(env), getLayouts(env)]);
 const layout = layouts[type] || { order: [], hidden: [] };
 const all = items.filter((e) => e.data.type === type);
-// Collections shown on media pages. One with nothing of this type is drawn hidden, so "Edit shelves" can still move it.
+// Collections shown on media pages (unless hidden on this one). One with nothing of this type is drawn hidden,
+// so "Edit shelves" can still move it.
+const hiddenHere = new Set(layout.hidden || []);
 const typeCollections = shelves
-  .filter(showsOnType)
+  .filter((c) => showsOnType(c) && !hiddenHere.has(`c:${c.slug}`))
   .map((c) => ({ id: `c:${c.slug}`, c, items: sortShelf(all.filter((e) => inShelf(e.data, c)), c) }));
 const statuses = ['in-progress', 'finished', 'want', 'abandoned']
   .map((status) => {
@@ -40,6 +42,7 @@ const ordered = [...typeCollections.map((x, i) => ({ ...x, kind: 'c', r: rank(x.
 const hasShelves = ordered.some((x) => x.items.length);
 const addable = [
   ...statuses.filter((g) => (layout.hidden || []).includes(g.status)).map((g) => ({ id: g.id, name: g.label, note: `${g.items.length} ${g.items.length === 1 ? t.label.toLowerCase() : t.plural.toLowerCase()}` })),
+  ...shelves.filter((c) => showsOnType(c) && hiddenHere.has(`c:${c.slug}`)).map((c) => ({ id: `c:${c.slug}`, name: c.name, note: 'Hidden on this page' })),
   ...shelves.filter((c) => !showsOnType(c)).map((c) => ({ id: `c:${c.slug}`, name: c.name, note: isAutoShelf(c) ? 'Fills itself' : 'Your collection' })),
   ...STARTER_SHELVES.filter((st) => !findStarter(shelves, st)).map((st) => ({ id: `starter:${st.key}`, name: st.label, note: st.hint })),
 ];

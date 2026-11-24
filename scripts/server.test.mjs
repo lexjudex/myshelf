@@ -644,8 +644,8 @@ test('page layouts: shelf order and hidden status shelves per media page; collec
   const { saveLayout, getLayouts, cleanLayout, cleanCollections } = await import('../server/settings.js');
   const { showsOnHome, showsOnType } = await import('../src/lib/sorting.js');
   const env = fakeEnv();
-  const saved = await saveLayout(env, 'book', { order: ['c:favorites', 's:finished', 's:bogus', 'x:1', 'c:favorites'], hidden: ['abandoned', 'nope'] });
-  assert.deepEqual(saved, { order: ['c:favorites', 's:finished'], hidden: ['abandoned'] });
+  const saved = await saveLayout(env, 'book', { order: ['c:favorites', 's:finished', 's:bogus', 'x:1', 'c:favorites'], hidden: ['abandoned', 'nope', 'c:currently', 'c:Bad Slug'] });
+  assert.deepEqual(saved, { order: ['c:favorites', 's:finished'], hidden: ['abandoned', 'c:currently'] });
   assert.deepEqual((await getLayouts(env)).book, saved);
   await assert.rejects(saveLayout(env, 'home', { order: [] }), /Which page/);
   assert.deepEqual(cleanLayout({}), { order: [], hidden: [] });
@@ -653,6 +653,18 @@ test('page layouts: shelf order and hidden status shelves per media page; collec
   assert.equal(c.show, 'none');
   assert.equal(showsOnHome(c), false);
   assert.equal(showsOnType(c), false);
+});
+
+test('edit shelves on a media page: hiding a collection only hides it there; new ones start on that page only', async () => {
+  const { hiddenAfterEdit } = await import('../src/lib/sorting.js');
+  const pages = ['book', 'movie', 'boardgame'];
+  const layouts = { book: { hidden: ['abandoned', 'c:currently'] }, movie: { hidden: ['want'] } };
+  // Put "Currently" back on Books, take "Favorites" and the Want shelf off it. Other pages untouched.
+  assert.deepEqual(hiddenAfterEdit({ page: 'book', pages, layouts, kept: ['c:currently', 's:finished'], removed: ['c:favorites', 's:want'] }),
+    { book: ['abandoned', 'c:favorites', 'want'] });
+  // A collection turned on (or created) from Board Games shows there and is hidden on the other media pages.
+  assert.deepEqual(hiddenAfterEdit({ page: 'boardgame', pages, layouts, kept: ['c:games'], turnedOn: ['games'] }),
+    { boardgame: [], book: ['abandoned', 'c:currently', 'c:games'], movie: ['want', 'c:games'] });
 });
 
 test('add to my shelf: a friend’s item becomes an editor link with its details and database id', async () => {
