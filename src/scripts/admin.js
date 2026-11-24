@@ -1165,6 +1165,15 @@ function handleHash() {
     if (ref) addFromRef(ref);
     return;
   }
+  // /admin/#type=book: the ＋ next to a media page's title. Opens Add with that kind of media picked.
+  if (location.hash.startsWith('#type=')) {
+    const type = location.hash.slice('#type='.length);
+    history.replaceState(null, '', location.pathname);
+    showTab('add');
+    if (TYPES[type]) $(`.type-btn[data-type="${type}"]`)?.click();
+    $('#search-q').focus();
+    return;
+  }
   if (location.hash.startsWith('#add=')) {
     const q = new URLSearchParams(location.hash.slice(1));
     startAddingTo(q.get('add'), q.get('type'));

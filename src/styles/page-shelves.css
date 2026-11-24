@@ -1,6 +1,12 @@
 /* "Edit shelves" on the Shelves page and media pages (signed in only). While editing, each shelf folds down to a
    bar you can drag, move with ↑ ↓, or take off the page; the actions sit under the bookcase. */
 .pshelf-tools { float: right; margin-top: 6px; }
+/* Media pages: ＋ and ✎ sit right after the title, like the pencil on collection pages */
+.pshelf-tools.pshelf-inline { float: none; margin: 0 0 0 4px; display: inline-flex; gap: 6px; vertical-align: middle; }
+.pshelf-tools.pshelf-inline[hidden] { display: none; }
+.pshelf-add-item { text-decoration: none; vertical-align: middle; margin-left: 12px; }
+.pshelf-add-item[hidden] { display: none; }
+.pshelf-inline .pshelf-start[hidden] { display: none; }
 .pshelf-tools[hidden] { display: none; }
 .hero .pshelf-tools { margin-top: 14px; }
 .pshelf-start {
@@ -67,6 +73,21 @@
 .pshelf-add-note { margin: 8px 0 0; font-size: 0.78rem; color: var(--ink-soft); }
 @media (max-width: 760px) {
   .pshelf-actions { bottom: calc(90px + env(safe-area-inset-bottom)); }
-  .pshelf-tools { float: none; margin: 0 0 8px; }
+  .pshelf-tools:not(.pshelf-inline) { float: none; margin: 0 0 8px; }
   .pshelf-name span { display: none; }
 }
+
+/* ＋ and ✎ by a media page's title: round, quiet icons that work in light and dark mode */
+.page-head h1 .pshelf-add-item, .page-head h1 .pshelf-inline .pshelf-start {
+  display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; margin: 0;
+  border-radius: 50%; border: 1px solid color-mix(in srgb, var(--cream) 22%, transparent);
+  background: transparent; color: var(--cream-soft); cursor: pointer; vertical-align: middle;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.page-head h1 .pshelf-add-item { margin-left: 12px; }
+.page-head h1 .pshelf-add-item:hover, .page-head h1 .pshelf-add-item:focus-visible,
+.page-head h1 .pshelf-inline .pshelf-start:hover, .page-head h1 .pshelf-inline .pshelf-start:focus-visible {
+  color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); outline: none;
+}
+.page-head h1 .pshelf-add-item[hidden], .page-head h1 .pshelf-inline .pshelf-start[hidden] { display: none; }
+.page-head h1 .copy-link { margin-left: 6px; }

@@ -36,7 +36,10 @@ function init() {
   let addable = [];
   try { addable = JSON.parse(tools.dataset.addable || '[]'); } catch {}
   // Ping first: an old or wrong token shouldn't show the button.
-  api('ping').then(() => { tools.hidden = false; }).catch(() => {});
+  api('ping').then(() => {
+    tools.hidden = false;
+    document.querySelectorAll('.pshelf-reveal').forEach((el) => (el.hidden = false)); // the ＋ by a media page's title
+  }).catch(() => {});
 
   let sortable = null;
   let bar = null;

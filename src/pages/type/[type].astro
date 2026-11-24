@@ -46,9 +46,8 @@ const addable = [
 ---
 <Base title={t.plural}>
   <section class="page-head">
-    <ShelfEditor page={type} addable={addable} />
     <p class="eyebrow">{all.length} {all.length === 1 ? t.label : t.plural}</p>
-    <h1>{t.plural}<CopyLink /></h1>
+    <h1>{t.plural}<ShelfEditor page={type} part="add" addLabel={`Add ${type === 'video' ? 'a YouTube video or channel' : /^[aeiou]/i.test(t.label) ? `an ${t.label.toLowerCase()}` : `a ${t.label.toLowerCase()}`}`} addHref={`/admin/#type=${type}`} /><CopyLink /><ShelfEditor page={type} addable={addable} inline /></h1>
   </section>
   {all.length > 0 && <MediaFilters items={all} type={type} />}
   <div class="bookcase">
