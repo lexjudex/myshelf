@@ -4,7 +4,7 @@ The version number lives in `package.json` and shows in **Manage â†’ Settings â†
 
 ## 0.5.0 (Nov 2026)
 
-- **YouTube.** A new media type for videos and channels. Search needs a free YouTube key (`YOUTUBE_API_KEY`); without one, paste a video link under the search. Videos stand on the shelf as little computer monitors (with a stand and a power light in your accent colour) and play right on their item page; channels get a square monitor with their round avatar. Existing sites get YouTube turned on; switch it off in Settings if you don't want it.
+- **YouTube.** A new media type for videos and channels. Search needs a free YouTube key (`YOUTUBE_API_KEY`); without one, paste a video link under the search. Videos stand on the shelf as cute little cream computers (rounded case, chunky stand, a tiny light in your accent colour) and play right on their item page; channels get a square one with their avatar. Existing sites get YouTube turned on; switch it off in Settings if you don't want it.
 - **Journal search, sort and filters.** Search titles, creators and notes, filter by type and status, and sort by **Last edited** (the default), date, rating or title. Notes now remember when they were last changed.
 - **@mention friends.** Type `@` in your notes or in a comment and pick a friend (typing `@name` by hand works too). It becomes a link to their MyShelf, and they get a note in their inbox. Friends need this version to receive mention notes.
 - **Recommend from anywhere.** A **Recommend to a friend** button on your item pages (when you're signed in), a paper plane on each item in a shelf's arrange dialog, and **Recommend** on friends' shelves and the Friends feed to pass something along to another friend (they're credited: "from Dillon's shelf").
