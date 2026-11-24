@@ -20,9 +20,9 @@ const SHAPES = {
   boardgame: { kind: 'box',  bh: 1.25, w: 1.25, d: 0.3,  min: 24 },
   // A record sleeve: square, a good bit taller than a CD (and a book), and thin.
   vinyl:     { kind: 'vinyl', bh: 1.18, w: 1.18, d: 0.06, min: 10 },
-  // YouTube: a little widescreen picture in a black bezel; channels get a square one for their avatar.
-  video:     { kind: 'screen', bh: 0.66, w: 1.17, d: 0.07, min: 10 },
-  channel:   { kind: 'screen', bh: 0.9,  w: 0.9,  d: 0.07, min: 10 },
+  // YouTube: a little computer monitor on a stand (the screen is the top 78%); channels get a square screen.
+  video:     { kind: 'screen', bh: 0.86, w: 1.17, d: 0.08, min: 11 },
+  channel:   { kind: 'screen', bh: 1.0,  w: 0.82, d: 0.08, min: 11 },
 };
 const s = (isVinyl(item) && SHAPES.vinyl) || (isChannel(item) && SHAPES.channel) || SHAPES[item.type] || SHAPES.book;
 let bh = Math.round(u * s.bh);
@@ -56,7 +56,20 @@ const onErr = "this.closest('.book3d').classList.remove('has-cover');this.remove
 >
   <span class="b3-box" aria-hidden="true">
     <span class="b3-front">
-      {s.kind === 'cart' ? (
+      {s.kind === 'screen' ? (
+        <>
+          <span class="mon-screen">
+            {item.cover && <img src={item.cover} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror={onErr} />}
+            <span class="b3-ph">
+              <span class="b3-ph-title">{item.title}</span>
+              {item.creator && <span class="b3-ph-creator">{item.creator}</span>}
+            </span>
+            <span class="mon-glare"></span>
+          </span>
+          <span class="mon-neck"></span>
+          <span class="mon-foot"></span>
+        </>
+      ) : s.kind === 'cart' ? (
         <span class="cart-label">
           {item.cover && <img src={item.cover} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror={onErr} />}
           <span class="b3-ph"><span class="b3-ph-title">{item.title}</span></span>
