@@ -5,7 +5,8 @@
 import '../styles/page-shelves.css';
 // inline (media pages): a small round ✎ (edit shelves) right after the title.
 // part="add" draws just the ＋ (add one of these), which goes after the ✎ and before the copy-link icon.
-// addLabel/addHref: what the ＋ adds, e.g. "Add a book" → /admin/#type=book. Both only show when you're signed in.
+// addLabel/addHref: what the ＋ adds, e.g. "Add a book" → /admin/#type=book (the Journal's goes to /admin/#new).
+// Both only show when you're signed in.
 interface Props { page: string; addable?: { id: string; name: string; note?: string }[]; inline?: boolean; addLabel?: string; addHref?: string; part?: string }
 const { page, addable = [], inline = false, addLabel = '', addHref = '', part = '' } = Astro.props;
 const PENCIL = '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>';

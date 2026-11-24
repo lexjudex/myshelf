@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.5.9 (Nov 2026)
+
+- **＋ on the Journal.** Signed in, a ＋ sits next to the Journal's title. It opens **Manage → Add**.
+
 ## 0.5.8 (Nov 2026)
 
 - **Hidden shelves stay in Edit shelves.** On a media page, a shelf you hide (a status shelf like *Reading* or *Read*, or a collection) stays in the editor's list, dimmed and marked "Hidden on this page", with a **Show** button to bring it back. The ✕ is now a **Hide** button. All four status shelves are always listed, even empty ones, so you can arrange or hide them before anything's on them.

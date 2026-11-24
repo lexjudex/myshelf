@@ -1165,6 +1165,13 @@ function handleHash() {
     if (ref) addFromRef(ref);
     return;
   }
+  // /admin/#new: the ＋ by the Journal's title. Opens Add (with whatever kind of media was picked last).
+  if (location.hash === '#new') {
+    history.replaceState(null, '', location.pathname);
+    showTab('add');
+    $('#search-q').focus();
+    return;
+  }
   // /admin/#type=book: the ＋ next to a media page's title. Opens Add with that kind of media picked.
   if (location.hash.startsWith('#type=')) {
     const type = location.hash.slice('#type='.length);

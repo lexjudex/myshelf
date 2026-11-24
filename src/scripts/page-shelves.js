@@ -15,6 +15,10 @@ const tools = document.querySelector('[data-shelves-page]');
 const bookcase = document.querySelector('.bookcase');
 const token = (() => { try { return localStorage.getItem('myshelf_token') || ''; } catch { return ''; } })();
 if (tools && bookcase && token) init();
+// Pages with just the ＋ (the Journal): show it once the sign-in checks out.
+else if (token && document.querySelector('.pshelf-reveal')) {
+  api('ping').then(() => document.querySelectorAll('.pshelf-reveal').forEach((el) => (el.hidden = false))).catch(() => {});
+}
 
 async function api(path, { method = 'GET', body } = {}) {
   const res = await fetch(`/api/${path}`, {

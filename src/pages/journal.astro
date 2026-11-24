@@ -2,6 +2,7 @@
 import Base from '../layouts/Base.astro';
 import JournalCard from '../components/JournalCard.astro';
 import CopyLink from '../components/CopyLink.astro';
+import ShelfEditor from '../components/ShelfEditor.astro';
 import { getItems, editedAt } from '../lib/items.js';
 import { TYPES } from '../lib/types.js';
 import '../styles/filters.css';
@@ -16,7 +17,7 @@ const SORTS = [['edited', 'Last edited'], ['date', 'Date finished / started'], [
 <Base title="Journal">
   <section class="page-head">
     <p class="eyebrow"><span id="journal-count">{entries.length}</span> entries</p>
-    <h1>Journal<CopyLink /></h1>
+    <h1>Journal<ShelfEditor page="journal" part="add" addLabel="Add something" addHref="/admin/#new" /><CopyLink /></h1>
   </section>
 
   {entries.length > 1 && (
