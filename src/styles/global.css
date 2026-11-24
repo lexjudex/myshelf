@@ -424,6 +424,7 @@ a.expansion:hover .expansion-title { color: var(--accent-ink); text-decoration: 
   }
   .fab-item.active .fab-icon { background: var(--accent); color: var(--on-accent); border-color: transparent; }
   .fab-item.active .fab-label { color: var(--accent); }
+  .fab-menu li.fab-divider { align-self: stretch; height: 1px; margin: 2px 4px 2px 18px; background: rgba(241, 230, 208, 0.18); }
 }
 @media (max-width: 760px) and (prefers-reduced-motion: reduce) {
   .fab-menu li { transition: none; }

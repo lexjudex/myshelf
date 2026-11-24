@@ -6,6 +6,7 @@ The version number lives in `package.json` and shows in **Manage → Settings �
 
 - **Add a friend's item to your shelf.** On the Friends page, signed in, each entry in *What Your Friends Are Up To* has a **＋** button, and items on a friend's shelf have **Add to my shelf**. It opens your editor already filled in (title, creator, year, cover, and the same database link they used, so it shows as "You have this" for both of you). Pick a status, write your notes, save. Things you already have don't show the button.
 - A recommendation's **Add it** now opens the editor filled in too, instead of a search.
+- The phone bubble menu has a thin divider between the media pages and Friends / Journal / Manage.
 - **＋ next to each media page's title.** Signed in, a ＋ sits between the title and the copy-link icon on Books, Movies, Board Games and the rest. It opens Manage → Add with that kind of media already picked. On media pages, **Edit shelves** is now a small pencil after the copy-link icon.
 
 ## 0.5.2 (Nov 2026)

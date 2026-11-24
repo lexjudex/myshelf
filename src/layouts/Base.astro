@@ -97,12 +97,16 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
     <nav class="fab-nav" aria-label="Main (mobile)">
       <ul class="fab-menu" id="fab-menu">
         {fabItems.map((n, i) => (
+          <>
+          {/* A thin divider between the media pages and Friends / Journal / Manage */}
+          {n.href === '/friends/' && <li class="fab-divider" aria-hidden="true" style={`--i:${fabItems.length - 1 - i}`}></li>}
           <li style={`--i:${fabItems.length - 1 - i}`}>
             <a href={n.href} class:list={['fab-item', { active: n.active }]} aria-current={n.active ? 'page' : undefined}>
               <span class="fab-label">{n.label}</span>
               <span class="fab-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={ICONS[n.icon]} /></span>
             </a>
           </li>
+          </>
         ))}
       </ul>
       <button type="button" class="fab-btn" aria-expanded="false" aria-controls="fab-menu" aria-label="Open menu">
