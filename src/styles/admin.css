@@ -378,3 +378,8 @@ html.embed .editor::backdrop { background: transparent; }
 .take-who a { color: var(--accent-ink); margin-left: auto; }
 .take-stars { color: var(--accent-ink); letter-spacing: 0.05em; }
 .take-text { margin: 4px 0 0; color: var(--ink-soft); white-space: pre-line; }
+
+.look-mine { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #e3d5b8; }
+.site-form .look-mine .pref-toggle { display: inline-flex; flex-direction: row; color: var(--ink); font-size: 0.9rem; font-weight: 600; }
+.look-mine .pref-track { background: #d5c6a8; }
+.look-mine .pref-track::after { background: #fff; }

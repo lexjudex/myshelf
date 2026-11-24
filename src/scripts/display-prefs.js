@@ -1,4 +1,4 @@
-// Display switches at the bottom of the footer and of the phone bubble menu: Shelf effects and Light mode.
+// Display switches: Shelf effects (footer, and the Sort bar on shelf pages) and Light mode (footer, and Manage → Settings).
 // Both are saved in this browser only (localStorage). The <head> script in Base.astro applies them before
 // the page draws; this file keeps every switch on the page in step and flips things live.
 const html = document.documentElement;
@@ -13,6 +13,8 @@ const PREFS = {
     set: (on) => {
       store.set('myshelf_motion', on ? null : 'off');
       html.classList.toggle('flat-shelves', !on);
+      // Shelves set themselves up for one mode or the other when the page loads, so redraw a page that has them.
+      if (document.querySelector('.shelf-3d')) setTimeout(() => location.reload(), 150);
     },
   },
   // "on" = light mode. Matching the site's own look clears the visitor's choice, so a later change by the owner shows.

@@ -82,7 +82,8 @@ With Spotify you can also add public playlists, and paste an album, song or play
 - **Collections:** create, rename, reorder and remove shelves.
 - **Friends:** your address to share, friend requests, your inbox, and your friends' shelves.
 - **Settings:** site name, your name, public address, which kinds of media your site shows, your site's **Look** (light or dark, and an accent colour), backup and restore.
-- **Display switches:** at the bottom of every page (and of the phone menu), anyone can turn **Shelf effects** off and switch **Light mode** on or off for their own browser.
+- **Display switches:** at the bottom of every page, anyone can turn **Shelf effects** off and switch **Light mode** on or off for their own browser. Shelf effects is also next to **Sort** on shelf pages, and Light mode is in Manage → Settings.
+- **Sort:** collection, media and "see all" pages can be sorted by date, title, creator, rating or release year (Shelf order is how you arranged it).
 - **Edit shelves:** signed in, the Shelves page and each media page have an **Edit shelves** button to reorder whole shelves, take them off the page, or add shelves, right there.
 - **Journal:** search your notes, filter by type or status, and sort by **Last edited**, date, rating or title.
 - Every item page has a small **Edit** link that goes straight to the editor.

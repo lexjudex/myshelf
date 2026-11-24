@@ -183,6 +183,10 @@ const typesJson = JSON.stringify(TYPES);
                 ))}
                 <label class="accent-custom" title="Pick any colour"><input type="radio" name="accent" value="custom" /><input type="color" name="accentCustom" value="#d99a4e" aria-label="Custom accent colour" /> Custom</label>
               </div>
+              <div class="look-mine">
+                <label class="pref-toggle"><input type="checkbox" data-pref="mode" /> <span class="pref-track" aria-hidden="true"></span> Light mode on this browser</label>
+                <span class="muted small">Just for you, here. It changes as soon as you flip it; no need to save.</span>
+              </div>
             </fieldset>
             <div class="row span2"><button class="btn primary" type="submit">Save</button><span id="site-msg" class="muted small"></span></div>
           </form>

@@ -104,16 +104,6 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
             </a>
           </li>
         ))}
-        <li class="fab-prefs" style="--i:0">
-          <button type="button" class="fab-item fab-pref" data-pref="effects" aria-pressed="true">
-            <span class="fab-label">Shelf effects <span class="pref-state" data-pref-state="effects">on</span></span>
-            <span class="fab-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={ICONS.effects} /></span>
-          </button>
-          <button type="button" class="fab-item fab-pref" data-pref="mode" aria-pressed="false">
-            <span class="fab-label" data-pref-label="mode">Light mode</span>
-            <span class="fab-icon"><svg class="icon-sun" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={ICONS.sun} /><svg class="icon-moon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={ICONS.moon} /></span>
-          </button>
-        </li>
       </ul>
       <button type="button" class="fab-btn" aria-expanded="false" aria-controls="fab-menu" aria-label="Open menu">
         <span class="fab-open" aria-hidden="true">▤</span>

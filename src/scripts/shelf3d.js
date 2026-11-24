@@ -26,33 +26,41 @@ function revealX(b) {
 // the turning, swiping or row-locking below is needed. Shelves scroll and wrap like normal.
 const FLAT = document.documentElement.classList.contains('flat-shelves');
 
+// One front-facing item per ROW. A scrolling shelf is one row; a wrapping shelf (collection pages, "see all"
+// pages) is split into row strips by lockRows() below, and each strip keeps its own front item, so moving down
+// the page never flips back the item you turned on the row above.
 function initShelf(shelf) {
   if (FLAT) return;
-  let books = [...shelf.querySelectorAll('.book3d')];
-  if (!books.length) return;
-  let active = books.find((b) => b.classList.contains('is-front')) || books[0];
-  active.classList.add('is-front');
+  if (!shelf.querySelector('.book3d')) return;
+  const groupOf = (b) => b.closest('.shelf-track') || shelf;
+  const visible = (b) => !b.closest('.shelf-slot')?.hidden;
+  const groupBooks = (g) => [...g.querySelectorAll('.book3d')].filter(visible);
+  const allBooks = () => [...shelf.querySelectorAll('.book3d')];
 
-  const setActive = (b, { reveal = false } = {}) => {
-    if (!b || b === active) return;
-    active.classList.remove('is-front');
-    b.classList.add('is-front');
-    active = b;
-    if (reveal) {
-      // Keep the newly turned item in view (once it has started widening).
-      requestAnimationFrame(() => revealX(b));
+  // Every row has exactly one front item: keep the one it has (if it's still in that row), else its first item.
+  const settle = () => {
+    const groups = new Set(allBooks().filter(visible).map(groupOf));
+    allBooks().forEach((b) => { if (!visible(b)) b.classList.remove('is-front'); });
+    for (const g of groups) {
+      const list = groupBooks(g);
+      const fronts = list.filter((b) => b.classList.contains('is-front'));
+      const keep = fronts[0] || list[0];
+      list.forEach((b) => b.classList.toggle('is-front', b === keep));
     }
   };
+  settle();
+  shelf.addEventListener('shelf:rows', settle); // lockRows re-packed the rows
 
-  // Shelf was rearranged on the page (pencil → Arrange → Save): first item faces front again.
-  // Also fired by the board game filters: only visible items take part.
+  const setActive = (b, { reveal = false } = {}) => {
+    if (!b || b.classList.contains('is-front')) return;
+    groupBooks(groupOf(b)).forEach((x) => x.classList.toggle('is-front', x === b));
+    if (reveal) requestAnimationFrame(() => revealX(b)); // keep it in view once it has started widening
+  };
+
+  // Shelf was rearranged, sorted or filtered on the page: each row's first item faces front again.
   shelf.addEventListener('shelf:reorder', () => {
-    books = [...shelf.querySelectorAll('.book3d')].filter((b) => !b.closest('.shelf-slot')?.hidden);
-    if (!books.length) return;
-    if (books.includes(active) && books[0] === active) return;
-    active.classList.remove('is-front');
-    active = books[0];
-    active.classList.add('is-front');
+    allBooks().forEach((b) => b.classList.remove('is-front'));
+    settle();
   });
 
   // ── Mouse: real movement only (layout shifts under a still cursor shouldn't turn things).
@@ -61,7 +69,7 @@ function initShelf(shelf) {
     if (e.pointerType !== 'mouse' || shelf.classList.contains('is-dragging')) return;
     mouse = { x: e.clientX, y: e.clientY };
     const b = e.target.closest?.('.book3d');
-    if (b && books.includes(b)) setActive(b);
+    if (b && shelf.contains(b)) setActive(b);
   }, { passive: true });
   shelf.addEventListener('pointerleave', () => (mouse = null));
 
@@ -72,22 +80,23 @@ function initShelf(shelf) {
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(() => {
       const el = document.elementFromPoint(mouse.x, mouse.y)?.closest('.book3d');
-      if (el && books.includes(el)) setActive(el);
+      if (el && shelf.contains(el)) setActive(el);
     });
   }, { passive: true });
 
   // ── Keyboard: only keyboard focus turns an item. (A tap also focuses the link; reacting
   // to that turned the item before the tap was handled, so a single tap opened it.)
-  books.forEach((b) => {
-    b.addEventListener('focus', () => { if (b.matches(':focus-visible')) setActive(b, { reveal: true }); });
+  shelf.addEventListener('focusin', (e) => {
+    const b = e.target.closest?.('.book3d');
+    if (b && b.matches(':focus-visible')) setActive(b, { reveal: true });
   });
 
-  // ── Touch: swipe sideways to flip through the shelf.
+  // ── Touch: swipe sideways to flip through the row you're touching.
   // Each touch is locked to ONE direction as soon as it has moved a little: up/down belongs to the
   // page (we stay out of it for the rest of that touch), sideways belongs to the shelf (and the page
   // is held still so it doesn't drift vertically). Touch events, not pointer events, because iPhone
   // Safari cancels pointer events as soon as it starts scrolling the page, which killed swipes.
-  let start = null;        // { x, y, idx, dir: null | 'x' | 'y' }
+  let start = null;        // { x, y, list, idx, dir: null | 'x' | 'y' }
   let suppressClick = false;
 
   shelf.addEventListener('touchstart', (e) => {
@@ -95,7 +104,9 @@ function initShelf(shelf) {
     if (e.touches.length !== 1) { start = null; return; } // pinch etc.: not ours
     const t = e.touches[0];
     const catchingScroll = performance.now() - lastPageScroll < SCROLL_SETTLE;
-    start = { x: t.clientX, y: t.clientY, idx: books.indexOf(active), dir: catchingScroll ? 'y' : null };
+    const row = e.target.closest?.('.shelf-track') || shelf;
+    const list = groupBooks(row);
+    start = { x: t.clientX, y: t.clientY, list, idx: list.findIndex((b) => b.classList.contains('is-front')), dir: catchingScroll ? 'y' : null };
   }, { passive: true });
   shelf.addEventListener('touchmove', (e) => {
     if (!start || start.dir === 'y') return;
@@ -109,10 +120,10 @@ function initShelf(shelf) {
       if (start.dir === 'y') return; // vertical: the page scrolls, the shelf ignores this touch
     }
     if (e.cancelable) e.preventDefault(); // sideways: keep the page from scrolling up/down underneath
-    // Finger moving left = forward through the shelf, like flicking through records.
+    // Finger moving left = forward through the row, like flicking through records.
     const steps = Math.trunc(-dx / SWIPE_STEP);
-    const idx = Math.max(0, Math.min(books.length - 1, start.idx + steps));
-    setActive(books[idx], { reveal: true });
+    const idx = Math.max(0, Math.min(start.list.length - 1, Math.max(0, start.idx) + steps));
+    setActive(start.list[idx], { reveal: true });
   }, { passive: false });
   const end = () => {
     if (start?.dir === 'x') {
@@ -126,11 +137,11 @@ function initShelf(shelf) {
   shelf.addEventListener('touchcancel', end);
 
   // ── Taps/clicks: a spine turns to face you first; the front-facing item opens.
-  books.forEach((b) => {
-    b.addEventListener('click', (e) => {
-      if (suppressClick) { e.preventDefault(); suppressClick = false; return; }
-      if (!b.classList.contains('is-front')) { e.preventDefault(); setActive(b, { reveal: true }); }
-    });
+  shelf.addEventListener('click', (e) => {
+    const b = e.target.closest?.('.book3d');
+    if (!b) return;
+    if (suppressClick) { e.preventDefault(); suppressClick = false; return; }
+    if (!b.classList.contains('is-front')) { e.preventDefault(); setActive(b, { reveal: true }); }
   });
 }
 
@@ -190,11 +201,11 @@ function watchEdge(shelf) {
 }
 document.querySelectorAll('.shelf-scroll').forEach(watchEdge);
 
-// ── Wrapping shelves (collection pages): stop items jumping between rows.
+// ── Wrapping shelves (collection pages, "see all" pages): fixed rows, each with its own front item.
 // Turning an item to face front makes it wider, which used to re-wrap the shelf. Instead, rows are
-// packed full (by spine width) into fixed row strips. When an item turns front, its row grows past
-// the edge; the overflow fades out on the right, and the row slides so the front item stays in view.
-// Rows are only re-packed when the shelf's width changes or its items are filtered/reordered.
+// packed into fixed row strips, leaving room in each for one front-facing item. Each row slides on
+// its own to keep its front item in view; the overflow fades out at the edges. Rows are only re-packed
+// when the shelf's width changes or its items are filtered, sorted or reordered.
 function lockRows(shelf) {
   let lastWidth = 0;
   const px = (el, v) => parseFloat(getComputedStyle(el).getPropertyValue(v)) || 0;
@@ -229,11 +240,16 @@ function lockRows(shelf) {
     const gap = parseFloat(cs.columnGap) || 0;
     // Each row = its own plank (.shelf-row, which also carries the scroll motion) holding a track of
     // items (.shelf-track, which clips, fades at the edges and slides sideways).
-    let track = null, used = 0;
+    let track = null, used = 0, widest = 0;
     for (const slot of slots) {
-      const spine = slot.hidden ? 0 : px(slot.querySelector('.book3d'), '--d');
+      const b = slot.querySelector('.book3d');
+      const spine = slot.hidden ? 0 : px(b, '--d');
+      const front = slot.hidden ? 0 : px(b, '--w');
+      // Room for this row's one front item: the widest front face in the row, minus its own spine.
+      const room = Math.max(widest, front) - Math.min(spine, front);
       const add = (used ? gap : 0) + spine;
-      if (!track || (spine && used && used + add > avail)) {
+      if (!track || (spine && used && used + add + room > avail)) {
+        widest = 0;
         const row = document.createElement('div');
         row.className = 'shelf-row';
         const t = document.createElement('div');
@@ -245,8 +261,9 @@ function lockRows(shelf) {
         used = 0;
       }
       track.appendChild(slot);
-      if (spine) used += (used ? gap : 0) + spine;
+      if (spine) { used += (used ? gap : 0) + spine; widest = Math.max(widest, front); }
     }
+    shelf.dispatchEvent(new CustomEvent('shelf:rows'));
     reveal();
   };
 

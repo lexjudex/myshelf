@@ -22,6 +22,11 @@ export function filterData(d) {
     // books, movies, TV, music, video games
     pg: num(det.pages), rt: num(det.runtime), se: num(det.seasons), k: det.kind ? String(det.kind) : null,
     pl: list(det.platforms), nw: det.network ? String(det.network) : null,
+    // sorting (the Sort menu): title without "The/A/An", creator, finished/started/added date, date added
+    st: String(d.title || '').toLowerCase().replace(/^(the|a|an)\s+/, ''),
+    sc: String(d.creator || '').toLowerCase(),
+    sd: d.dateFinished || d.dateStarted || d.dateAdded || '',
+    sa: d.dateAdded || '',
   };
 }
 

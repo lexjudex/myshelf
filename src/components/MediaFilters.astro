@@ -41,12 +41,20 @@ if (decades.length > 1) groups.push({ key: 'dec', label: type === 'boardgame' ||
 if (type === 'boardgame') { const m = tally((f) => f.m); if (m.length) groups.push({ key: 'mech', label: 'Mechanics', tags: true, multi: 'all', options: m.map((v) => [v, v]) }); }
 { const c = tally((f) => f.c); if (c.length) groups.push({ key: 'cat', label: type === 'boardgame' ? 'Categories' : 'Genres', tags: true, multi: 'all', options: c.map((v) => [v, v]) }); }
 
+const SORT_OPTIONS = [['', 'Shelf order'], ['newest', 'Newest first'], ['oldest', 'Oldest first'], ['title', 'Title A–Z'], ['creator', `${type ? TYPES[type].creator : 'Creator'} A–Z`], ['rating', 'Highest rated'], ['year-new', 'Release year (newest)'], ['year-old', 'Release year (oldest)']];
 const t = type ? TYPES[type] : null;
 const noun = type === 'boardgame' ? ['game', 'games'] : type === 'video' ? ['video', 'videos'] : t ? [t.label.toLowerCase(), t.plural.toLowerCase()] : ['item', 'items'];
 ---
-{groups.length > 0 && (
-<section class="bg-filters" id="media-filters" aria-label="Filter" data-noun={noun[0]} data-nouns={noun[1]}>
-  <div class="bgf-head">
+{items.length > 0 && (
+<section class="bg-filters" id="media-filters" aria-label="Sort and filter" data-noun={noun[0]} data-nouns={noun[1]}>
+  {/* Sort: reorders every shelf on the page, in the browser (Shelf order = how the shelf is arranged). */}
+  <div class="bgf-sortbar">
+    <label class="bgf-sort"><span class="bgf-label">Sort</span>
+      <select id="bgf-sort">{SORT_OPTIONS.map(([v, l]) => <option value={v}>{l}</option>)}</select>
+    </label>
+    <label class="pref-toggle bgf-effects" title="Items turn to face you and shelves slide in as you scroll. Saved in this browser."><input type="checkbox" data-pref="effects" checked /> <span class="pref-track" aria-hidden="true"></span> Shelf effects</label>
+  </div>
+  <div class="bgf-head" hidden={groups.length === 0}>
     <button type="button" class="bgf-toggle" aria-expanded="true" aria-controls="bgf-body">
       <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"/></svg>
       Filters

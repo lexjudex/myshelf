@@ -2,6 +2,13 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.5.2 (Nov 2026)
+
+- **One open item per row.** On pages where a shelf wraps onto several rows (every collection page and every "see all" page, for all media), each row now has its own front-facing item, and each row slides on its own. Turning something on one row no longer flips back the item on the row above. Rows also leave room for their open item, so they slide less.
+- **Sort on every shelf page.** Collection pages, media pages and "see all" pages have a **Sort** menu at the top of the filter bar: Shelf order, Newest, Oldest, Title, Creator, Highest rated, or Release year. It's in the address bar too, so a sorted view can be shared. The **Shelf effects** switch lives next to it (and still in the footer).
+- **Bubble menu is just the menu again.** The Shelf effects and Light mode switches are gone from it. Light mode is in the footer and in **Manage → Settings → Look** ("Light mode on this browser").
+- Turning Shelf effects on or off now redraws the page, so it takes effect right away.
+
 ## 0.5.1 (Nov 2026)
 
 - **YouTube without a new key.** Pasting a channel link now works with no key at all (video links already did). Searching YouTube by name uses your existing Google Books key once **YouTube Data API v3** is switched on in that Google Cloud project (one click); `YOUTUBE_API_KEY` is only needed to use a separate key. The "Missing keys" note no longer mentions YouTube.
