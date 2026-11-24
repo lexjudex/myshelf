@@ -654,3 +654,18 @@ test('page layouts: shelf order and hidden status shelves per media page; collec
   assert.equal(showsOnHome(c), false);
   assert.equal(showsOnType(c), false);
 });
+
+test('add to my shelf: a friend’s item becomes an editor link with its details and database id', async () => {
+  const { addItemHref, shelfHtml } = await import('../src/scripts/friends-ui.js');
+  const { TYPES } = await import('../src/lib/types.js');
+  const item = { uid: 'u1', title: 'Wingspan & Friends', type: 'boardgame', creator: 'Elizabeth Hargrave', year: '2019', cover: 'https://bea.example/img/w.jpg', source: { name: 'BoardGameGeek', id: '266192', url: 'https://boardgamegeek.com/boardgame/266192' }, comments: [] };
+  const href = addItemHref(item);
+  assert.ok(href.startsWith('/admin/#add-item='));
+  const ref = JSON.parse(decodeURIComponent(href.slice('/admin/#add-item='.length)));
+  assert.deepEqual(ref, { title: 'Wingspan & Friends', type: 'boardgame', creator: 'Elizabeth Hargrave', year: '2019', cover: 'https://bea.example/img/w.jpg', source: item.source });
+  // Signed in on a friend's shelf: offered unless you already have it.
+  const friend = { id: 'f1', url: 'https://bea.example' };
+  assert.match(shelfHtml({ friend, items: [item] }, TYPES, { me: 'https://me.example' }), /Add to my shelf/);
+  assert.doesNotMatch(shelfHtml({ friend, items: [{ ...item, youHave: true }] }, TYPES, { me: 'https://me.example' }), /Add to my shelf/);
+  assert.doesNotMatch(shelfHtml({ friend: { url: friend.url }, items: [item] }, TYPES, {}), /Add to my shelf/); // visitors
+});

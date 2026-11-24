@@ -232,7 +232,9 @@ bindFriendActions($('[data-panel="friends"]'), {
   toast,
   reload: loadFriends,
   inbox: () => state.inbox,
-  onAddRec: (it) => document.dispatchEvent(new CustomEvent('myshelf:search', { detail: { type: it.type, title: it.title } })),
+  onAddRec: (it) => document.dispatchEvent(it.source?.id
+    ? new CustomEvent('myshelf:add-item', { detail: it })
+    : new CustomEvent('myshelf:search', { detail: { type: it.type, title: it.title } })),
 });
 
 document.addEventListener('click', (e) => {

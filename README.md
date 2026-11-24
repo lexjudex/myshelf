@@ -100,6 +100,7 @@ Friends are other people running their own MyShelf. There's no central server: y
    - see each other's *Friends only* items (**View shelf**), with "You have this" next to anything you both own,
    - **Recommend** something (from your Library, any item page, the paper plane in a shelf's arrange dialog, or pass along something from a friend's shelf); it lands in their inbox with an **Add it** button,
    - **@mention** a friend in your notes or a comment (type `@` and pick them). It links to their MyShelf and drops a note in their inbox,
+   - **Add to my shelf** from a friend's item (Friends page): it opens your editor already filled in,
    - see **what friends thought** before you add something: search results and the editor show friends who have it, with their rating and notes,
    - **Ask to borrow** anything they've marked *I own a copy*. Saying yes marks it as lent on their shelf.
    - tap the **heart** on any of their items to say you enjoyed it too. They get a note in their inbox; tap again to take it back. (Your friend needs a copy of MyShelf with hearts, so ask them to update if it says otherwise.)

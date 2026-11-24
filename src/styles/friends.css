@@ -133,3 +133,8 @@
 .inbox-ctl.confirm { background: var(--danger); color: #fff; border-color: var(--danger); }
 .inbox-ctl:disabled { opacity: 0.5; cursor: wait; }
 .fr-head-actions [hidden] { display: none; }
+
+/* "Add to my shelf" on a friend's item */
+a.round-btn { text-decoration: none; }
+.add-mine { display: inline-flex !important; align-items: center; gap: 5px; }
+.add-mine svg { flex: 0 0 auto; }

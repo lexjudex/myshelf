@@ -285,6 +285,16 @@ export function markSeen(inbox) {
   return inbox.filter((m) => m.status === 'unread').length;
 }
 
+// ───────── adding a friend's item to your own shelf ─────────
+
+/** Link that opens Manage's editor already filled in with this item (from a friend's shelf or a recommendation). */
+export function addItemHref(i = {}) {
+  const ref = { title: i.title, type: i.type, creator: i.creator || '', year: i.year || '', cover: i.cover || '', source: i.source || null };
+  return `/admin/#add-item=${encodeURIComponent(JSON.stringify(ref))}`;
+}
+const PLUS = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+export const addItemBtn = (i, cls = 'btn ghost small') => `<a class="${cls} add-mine" href="${esc(addItemHref(i))}" title="Open it in your editor, ready to save to your shelf">${PLUS} Add to my shelf</a>`;
+
 // ───────── a friend's shelf ─────────
 
 /**
@@ -310,6 +320,7 @@ export function shelfHtml({ friend, items }, TYPES, { me = '', filter = '' } = {
           ${threadHtml(i.comments, { friendUrl: friend.url, uid: i.uid, item: i })}
         </span>
         ${signedIn ? `<span class="lib-actions">
+          ${i.youHave ? '' : addItemBtn(i)}
           ${heartBtn(i.hearted, `data-heart="${esc(i.uid)}" data-friend="${esc(friend.id)}" data-title="${esc(i.title)}"`)}
           <button type="button" class="btn ghost small" data-rec-uid="${esc(i.uid)}" data-rec-friend="${esc(friend.url)}" data-rec-friend-id="${esc(friend.id)}" data-rec-title="${esc(i.title)}" title="Recommend this to another friend">Recommend</button>
           ${i.available ? `<button class="btn ghost small" data-ask="${esc(i.uid)}" data-friend="${esc(friend.id)}" data-title="${esc(i.title)}">Ask to borrow</button>` : i.owned ? '<span class="muted small">Lent out</span>' : ''}

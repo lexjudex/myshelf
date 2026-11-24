@@ -2,6 +2,11 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.5.3 (Nov 2026)
+
+- **Add a friend's item to your shelf.** On the Friends page, signed in, each entry in *What Your Friends Are Up To* has a **＋** button, and items on a friend's shelf have **Add to my shelf**. It opens your editor already filled in (title, creator, year, cover, and the same database link they used, so it shows as "You have this" for both of you). Pick a status, write your notes, save. Things you already have don't show the button.
+- A recommendation's **Add it** now opens the editor filled in too, instead of a search.
+
 ## 0.5.2 (Nov 2026)
 
 - **One open item per row.** On pages where a shelf wraps onto several rows (every collection page and every "see all" page, for all media), each row now has its own front-facing item, and each row slides on its own. Turning something on one row no longer flips back the item on the row above. Rows also leave room for their open item, so they slide less.

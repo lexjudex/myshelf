@@ -323,6 +323,34 @@ $('#results').addEventListener('click', async (e) => {
   });
 });
 
+// ───────── add something a friend has (or recommended) straight into the editor ─────────
+// ref: { title, type, creator, year, cover, source: { name, id, url } } from a friend's shelf or a recommendation.
+// Same database id as theirs, so your shelves match up ("You have this"); fuller details are fetched where we can.
+async function addFromRef(ref = {}) {
+  if (!ref.title || !TYPES[ref.type]) return toast('That item is missing its title or type.', 'error');
+  const src = ref.source && typeof ref.source === 'object' ? ref.source : {};
+  const key = Object.keys(SOURCE_NAMES).find((k) => SOURCE_NAMES[k] === src.name || k === src.name) || '';
+  const item = {
+    title: String(ref.title).slice(0, 200), type: ref.type, creator: ref.creator || '', year: ref.year ? String(ref.year) : '',
+    cover: /^https?:\/\//.test(ref.cover || '') ? ref.cover : '', status: '',
+    source: key && key !== 'manual' && src.id ? { name: SOURCE_NAMES[key], id: String(src.id), url: src.url || '' } : { name: 'Manual' },
+  };
+  showTab('add');
+  if (key && src.id && ['tmdb', 'openlibrary', 'bgg'].includes(key)) {
+    try {
+      const { details } = await api(`details?type=${item.type}&source=${key}&id=${encodeURIComponent(src.id)}`);
+      Object.assign(item, {
+        creator: details.creator || item.creator,
+        description: details.description || '',
+        genres: details.genres || [],
+        details: details.details || {},
+      });
+    } catch (err) { console.warn(err); }
+  }
+  openEditor(item);
+}
+document.addEventListener('myshelf:add-item', (e) => addFromRef(e.detail || {}));
+
 $('#manual-add').addEventListener('click', () =>
   openEditor({ type: state.type, status: '', title: $('#search-q').value.trim(), source: { name: 'Manual' } }),
 );
@@ -1127,6 +1155,14 @@ function handleHash() {
     const q = new URLSearchParams(location.hash.slice(1));
     history.replaceState(null, '', location.pathname);
     document.dispatchEvent(new CustomEvent('myshelf:search', { detail: { type: q.get('search'), title: q.get('q') || '' } }));
+    return;
+  }
+  // /admin/#add-item=<json>: "Add to my shelf" on a friend's item or a recommendation.
+  if (location.hash.startsWith('#add-item=')) {
+    let ref = null;
+    try { ref = JSON.parse(decodeURIComponent(location.hash.slice('#add-item='.length))); } catch {}
+    history.replaceState(null, '', location.pathname);
+    if (ref) addFromRef(ref);
     return;
   }
   if (location.hash.startsWith('#add=')) {
