@@ -21,7 +21,7 @@ const SHAPES = {
   // A record sleeve: square, a good bit taller than a CD (and a book), and thin.
   vinyl:     { kind: 'vinyl', bh: 1.18, w: 1.18, d: 0.06, min: 10 },
   // YouTube: a little computer monitor on a stand (the screen is the top 78%); channels get a square screen.
-  video:     { kind: 'screen', bh: 0.86, w: 1.17, d: 0.08, min: 11 },
+  video:     { kind: 'screen', bh: 0.84, w: 1.0,  d: 0.08, min: 11 },
   channel:   { kind: 'screen', bh: 1.0,  w: 0.82, d: 0.08, min: 11 },
 };
 const s = (isVinyl(item) && SHAPES.vinyl) || (isChannel(item) && SHAPES.channel) || SHAPES[item.type] || SHAPES.book;

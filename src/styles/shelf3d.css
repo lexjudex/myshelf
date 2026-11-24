@@ -89,10 +89,10 @@
   max-height: calc(var(--bh) * 0.32);
 }
 
-/* YouTube: a cute little computer. A rounded cream case (the top 80%) with a rounded screen, a thicker chin with
+/* YouTube: a cute little computer. A rounded light grey case (the top 80%) with a rounded screen, a thicker chin with
    a tiny accent-coloured light in the middle, then a short chunky neck and a soft oval foot. Channels get a square
    screen with their round avatar. */
-.kind-screen { --scr: 80%; --case: #f3ead9; --case-lo: #ddd0b8; --case-edge: #c7b89c; }
+.kind-screen { --scr: 80%; --case: #e4e4e7; --case-lo: #b9b9bf; --case-edge: #a2a2a9; }
 .kind-screen .b3-front, .book3d.kind-screen.is-front .b3-front { background: transparent; box-shadow: none; border-radius: 0; overflow: visible; }
 .mon-screen {
   position: absolute; left: 0; right: 0; top: 0; height: var(--scr);
@@ -128,8 +128,8 @@
   background: linear-gradient(180deg, var(--case), var(--case-lo));
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 2px 4px rgba(0,0,0,0.45);
 }
-/* Edge-on: the case's rounded side in cream, with the neck and foot below it. */
-.kind-screen .b3-spine { color: #5a4d3c; background: linear-gradient(90deg, var(--case-lo), var(--case) 40%, var(--case-lo)); height: var(--scr); top: 0; padding: 8px 0; justify-content: center; border-radius: 5px; overflow: visible; }
+/* Edge-on: the case's rounded side in grey, with the neck and foot below it. */
+.kind-screen .b3-spine { color: #3d3d44; background: linear-gradient(90deg, var(--case-lo), var(--case) 40%, var(--case-lo)); height: var(--scr); top: 0; padding: 8px 0; justify-content: center; border-radius: 5px; overflow: visible; }
 .kind-screen.has-cover .b3-spine::before { display: none; }
 .kind-screen .b3-spine::after { display: block; inset: auto; left: 30%; right: 30%; top: calc(100% - 1px); height: calc(var(--bh) * 0.2); border-radius: 0 0 3px 3px; background: linear-gradient(90deg, var(--case-lo), var(--case), var(--case-lo)); }
 .kind-screen .b3-spine-title { text-shadow: none; max-height: calc(var(--bh) * 0.62); font-size: clamp(8px, calc(var(--d) * 0.42), 12px); }
