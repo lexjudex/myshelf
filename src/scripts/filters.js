@@ -155,6 +155,7 @@ function init() {
       const shelf = section.querySelector('.shelf');
       // Shelves with nothing on them to begin with (a "No shelves" note, an empty one shown only while editing) are left alone.
       if (!shelf || !shelf.querySelector('.shelf-slot')) continue;
+      if (section.hasAttribute('data-off-page')) continue; // hidden on this page with Edit shelves: stays hidden
       const visible = shelf.querySelectorAll('.shelf-slot:not([hidden])').length;
       const count = section.querySelector('.count-n') || section.querySelector('.count');
       if (count) count.textContent = visible;

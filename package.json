@@ -1,6 +1,6 @@
 {
   "name": "myshelf",
-  "version": "0.5.9",
+  "version": "0.5.10",
   "private": true,
   "type": "module",
   "description": "A self-hosted media journal and virtual bookshelf (books, movies, TV, music, video games, board games, YouTube).",

@@ -56,7 +56,7 @@ const addable = [
     {!hasShelves && <Shelf items={[]} empty={all.length ? 'No shelves on this page.' : `No ${t.plural.toLowerCase()} yet.`} />}
     {/* Status shelves work like collections: one scrolling row, with SEE ALL once there are more than 10. */}
     {ordered.map((x) => x.kind === 'c' ? (
-      <Shelf title={x.c.name} description={x.c.description} items={x.items} href={`/shelf/${x.c.slug}/`} seeAll scroll collection={x.c.slug}
+      <Shelf title={x.c.name} description={x.c.description} items={x.off ? [] : x.items} href={`/shelf/${x.c.slug}/`} seeAll scroll collection={x.c.slug}
         height={type === 'music' ? 160 : 180} filterable shelfId={x.id} editOnly={x.items.length === 0} offPage={x.off} kind={isAutoShelf(x.c) ? 'auto' : 'manual'} empty={`No ${t.plural.toLowerCase()} on this shelf yet.`} />
     ) : (
       <Shelf title={x.label} items={x.off ? [] : x.items} href={`/type/${type}/${x.status}/`} seeAll scroll arrangeKey={x.key} height={type === 'music' ? 160 : 180} filterable shelfId={x.id} editOnly={x.items.length === 0} offPage={x.off} kind="status" />

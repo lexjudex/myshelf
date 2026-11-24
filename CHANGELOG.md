@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.5.10 (Nov 2026)
+
+- **Fix:** a collection hidden on a media page with Edit shelves could reappear when the page loaded (the filter bar was un-hiding it).
+
 ## 0.5.9 (Nov 2026)
 
 - **＋ on the Journal.** Signed in, a ＋ sits next to the Journal's title. It opens **Manage → Add**.
