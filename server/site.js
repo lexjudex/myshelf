@@ -6,7 +6,38 @@ import { HttpError, TYPE_KEYS } from './util.js';
 
 const clean = (v, n) => String(v ?? '').trim().slice(0, n);
 
-const withTypes = (site) => ({ ...site, types: cleanTypes(site.types) });
+// Media types added in a later version of MyShelf start out turned ON, even for sites that saved their media
+// choices before those types existed: typesSeen remembers which types were on offer when you last saved.
+const ORIGINAL_TYPES = ['book', 'movie', 'tv', 'music', 'videogame', 'boardgame'];
+function withNewTypes(site) {
+  if (!Array.isArray(site.types)) return site.types;
+  const seen = Array.isArray(site.typesSeen) ? site.typesSeen : ORIGINAL_TYPES;
+  return [...site.types, ...TYPE_KEYS.filter((t) => !seen.includes(t))];
+}
+const withTypes = (site) => ({ ...site, types: cleanTypes(withNewTypes(site)), theme: cleanTheme(site.theme) });
+
+// ───────── look: light or dark, and the accent colour ─────────
+export const DEFAULT_ACCENT = '#d99a4e';
+// Presets offered in Settings (any colour can be typed in too).
+export const ACCENTS = [
+  ['#d99a4e', 'Amber'], ['#e07a5f', 'Terracotta'], ['#e0718f', 'Rose'], ['#a98be0', 'Lavender'],
+  ['#6a9fe0', 'Blue'], ['#4fb3a9', 'Teal'], ['#7fb069', 'Sage'], ['#c9a227', 'Mustard'],
+];
+
+/** { mode: 'dark' | 'light', accent: '#rrggbb' }, with anything unexpected replaced by the defaults. */
+export function cleanTheme(value) {
+  const t = value && typeof value === 'object' ? value : {};
+  const accent = /^#[0-9a-f]{6}$/i.test(String(t.accent || '').trim()) ? String(t.accent).trim().toLowerCase() : DEFAULT_ACCENT;
+  return { mode: t.mode === 'light' ? 'light' : 'dark', accent };
+}
+
+/** Black or near-black text on light accents, white on dark ones (so buttons stay readable). */
+export function onAccent(hex) {
+  const n = parseInt(String(hex).slice(1), 16);
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return L > 0.22 ? '#1a1408' : '#ffffff';
+}
 
 export async function getSite(env) {
   if (!hasDb(env)) return withTypes({ ...defaults });
@@ -43,6 +74,9 @@ export async function saveSite(env, input = {}) {
     source: cleanLink(input.source) || defaults.source,
     // Which kinds of media this site shows. Turning one off hides it everywhere public; entries are kept.
     types: input.types === undefined ? (await getSite(env)).types : cleanTypes(input.types),
+    typesSeen: [...TYPE_KEYS],
+    // Light or dark, and the accent colour. Visitors can still flip light/dark for themselves.
+    theme: input.theme === undefined ? (await getSite(env)).theme : cleanTheme(input.theme),
   };
   await setSetting(env, 'site', site);
   return site;

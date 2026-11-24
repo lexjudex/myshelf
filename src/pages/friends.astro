@@ -23,6 +23,7 @@ const groups = [];
 if (feedFriends.length > 1) groups.push({ key: 'friend', label: 'Friend', options: feedFriends.map((f) => [f.url, who(f)]) });
 if (feedTypes.length > 1) groups.push({ key: 'type', label: 'Media', options: feedTypes.map((t) => [t, TYPES[t].plural]) });
 const host = (u) => u.replace(/^https?:\/\//, '');
+const PLANE = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>';
 const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.4 4.5 7 4.5c2 0 3.3 1.1 5 3 1.7-1.9 3-3 5-3 3.6 0 5.6 3.5 4.3 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg>';
 ---
 <Base title="Friends">
@@ -79,10 +80,13 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
                     <h3><a href={link} target="_blank" rel="noopener">{i.title}</a> {i.rating != null && <span class="rating">{stars(i.rating)}</span>}</h3>
                     <p class="creator">{t.label}{i.creator && <> · {i.creator}</>}{i.year && <> · {i.year}</>}</p>
                     {i.review && <div class="review clamp" title="Show all" set:html={reviewHtml(i.review)} />}
-                    <Fragment set:html={threadHtml(i.comments, { friendUrl: i.friend.url, uid: i.uid })} />
+                    <Fragment set:html={threadHtml(i.comments, { friendUrl: i.friend.url, uid: i.uid, item: i })} />
                   </div>
                   {/* Shown by the script only to you, when you're signed in on this device. */}
-                  <button type="button" class="heart-btn" aria-pressed="false" title="I enjoyed this too" data-heart={i.uid} data-friend-url={i.friend.url} data-title={i.title} hidden set:html={HEART} />
+                  <span class="feed-actions">
+                    <button type="button" class="heart-btn" aria-pressed="false" title="I enjoyed this too" data-heart={i.uid} data-friend-url={i.friend.url} data-title={i.title} hidden set:html={HEART} />
+                    <button type="button" class="round-btn feed-rec" title="Recommend this to another friend" aria-label={`Recommend ${i.title} to another friend`} data-rec-uid={i.uid} data-rec-friend={i.friend.url} data-rec-title={i.title} hidden set:html={PLANE} />
+                  </span>
                 </li>
               );
             })}
@@ -119,6 +123,9 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
 
 <script>
   import { esc, api, token, inboxHtml, markSeen, bindFriendActions, bindThreads, shelfHtml, setNicknames } from '../scripts/friends-ui.js';
+  import { enableMentionPicker } from '../scripts/mention-picker.js';
+  import { bindRecommendButtons } from '../scripts/recommend-dialog.js';
+  enableMentionPicker();
 
   const page = document.getElementById('friends-page');
   const TYPES = JSON.parse(page.dataset.types);
@@ -288,6 +295,10 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
     // Comment boxes and your own comments' Delete buttons.
     bindThreads(page, { me, toast });
 
+    // Pass things along: Recommend on the feed and on a friend's shelf.
+    page.querySelectorAll('.feed-rec').forEach((b) => (b.hidden = false));
+    bindRecommendButtons(page);
+
     // Hearts on the feed.
     try {
       const { hearts } = await api('friends?hearts=1');
@@ -328,7 +339,7 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
   .feed-more { display: flex; justify-content: center; margin-top: 18px; }
   .feed-more[hidden] { display: none; }
   .feed-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-  .feed-row { display: flex; gap: 16px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(241,230,208,0.08); }
+  .feed-row { display: flex; gap: 16px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid color-mix(in srgb, var(--cream) 8%, transparent); }
   .feed-cover { flex: 0 0 auto; height: 84px; display: grid; place-items: center; border-radius: 4px; overflow: hidden; background: var(--tc); color: #fbf6ec; font-weight: 700; text-decoration: none; box-shadow: 0 6px 14px rgba(0,0,0,0.35); }
   .feed-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .feed-text { min-width: 0; flex: 1; }
@@ -339,11 +350,11 @@ const HEART = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true
   .feed-text .rating { color: var(--accent); font-size: 0.9rem; margin-left: 4px; }
   .feed-text .creator { margin: 2px 0 0; color: var(--cream-soft); font-size: 0.88rem; }
   .friend-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
-  .friend-card { font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid rgba(241,230,208,0.1); transition: border-color 0.15s, background 0.15s; }
+  .friend-card { font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 14px; background: rgba(255,255,255,0.04); border: 1px solid color-mix(in srgb, var(--cream) 10%, transparent); transition: border-color 0.15s, background 0.15s; }
   .friend-card:hover, .friend-card.active { border-color: var(--accent); }
-  .friend-card.active { background: rgba(217,154,78,0.08); }
+  .friend-card.active { background: color-mix(in srgb, var(--accent) 8%, transparent); }
   .friend-card.active .friend-go { transform: rotate(90deg); }
-  .friend-initial { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: rgba(217,154,78,0.18); color: var(--accent); font-weight: 700; }
+  .friend-initial { width: 40px; height: 40px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); font-weight: 700; }
   .friend-card-text { display: flex; flex-direction: column; min-width: 0; }
   .friend-card-text span { color: var(--cream-soft); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .friend-go { margin-left: auto; color: var(--accent); transition: transform 0.15s; }

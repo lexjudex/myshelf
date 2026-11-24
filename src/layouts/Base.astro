@@ -1,5 +1,5 @@
 ---
-import { getSite } from '../../server/site.js';
+import { getSite, onAccent } from '../../server/site.js';
 import { TYPES, TYPE_KEYS } from '../lib/types.js';
 import '@fontsource-variable/plus-jakarta-sans';
 import '../styles/global.css';
@@ -10,6 +10,9 @@ const site = await getSite(Astro.isPrerendered ? null : Astro.locals.runtime?.en
 const { title, description = site.tagline, noindex = false } = Astro.props;
 const pageTitle = title ? `${title} · ${site.title}` : site.title;
 const path = Astro.url.pathname;
+// Look: light or dark, and the accent colour (Manage → Settings). Visitors can flip light/dark for themselves.
+const theme = site.theme;
+const accentStyle = `--accent:${theme.accent};--on-accent:${onAccent(theme.accent)}`;
 
 // Simple line icons for the mobile menu (24×24, stroke = currentColor).
 const ICONS = {
@@ -20,8 +23,12 @@ const ICONS = {
   music: '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
   videogame: '<path d="M6 11h4M8 9v4M15 12h.01M18 10h.01"/><path d="M17.3 5H6.7a4 4 0 0 0-3.96 3.43l-.73 5.1A3 3 0 0 0 5 17c1 0 1.5-.5 2-1l1.4-1.4c.4-.4.9-.6 1.4-.6h4.4c.5 0 1 .2 1.4.6L17 16c.5.5 1 1 2 1a3 3 0 0 0 2.99-3.47l-.73-5.1A4 4 0 0 0 17.3 5z"/>',
   boardgame: '<path d="M12 3a2.6 2.6 0 0 1 2.6 2.6c0 .95-.5 1.75-1.25 2.2 2.9.45 6.65 1.55 6.65 3.4 0 1.15-1.55 1.6-3.4 1.4l2.3 6.9a1 1 0 0 1-.95 1.3h-3.7L12 16.6l-2.25 4.2h-3.7a1 1 0 0 1-.95-1.3l2.3-6.9C5.55 12.8 4 12.35 4 11.2c0-1.85 3.75-2.95 6.65-3.4A2.6 2.6 0 0 1 9.4 5.6 2.6 2.6 0 0 1 12 3z"/>',
+  video: '<rect x="2" y="5" width="20" height="14" rx="4"/><path d="M10 9.2v5.6l4.8-2.8z"/>',
   friends: '<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
   journal: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  effects: '<path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
   manage: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33h0a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51h0a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82v0a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>',
 };
 const navItems = [
@@ -34,7 +41,7 @@ const navItems = [
 const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage', active: path.startsWith('/admin') }];
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme={theme.mode} data-site-theme={theme.mode} data-accent={theme.accent} style={accentStyle} data-static={Astro.isPrerendered ? '' : undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -44,13 +51,28 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <meta name="theme-color" content="#1e1f22" />
+    <meta name="theme-color" content={theme.mode === 'light' ? '#ece7de' : '#1e1f22'} />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MyShelf" />
-    <!-- Shelf effects can be turned off (Manage → Settings, per device); applied before the page draws so nothing jumps. -->
-    <script is:inline>try { if (localStorage.getItem('myshelf_motion') === 'off') document.documentElement.classList.add('flat-shelves'); } catch {}</script>
+    <!-- Per-browser display choices, applied before the page draws so nothing jumps:
+         shelf effects off (footer / menu switch) and a visitor's own light or dark choice. Pages built ahead of time
+         (Manage, 404) don't know the site's look, so they reuse the one saved the last time a live page was opened. -->
+    <script is:inline>
+      try {
+        var h = document.documentElement, ls = window.localStorage;
+        if (h.hasAttribute('data-static')) {
+          var look = JSON.parse(ls.getItem('myshelf_look') || 'null');
+          if (look && look.accent) { h.dataset.siteTheme = look.mode; h.dataset.accent = look.accent; h.style.setProperty('--accent', look.accent); h.style.setProperty('--on-accent', look.on); }
+        } else {
+          ls.setItem('myshelf_look', JSON.stringify({ mode: h.dataset.siteTheme, accent: h.dataset.accent, on: h.style.getPropertyValue('--on-accent') }));
+        }
+        var mode = ls.getItem('myshelf_mode');
+        h.dataset.theme = mode === 'light' || mode === 'dark' ? mode : h.dataset.siteTheme;
+        if (ls.getItem('myshelf_motion') === 'off') h.classList.add('flat-shelves');
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <header class="site-header">
@@ -82,6 +104,16 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
             </a>
           </li>
         ))}
+        <li class="fab-prefs" style="--i:0">
+          <button type="button" class="fab-item fab-pref" data-pref="effects" aria-pressed="true">
+            <span class="fab-label">Shelf effects <span class="pref-state" data-pref-state="effects">on</span></span>
+            <span class="fab-icon"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={ICONS.effects} /></span>
+          </button>
+          <button type="button" class="fab-item fab-pref" data-pref="mode" aria-pressed="false">
+            <span class="fab-label" data-pref-label="mode">Light mode</span>
+            <span class="fab-icon"><svg class="icon-sun" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={ICONS.sun} /><svg class="icon-moon" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={ICONS.moon} /></span>
+          </button>
+        </li>
       </ul>
       <button type="button" class="fab-btn" aria-expanded="false" aria-controls="fab-menu" aria-label="Open menu">
         <span class="fab-open" aria-hidden="true">▤</span>
@@ -102,7 +134,7 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
       btn?.addEventListener('click', () => set(!nav.classList.contains('open')));
       scrim?.addEventListener('click', () => set(false));
       document.addEventListener('keydown', (e) => { if (e.key === 'Escape') set(false); });
-      nav?.querySelectorAll('.fab-item').forEach((a) => a.addEventListener('click', () => set(false)));
+      nav?.querySelectorAll('a.fab-item').forEach((a) => a.addEventListener('click', () => set(false)));
     </script>
     <footer class="site-footer">
       <p>{site.title} · <a href="/admin/" class="quiet">Manage</a>{site.source && <> · <a href={site.source} class="quiet" rel="noopener">Source</a></>}</p>
@@ -112,10 +144,18 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
         <script is:inline>if (window.kofiwidget2) { kofiwidget2.init('Any Support is Appreciated!', '#d99a4e', 'K0A32B3009'); kofiwidget2.draw(); }</script>
       </div>
       <p class="attrib">
-        Metadata from Open Library, Google Books, Spotify, MusicBrainz, IGDB, and
+        Metadata from Open Library, Google Books, Spotify, MusicBrainz, IGDB, YouTube and
         <a href="https://boardgamegeek.com" rel="noopener">BoardGameGeek</a> (Powered by BGG).
         This product uses the TMDB API but is not endorsed or certified by TMDB.
       </p>
+      <!-- Display switches, saved in this browser only. -->
+      <div class="display-prefs" role="group" aria-label="Display">
+        <label class="pref-toggle"><input type="checkbox" data-pref="effects" checked /> <span class="pref-track" aria-hidden="true"></span> Shelf effects</label>
+        <label class="pref-toggle"><input type="checkbox" data-pref="mode" /> <span class="pref-track" aria-hidden="true"></span> Light mode</label>
+      </div>
     </footer>
+    <script>
+      import '../scripts/display-prefs.js';
+    </script>
   </body>
 </html>

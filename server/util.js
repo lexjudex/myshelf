@@ -1,6 +1,6 @@
 // Small helpers shared by the API routes.
 
-export const TYPE_KEYS = ['book', 'movie', 'tv', 'music', 'videogame', 'boardgame'];
+export const TYPE_KEYS = ['book', 'movie', 'tv', 'music', 'videogame', 'boardgame', 'video'];
 
 export function json(data, status = 200, headers = {}) {
   return new Response(JSON.stringify(data), {

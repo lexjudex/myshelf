@@ -6,6 +6,7 @@ import { ensureSchema, getItem, getItemByUid, putItem, getSetting, setSetting } 
 import { getSite } from '../site.js';
 import { getIdentity } from './crypto.js';
 import { VERSION } from '../version.js';
+import { resolveMentions, mentionedUrls, plainMentions } from './mentions.js';
 import {
   PROTOCOL, SOFTWARE, WELL_KNOWN, INBOX_PATH, SHELF_PATH, MAX_BODY, KINDS,
   cleanSiteUrl, signedHeaders, verifyRequest,
@@ -231,8 +232,10 @@ export async function receive(env, request, fetcher = fetch, { waitUntil = null 
 
   if (msg.kind === 'recommend') {
     const it = msg.item || {};
+    const via = msg.via && typeof msg.via === 'object' && safeOrigin(msg.via.url) ? { name: str(msg.via.name, 80), url: safeOrigin(msg.via.url) } : null;
     const payload = {
       note: str(msg.note, 1000),
+      ...(via ? { via } : {}),
       item: {
         title: str(it.title, 200), type: str(it.type, 20), creator: str(it.creator, 200), year: str(it.year, 10),
         cover: safeUrl(it.cover), url: safeUrl(it.url), sourceUrl: safeUrl(it.sourceUrl), extKey: str(it.extKey, 200),
@@ -335,6 +338,22 @@ export async function receive(env, request, fetcher = fetch, { waitUntil = null 
     return { ok: true };
   }
 
+  if (msg.kind === 'mention') {
+    const it = msg.item || {};
+    const text = str(plainMentions(msg.text), 400);
+    if (!str(it.title, 200)) throw new HttpError(400, 'Incomplete mention');
+    const owner = msg.owner && typeof msg.owner === 'object' ? { name: str(msg.owner.name, 80), url: safeOrigin(msg.owner.url) } : null;
+    await addInbox(env, {
+      id: msg.id, from, kind: 'mention',
+      payload: {
+        where: msg.where === 'comment' ? 'comment' : 'notes', text,
+        item: { uid: str(it.uid, 40), title: str(it.title, 200), type: str(it.type, 20), cover: safeUrl(it.cover), url: safeUrl(it.url) },
+        ...(owner?.url ? { owner } : {}),
+      },
+    });
+    return { ok: true };
+  }
+
   if (msg.kind === 'borrow-reply') {
     await addInbox(env, {
       id: msg.id, from, kind: msg.kind,
@@ -344,6 +363,12 @@ export async function receive(env, request, fetcher = fetch, { waitUntil = null 
   }
 
   throw new HttpError(400, 'Unknown message');
+}
+
+/** A site address from another site's message: just its origin (https://…, no trailing slash), or ''. */
+function safeOrigin(v) {
+  const u = safeUrl(v);
+  try { return u ? new URL(u).origin : ''; } catch { return ''; }
 }
 
 function safeUrl(v) {
@@ -548,28 +573,46 @@ async function acceptedFriend(env, id) {
   return f;
 }
 
-/** Recommend one of your items to one or more friends. */
-export async function recommend(env, requestUrl, { slug, friendIds, note }, fetcher = fetch) {
-  const row = await getItem(env, String(slug || ''));
-  if (!row) throw new HttpError(404, 'Item not found');
+/**
+ * Recommend something to one or more friends: one of your items ({ slug }), or something you saw on a friend's
+ * shelf ({ fromFriendId | fromFriendUrl, uid }) passed along to other friends, credited to them ("via").
+ */
+export async function recommend(env, requestUrl, { slug, fromFriendId, fromFriendUrl, uid, friendIds, note }, fetcher = fetch) {
   const ids = [...new Set(Array.isArray(friendIds) ? friendIds : [friendIds])].filter(Boolean).slice(0, 50);
   if (!ids.length) throw new HttpError(400, 'Pick at least one friend');
-  const origin = await selfOrigin(env, requestUrl);
-  const keys = await listItemsWithKeys(env, null);
-  const full = keys.find((r) => r.slug === row.slug);
-  const it = row.item;
-  const item = {
-    title: it.title, type: it.type, creator: it.creator || '', year: it.year || '',
-    cover: it.cover?.startsWith('/') ? origin + it.cover : it.cover || '',
-    url: (it.visibility || 'public') === 'public' ? `${origin}/item/${row.slug}/` : '',
-    extKey: full?.extKey || '',
-    source: it.source?.name ? { name: it.source.name, id: it.source.id ?? '', url: it.source.url || '' } : undefined,
-  };
+  let item, via;
+  if (slug) {
+    const row = await getItem(env, String(slug || ''));
+    if (!row) throw new HttpError(404, 'Item not found');
+    const origin = await selfOrigin(env, requestUrl);
+    const full = (await listItemsWithKeys(env, null)).find((r) => r.slug === row.slug);
+    const it = row.item;
+    item = {
+      title: it.title, type: it.type, creator: it.creator || '', year: it.year || '',
+      cover: it.cover?.startsWith('/') ? origin + it.cover : it.cover || '',
+      url: (it.visibility || 'public') === 'public' ? `${origin}/item/${row.slug}/` : '',
+      extKey: full?.extKey || '',
+      source: it.source?.name ? { name: it.source.name, id: it.source.id ?? '', url: it.source.url || '' } : undefined,
+    };
+  } else {
+    // Read it from their shelf (signed, so friends-only items count), rather than trusting what the page sent.
+    const src = await friendFromFields(env, { friendId: fromFriendId, friendUrl: fromFriendUrl });
+    const shelf = await friendShelf(env, requestUrl, src.id, fetcher);
+    const it = shelf.items.find((i) => i.uid === str(uid, 40));
+    if (!it) throw new HttpError(404, 'That item isn’t on their shelf any more');
+    item = {
+      title: str(it.title, 200), type: str(it.type, 20), creator: str(it.creator, 200), year: str(it.year, 10),
+      cover: safeUrl(it.cover), url: safeUrl(it.url), extKey: str(it.extKey, 200),
+      source: it.source?.name ? { name: str(it.source.name, 40), id: str(it.source.id, 80), url: safeUrl(it.source.url) } : undefined,
+    };
+    via = { name: src.owner || src.name || '', url: src.url };
+  }
   const results = [];
   for (const id of ids) {
     const f = await acceptedFriend(env, id);
+    if (via && f.url === via.url) { results.push({ id, ok: false, error: 'That’s their own item' }); continue; }
     try {
-      await send(env, requestUrl, f.url, 'recommend', { item, note: str(note, 1000) }, fetcher);
+      await send(env, requestUrl, f.url, 'recommend', { item, note: str(note, 1000), ...(via ? { via } : {}) }, fetcher);
       results.push({ id, ok: true });
     } catch (err) {
       results.push({ id, ok: false, error: err.message });
@@ -659,6 +702,41 @@ export async function friendShelf(env, requestUrl, id, fetcher = fetch) {
       ...i, youHave: Boolean(i.extKey && mine.has(i.extKey)), hearted: hearted.has(i.uid),
     })),
   };
+}
+
+// ───────── friends' takes (when you're about to add something) ─────────
+
+const TAKES_TTL_MS = 5 * 60 * 1000;
+let takesCache = null; // { at, key, takes } — per worker instance, so searching again is instant
+
+/**
+ * What your friends thought of things on their shelves: every item of theirs (public or friends-only) with
+ * notes or a rating, as [{ friend: { url, name }, extKey, type, title, year, status, rating, review, url }].
+ * Manage matches these against search results, so you see a friend's take before you add something.
+ */
+export async function friendTakes(env, requestUrl, { fresh = false } = {}, fetcher = fetch) {
+  const DB = await ensureSchema(env);
+  const { results } = await DB.prepare(`SELECT id, url, name, owner, nickname FROM friends WHERE status = 'accepted'`).all();
+  const friends = results || [];
+  const key = friends.map((f) => f.id).sort().join(',');
+  if (!fresh && takesCache && takesCache.key === key && Date.now() - takesCache.at < TAKES_TTL_MS) return takesCache.takes;
+  const shelves = await Promise.allSettled(friends.map((f) => friendShelf(env, requestUrl, f.id, fetcher)));
+  const takes = [];
+  shelves.forEach((r, i) => {
+    if (r.status !== 'fulfilled') return; // a friend's site being down just means no takes from them
+    const f = friends[i];
+    for (const it of r.value.items) {
+      const review = String(it.review || '').trim();
+      if (!review && it.rating == null) continue;
+      takes.push({
+        friend: { url: f.url, name: f.nickname || f.owner || f.name || f.url.replace(/^https?:\/\//, '') },
+        extKey: it.extKey || '', type: it.type, title: it.title, year: it.year || '',
+        status: it.status, rating: it.rating ?? null, review: review.slice(0, 600), url: it.url || '',
+      });
+    }
+  });
+  takesCache = { at: Date.now(), key, takes };
+  return takes;
 }
 
 // ───────── hearts ─────────
@@ -805,17 +883,69 @@ export async function itemComments(env, requestUrl, slug) {
   return (await commentsByUid(env, origin, row.uid)).get(row.uid) || [];
 }
 
+// ───────── @mentions ─────────
+
+async function mentionableFriends(env) {
+  const DB = await ensureSchema(env);
+  const { results } = await DB.prepare(`SELECT url, name, owner, nickname FROM friends WHERE status = 'accepted'`).all();
+  return results || [];
+}
+
+/** Plain @names in text that match a friend become @[Name](their site). */
+export async function linkMentions(env, text) {
+  if (!String(text || '').includes('@')) return String(text || '');
+  return resolveMentions(text, await mentionableFriends(env));
+}
+
+/** What a mention note says about one of your items. */
+function itemRef(row, origin, anchor = '') {
+  const it = row.item;
+  const pub = (it.visibility || 'public') === 'public';
+  return {
+    uid: row.uid, title: it.title, type: it.type,
+    cover: it.cover?.startsWith('/') ? origin + it.cover : it.cover || '',
+    url: pub ? `${origin}/item/${row.slug}/${anchor}` : origin,
+  };
+}
+
+/**
+ * Tell friends tagged in text (only those not tagged in `before`, so editing notes doesn't notify twice).
+ * skip: site addresses that already hear about this another way. Unreachable or older sites are skipped quietly.
+ */
+async function sendMentions(env, requestUrl, { text, before = '', where, item, owner = null, skip = [] }, fetcher = fetch) {
+  const had = new Set(mentionedUrls(before));
+  const friends = new Set((await mentionableFriends(env)).map((f) => f.url));
+  const self = await selfOrigins(env, requestUrl);
+  const targets = mentionedUrls(text).filter((u) => !had.has(u) && friends.has(u) && !self.includes(u) && !skip.includes(u));
+  const excerpt = str(text, 400);
+  const results = await Promise.allSettled(targets.map((url) =>
+    send(env, requestUrl, url, 'mention', { where, text: excerpt, item, ...(owner ? { owner } : {}) }, fetcher)));
+  return targets.filter((_, i) => results[i].status === 'fulfilled');
+}
+
+/** After saving notes: notify newly tagged friends (not for "Only me" items, which they couldn't open). */
+export async function notesMentions(env, requestUrl, { slug, body, before }, fetcher = fetch) {
+  const row = await getItem(env, String(slug || ''));
+  if (!row || row.item.visibility === 'private' || !mentionedUrls(body).length) return [];
+  const origin = await selfOrigin(env, requestUrl);
+  return sendMentions(env, requestUrl, { text: body, before, where: 'notes', item: itemRef(row, origin) }, fetcher);
+}
+
 /** Reply on one of your own items. */
 export async function commentOwn(env, requestUrl, { slug, text }, fetcher = fetch) {
   const row = await getItem(env, String(slug || ''));
   if (!row) throw new HttpError(404, 'Item not found');
-  const t = str(text, MAX_COMMENT);
+  const t = str(await linkMentions(env, text), MAX_COMMENT);
   if (!t) throw new HttpError(400, 'Write something first.');
   const DB = await ensureSchema(env);
   const id = crypto.randomUUID();
   await DB.prepare(`INSERT INTO comments (id, uid, from_url, author, text, created_at) VALUES (?, ?, '', '', ?, ?)`).bind(id, row.uid, t, now()).run();
   const comment = (await itemComments(env, requestUrl, row.slug)).find((c) => c.id === id);
   await notifyThread(env, requestUrl, row, comment, fetcher);
+  if (row.item.visibility !== 'private') {
+    const origin = await selfOrigin(env, requestUrl);
+    await sendMentions(env, requestUrl, { text: t, where: 'comment', item: itemRef(row, origin, '#comments') }, fetcher).catch(() => {});
+  }
   return { comment };
 }
 
@@ -866,10 +996,13 @@ const needsUpdate = (f, what) => {
   return new HttpError(502, `${who ? `${who}’s` : 'Their'} MyShelf needs an update before it can get ${what}.`);
 };
 
-/** Comment on a friend's item (uid from their shelf feed). */
-export async function commentOnFriend(env, requestUrl, { friendId, friendUrl, uid, text }, fetcher = fetch) {
+/**
+ * Comment on a friend's item (uid from their shelf feed). item: optional { title, type, cover, url } from the
+ * page, used only to tell anyone you @mention what you commented on.
+ */
+export async function commentOnFriend(env, requestUrl, { friendId, friendUrl, uid, text, item = null }, fetcher = fetch) {
   const f = await friendFromFields(env, { friendId, friendUrl });
-  const t = str(text, MAX_COMMENT);
+  const t = str(await linkMentions(env, text), MAX_COMMENT);
   if (!t) throw new HttpError(400, 'Write something first.');
   let reply;
   try {
@@ -879,6 +1012,11 @@ export async function commentOnFriend(env, requestUrl, { friendId, friendUrl, ui
     throw err;
   }
   await dropCachedShelf(f.url);
+  // Tagged friends hear about it (the item's owner already gets the comment itself).
+  if (item && typeof item === 'object' && str(item.title, 200)) {
+    const ref = { uid: str(uid, 40), title: str(item.title, 200), type: str(item.type, 20), cover: safeUrl(item.cover), url: safeUrl(item.url) || f.url };
+    await sendMentions(env, requestUrl, { text: t, where: 'comment', item: ref, owner: { name: f.owner || f.name || '', url: f.url }, skip: [f.url] }, fetcher).catch(() => {});
+  }
   return { comment: reply.comment };
 }
 

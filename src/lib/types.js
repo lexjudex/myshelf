@@ -8,7 +8,11 @@ export const TYPES = {
   boardgame: { label: 'Board Game', plural: 'Board Games', creator: 'Designer',  verb: 'Played',  doing: 'Playing',   want: 'Want to play',   dropped: 'Not for me',  aspect: 1,     color: '#5e2f45' },
 };
 
+// YouTube: videos and channels (details.kind says which). Channels stand square on the shelf, videos widescreen.
+TYPES.video = { label: 'YouTube', plural: 'YouTube', creator: 'Channel', verb: 'Watched', doing: 'Watching', want: 'Want to watch', dropped: 'Stopped watching', aspect: 16 / 9, color: '#7a2424' };
+
 export const TYPE_KEYS = Object.keys(TYPES);
+export const isChannel = (item) => item?.type === 'video' && String(item.details?.kind || '').toLowerCase() === 'channel';
 
 export const STATUS_LABEL = (type, status) => {
   const t = TYPES[type] || TYPES.book;
@@ -24,6 +28,7 @@ export const DETAIL_LABELS = {
   players: 'Players', bestPlayers: 'Best with', playtime: 'Play time', minAge: 'Age', weight: 'Complexity', bggRank: 'BGG rank',
   mechanics: 'Mechanics', designers: 'Designers',
   cast: 'Cast',
+  channel: 'Channel', subscribers: 'Subscribers', videos: 'Videos', handle: 'Handle',
 };
 
 // Internal values used for filtering; not shown as their own rows on item pages.
@@ -43,6 +48,7 @@ export function formatDetail(key, value, details = {}) {
   if (key === 'playtime' && details.minPlaytime && details.maxPlaytime && details.minPlaytime !== details.maxPlaytime) return `${details.minPlaytime}–${details.maxPlaytime} min`;
   if (Array.isArray(value)) return value.join(', ');
   if (key === 'runtime') return `${value} min`;
+  if (key === 'subscribers' || key === 'videos') return Number.isFinite(Number(value)) ? Number(value).toLocaleString('en-US') : String(value);
   if (key === 'playtime') return `${value} min`;
   return String(value);
 }

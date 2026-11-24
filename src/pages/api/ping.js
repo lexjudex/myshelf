@@ -4,6 +4,7 @@ import { hasDb, countItems } from '../../../server/db.js';
 import { hasCovers } from '../../../server/covers.js';
 import { pendingImports } from '../../../server/import.js';
 import { seed } from '../../lib/seed.js';
+import { enabledTypes } from '../../../server/site.js';
 
 // GET /api/ping → confirms the admin token and reports storage + API key status.
 export const GET = route(async ({ env }) => {
@@ -13,5 +14,7 @@ export const GET = route(async ({ env }) => {
     items = await countItems(env);
     toImport = (await pendingImports(env, seed)).length;
   }
-  return json({ ok: true, configured: configured(env), storage, items, toImport });
+  // types: the media this site shows, so the admin header only nags about keys for those.
+  const types = storage.db ? await enabledTypes(env) : null;
+  return json({ ok: true, configured: configured(env), storage, items, toImport, types });
 });

@@ -3,6 +3,7 @@ import { marked } from 'marked';
 import { listItems, getItem as getRow } from '../../server/db.js';
 import { getCollections, getArrangements as loadArrangements } from '../../server/settings.js';
 import { enabledTypes } from '../../server/site.js';
+export { mentionsHtml } from './mentions.js';
 
 const DEFAULTS = {
   creator: '', year: '', cover: '', status: 'finished', rating: null,
@@ -10,11 +11,16 @@ const DEFAULTS = {
 };
 
 /** Same shape the pages used with Astro content collections: { id, data, body }. */
-export function toEntry({ slug, item, body, createdAt }) {
+export function toEntry({ slug, item, body, createdAt, updatedAt }) {
   const data = { ...DEFAULTS, ...Object.fromEntries(Object.entries(item || {}).filter(([, v]) => v != null)) };
   data.year = data.year == null ? '' : String(data.year);
   if (data.rating === '' || data.rating == null) data.rating = null;
-  return { id: slug, data, body: body || '', createdAt: createdAt || null };
+  return { id: slug, data, body: body || '', createdAt: createdAt || null, updatedAt: updatedAt || null };
+}
+
+/** When the notes were last written or changed. Older entries (before this was kept) use the last save. */
+export function editedAt(e) {
+  return e.data.notesEditedAt || e.updatedAt || e.createdAt || null;
 }
 
 export const sortDate = (e) => {

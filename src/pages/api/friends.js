@@ -4,6 +4,7 @@ import * as fed from '../../../server/federation/index.js';
 // GET  /api/friends            → { me, friends, inbox, unread }
 // GET  /api/friends?shelf=<id> → that friend's shelf (including their friends-only items)
 // GET  /api/friends?hearts=1   → { hearts: [{ friendUrl, uid }] } (friends' items you've hearted)
+// GET  /api/friends?takes=1   → { takes: [...] } friends' ratings and notes, to show when you're adding something
 // GET  /api/friends?nicknames=1 → { nicknames: { friendUrl: nickname } } (your private nicknames)
 // POST /api/friends { action, ... } → add | accept | decline | block | remove | recommend | borrow | reply | heart | mark | mark-all-read | delete-message | clear-inbox
 //   | comment (on a friend's item) | uncomment (take yours back) | comment-own (reply on your item) | delete-comment (on your item)
@@ -11,6 +12,7 @@ import * as fed from '../../../server/federation/index.js';
 export const GET = route(async ({ env, url }) => {
   const shelf = url.searchParams.get('shelf');
   if (url.searchParams.has('hearts')) return json({ hearts: await fed.heartsSent(env) });
+  if (url.searchParams.has('takes')) return json({ takes: await fed.friendTakes(env, url.href, { fresh: url.searchParams.get('takes') === 'fresh' }) });
   if (url.searchParams.has('nicknames')) return json({ nicknames: await fed.nicknames(env) });
   return json(shelf ? await fed.friendShelf(env, url.href, shelf) : await fed.overview(env, url.href));
 });

@@ -1,5 +1,6 @@
 // Admin UI: Friends tab (other MyShelf sites, inbox, groups, recommendations) and Settings tab.
 import { esc, api, fmt, inboxHtml, waiting, markSeen as markInboxSeen, bindFriendActions } from './friends-ui.js';
+import { openRecommend as openRec, refreshRecommendFriends } from './recommend-dialog.js';
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const TYPES = JSON.parse($('#admin').dataset.types);
@@ -239,49 +240,11 @@ document.addEventListener('click', (e) => {
   if (rec) openRecommend(rec.dataset.recommend, rec.dataset.title);
 });
 
-// ───────── recommend dialog ─────────
-const recDialog = $('#recommend');
-let recSlug = null;
-async function openRecommend(slug, title) {
-  if (!state.loaded) await loadFriends();
-  const friends = state.friends.filter((f) => f.status === 'accepted');
-  if (!friends.length) return toast('Add a friend first (Friends tab).', 'error');
-  recSlug = slug;
-  $('#recommend-title').textContent = `Recommend “${title}”`;
-  $('#rec-friends').innerHTML = friends.map((f) => `<label class="check"><input type="checkbox" value="${esc(f.id)}" data-url="${esc(f.url)}" ${friends.length === 1 ? 'checked' : ''}/> ${esc(friendName(f))}</label>`).join('');
-  // Groups: one click ticks everyone in it (click again to untick them).
-  const groups = state.groups.filter((g) => g.members.length);
-  $('#rec-groups').hidden = !groups.length;
-  $('#rec-groups').innerHTML = groups.length ? `<span class="muted small">Groups:</span> ${groups.map((g) => `<button type="button" class="btn ghost small" data-rec-group="${esc(g.id)}">${esc(g.name)} <span class="muted">${g.members.length}</span></button>`).join(' ')}` : '';
-  $('#recommend-form').note.value = '';
-  recDialog.showModal();
+// ───────── recommend dialog (shared with item pages and shelves) ─────────
+function openRecommend(slug, title) {
+  refreshRecommendFriends(); // friends or groups may have changed on this page
+  return openRec({ slug, title });
 }
-$$('[data-close-rec]', recDialog).forEach((b) => b.addEventListener('click', () => recDialog.close()));
-$('#rec-groups').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-rec-group]');
-  if (!b) return;
-  const g = state.groups.find((x) => x.id === b.dataset.recGroup);
-  const boxes = $$('#rec-friends input').filter((cb) => g?.members.includes(cb.dataset.url));
-  const allOn = boxes.length && boxes.every((cb) => cb.checked);
-  boxes.forEach((cb) => (cb.checked = !allOn));
-});
-$('#recommend-form').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const friendIds = $$('#rec-friends input:checked').map((i) => i.value);
-  if (!friendIds.length) return toast('Pick at least one friend.', 'error');
-  const btn = $('#rec-send');
-  btn.disabled = true;
-  try {
-    const { results } = await api('friends', { method: 'POST', body: { action: 'recommend', slug: recSlug, friendIds, note: e.target.note.value } });
-    const failed = results.filter((r) => !r.ok);
-    recDialog.close();
-    toast(failed.length ? `Sent, but ${failed.length} couldn’t be reached: ${failed[0].error}` : 'Recommendation sent.', failed.length ? 'error' : 'ok');
-  } catch (err) {
-    toast(err.message, 'error');
-  } finally {
-    btn.disabled = false;
-  }
-});
 
 // ───────── settings tab ─────────
 const siteForm = $('#site-form');
@@ -291,10 +254,49 @@ async function loadSite() {
     for (const k of ['title', 'tagline', 'owner', 'url', 'source']) siteForm[k].value = site[k] || '';
     $$('input[name="types"]', siteForm).forEach((cb) => (cb.checked = site.types.includes(cb.value)));
     applyTypes(site.types);
+    fillLook(site.theme);
   } catch (err) {
     $('#site-msg').textContent = err.message;
   }
 }
+
+// ───────── look: light/dark and accent colour ─────────
+function fillLook(theme = {}) {
+  const mode = theme.mode === 'light' ? 'light' : 'dark';
+  siteForm.querySelector(`input[name="mode"][value="${mode}"]`).checked = true;
+  const preset = $$('input[name="accent"]', siteForm).find((r) => r.value === theme.accent);
+  if (preset) preset.checked = true;
+  else if (theme.accent) {
+    siteForm.querySelector('input[name="accent"][value="custom"]').checked = true;
+    siteForm.accentCustom.value = theme.accent;
+  }
+}
+function readLook() {
+  const accent = siteForm.querySelector('input[name="accent"]:checked')?.value || '#d99a4e';
+  return { mode: siteForm.querySelector('input[name="mode"]:checked')?.value || 'dark', accent: accent === 'custom' ? siteForm.accentCustom.value : accent };
+}
+// Show it on this page right away (and remember it for the pages built ahead of time, like this one).
+function applyLook(theme) {
+  if (!theme) return;
+  const h = document.documentElement;
+  const on = onAccent(theme.accent);
+  h.style.setProperty('--accent', theme.accent);
+  h.style.setProperty('--on-accent', on);
+  h.dataset.accent = theme.accent;
+  h.dataset.siteTheme = theme.mode;
+  let mine = null;
+  try { mine = localStorage.getItem('myshelf_mode'); localStorage.setItem('myshelf_look', JSON.stringify({ mode: theme.mode, accent: theme.accent, on })); } catch {}
+  h.dataset.theme = mine === 'light' || mine === 'dark' ? mine : theme.mode;
+}
+// Same rule as onAccent() in server/site.js.
+function onAccent(hex) {
+  const n = parseInt(String(hex).slice(1), 16);
+  const lin = (c) => { c /= 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const L = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return L > 0.22 ? '#1a1408' : '#ffffff';
+}
+// Picking a colour in the custom box selects "Custom".
+siteForm.accentCustom?.addEventListener('input', () => { siteForm.querySelector('input[name="accent"][value="custom"]').checked = true; });
 
 // Hide turned-off media types around the admin page (this page is built ahead of time, so it starts with all of them).
 let enabled = null;
@@ -305,6 +307,7 @@ const refreshEditorTypes = () => $$('option', typeSelect).forEach((o) => (o.hidd
 new MutationObserver(refreshEditorTypes).observe($('#editor'), { attributes: true, attributeFilter: ['open'] });
 function applyTypes(types) {
   enabled = types;
+  document.dispatchEvent(new CustomEvent('myshelf:types', { detail: types }));
   $$('.type-btn').forEach((b) => (b.hidden = !isOn(b.dataset.type)));
   if ($('.type-btn.active')?.hidden) $$('.type-btn').find((b) => !b.hidden)?.click();
   $$('#lib-type option').forEach((o) => (o.hidden = Boolean(o.value) && !isOn(o.value)));
@@ -374,12 +377,14 @@ siteForm.addEventListener('submit', async (e) => {
   e.preventDefault();
   const body = Object.fromEntries(['title', 'tagline', 'owner', 'url', 'source'].map((k) => [k, siteForm[k].value]));
   body.types = $$('input[name="types"]:checked', siteForm).map((cb) => cb.value);
+  body.theme = readLook();
   if (!body.types.length) { $('#site-msg').textContent = 'Keep at least one kind of media turned on.'; return; }
   try {
     const { site } = await api('site', { method: 'POST', body });
     siteForm.url.value = site.url || '';
     siteForm.source.value = site.source || '';
     applyTypes(site.types);
+    applyLook(site.theme);
     $('#site-msg').textContent = 'Saved. Your public pages show it right away.';
   } catch (err) {
     $('#site-msg').textContent = err.message;
@@ -422,15 +427,3 @@ $('#restore-file').addEventListener('change', async (e) => {
   }
 });
 
-// ───────── shelf effects (per device; on the login screen and in Settings) ─────────
-const effectToggles = $$('.shelf-effects');
-const effectsOn = () => { try { return localStorage.getItem('myshelf_motion') !== 'off'; } catch { return true; } };
-effectToggles.forEach((box) => {
-  box.checked = effectsOn();
-  box.addEventListener('change', () => {
-    try { box.checked ? localStorage.removeItem('myshelf_motion') : localStorage.setItem('myshelf_motion', 'off'); } catch {}
-    document.documentElement.classList.toggle('flat-shelves', !box.checked);
-    effectToggles.forEach((other) => (other.checked = box.checked));
-    toast(box.checked ? 'Shelf effects are on.' : 'Shelf effects are off on this device.');
-  });
-});

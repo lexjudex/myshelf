@@ -30,7 +30,7 @@ if (type === 'book' && bandsPresent('len', 'pg').length > 1) groups.push({ key: 
 if (type === 'movie' && bandsPresent('run', 'rt').length > 1) groups.push({ key: 'run', label: 'Runtime', options: any(bandsPresent('run', 'rt').map(([v, l]) => [v, l])) });
 if (type === 'tv' && bandsPresent('se', 'se').length > 1) groups.push({ key: 'se', label: 'Seasons', options: any(bandsPresent('se', 'se').map(([v, l]) => [v, l])) });
 if (type === 'tv') { const n = tally((f) => f.nw); if (n.length > 1) groups.push({ key: 'nw', label: 'Network', tags: true, options: any(n.map((v) => [v, v])) }); }
-if (type === 'music') { const k = tally((f) => f.k); if (k.length > 1) groups.push({ key: 'k', label: 'Format', options: any(k.map((v) => [v, v])) }); }
+if (type === 'music' || type === 'video') { const k = tally((f) => f.k); if (k.length > 1) groups.push({ key: 'k', label: 'Format', options: any(k.map((v) => [v, v])) }); }
 if (type === 'videogame') { const p = tally((f) => f.pl); if (p.length > 1) groups.push({ key: 'pl', label: 'Platforms', tags: true, multi: 'any', options: p.map((v) => [v, v]) }); }
 if (fs.length) groups.push({ key: 'rating', label: 'My rating', options: any([['3', '★3+'], ['4', '★4+'], ['4.5', '★4½+'], ['none', 'Unrated']]) });
 const statuses = ['finished', 'in-progress', 'want', 'abandoned'].filter((s) => fs.some((f) => f.s === s));
@@ -42,7 +42,7 @@ if (type === 'boardgame') { const m = tally((f) => f.m); if (m.length) groups.pu
 { const c = tally((f) => f.c); if (c.length) groups.push({ key: 'cat', label: type === 'boardgame' ? 'Categories' : 'Genres', tags: true, multi: 'all', options: c.map((v) => [v, v]) }); }
 
 const t = type ? TYPES[type] : null;
-const noun = type === 'boardgame' ? ['game', 'games'] : t ? [t.label.toLowerCase(), t.plural.toLowerCase()] : ['item', 'items'];
+const noun = type === 'boardgame' ? ['game', 'games'] : type === 'video' ? ['video', 'videos'] : t ? [t.label.toLowerCase(), t.plural.toLowerCase()] : ['item', 'items'];
 ---
 {groups.length > 0 && (
 <section class="bg-filters" id="media-filters" aria-label="Filter" data-noun={noun[0]} data-nouns={noun[1]}>

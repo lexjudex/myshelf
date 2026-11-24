@@ -20,12 +20,16 @@ export const SHELF_PATH = '/federation/v1/shelf';
 export const MAX_BODY = 32 * 1024;
 const MAX_SKEW_MS = 5 * 60 * 1000;
 
+// recommend: { item: { title, type, creator, year, cover, url, extKey, source }, note, via?: { name, url } } — via: passed
+//   along from that friend's shelf.
 // heart: { item: { uid }, on: true|false } — "I enjoyed this too" on one of the receiver's items (on: false takes it back).
 // comment: { item: { uid }, text } — a comment on one of the receiver's items; the message id becomes the comment's id.
 // comment-delete: { commentId } — take back a comment you wrote.
 // comment-reply: { item: { uid, title, type, cover, url }, commentId, author, authorUrl, text } — sent by the item's
 //   owner to everyone else who has commented on it, when someone adds to the thread.
-export const KINDS = ['friend-request', 'friend-accept', 'friend-remove', 'recommend', 'borrow-request', 'borrow-reply', 'heart', 'comment', 'comment-delete', 'comment-reply'];
+// mention: { where: 'notes' | 'comment', text, item: { uid, title, type, cover, url }, owner?: { name, url } } — the
+//   sender tagged you (@[Name](your site)) in their notes on an item, or in a comment; owner is whose item the comment is on.
+export const KINDS = ['friend-request', 'friend-accept', 'friend-remove', 'recommend', 'borrow-request', 'borrow-reply', 'heart', 'comment', 'comment-delete', 'comment-reply', 'mention'];
 
 export async function signingString({ method, path, to, from, date, body }) {
   return ['myshelf-1', method.toUpperCase(), path, to, from, date, await sha256hex(body || '')].join('\n');

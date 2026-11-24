@@ -1,5 +1,6 @@
 // Admin UI: search external databases, add/edit/delete items, manage collections.
 import { marked } from 'marked';
+import { mentionsHtml, mentionsPlain } from '../lib/mentions.js';
 import { SORTS, sortShelf, inShelf, AUTO_RULES, SHOW_OPTIONS, WITHIN_OPTIONS, RATING_RULES, isAutoShelf, autoMatch, STARTER_SHELVES, findStarter } from '../lib/sorting.js';
 import { openArrange, updateItem as updateArrangeItem } from './arrange.js';
 import Sortable from 'sortablejs';
@@ -64,7 +65,7 @@ function coverThumb(item, size = 64) {
   if (!item.cover) return ph;
   return `<span class="thumb-wrap"><img class="thumb" src="${esc(item.cover)}" alt="" style="height:${size}px" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(this.nextElementSibling.content.cloneNode(true))"><template>${ph}</template></span>`;
 }
-const SOURCE_NAMES = { openlibrary: 'Open Library', googlebooks: 'Google Books', tmdb: 'TMDB', spotify: 'Spotify', musicbrainz: 'MusicBrainz', igdb: 'IGDB', bgg: 'BoardGameGeek', manual: 'Manual' };
+const SOURCE_NAMES = { openlibrary: 'Open Library', googlebooks: 'Google Books', tmdb: 'TMDB', spotify: 'Spotify', musicbrainz: 'MusicBrainz', igdb: 'IGDB', bgg: 'BoardGameGeek', youtube: 'YouTube', manual: 'Manual' };
 
 // ───────── auth ─────────
 function showLogin(error) {
@@ -80,7 +81,7 @@ async function boot() {
     const ping = await api('ping');
     $('#login').hidden = true;
     $('#app').hidden = false;
-    renderConfig(ping.configured);
+    renderConfig(ping.configured, ping.types);
     renderStorage(ping);
     await Promise.all([loadLibrary(), loadCollections()]);
     handleHash();
@@ -89,12 +90,17 @@ async function boot() {
     if (e.message !== 'Unauthorized') showLogin(e.message.includes('Failed to fetch') ? 'Could not reach the API.' : e.message);
   }
 }
-function renderConfig(c) {
+// Only keys for media types this site shows: turn off Board Games and nobody asks you for a BGG key.
+let lastConfig = null;
+function renderConfig(c, types) {
+  lastConfig = { c, types: types || lastConfig?.types || null };
+  const on = (...ts) => !lastConfig.types || ts.some((t) => lastConfig.types.includes(t));
   const missing = [];
-  if (!c.tmdb) missing.push('TMDB');
-  if (!c.igdb) missing.push('IGDB');
-  if (!c.bgg) missing.push('BGG');
-  if (!c.spotify) missing.push('Spotify (using MusicBrainz)');
+  if (!c.tmdb && on('movie', 'tv')) missing.push('TMDB');
+  if (!c.igdb && on('videogame')) missing.push('IGDB');
+  if (!c.bgg && on('boardgame')) missing.push('BGG');
+  if (!c.spotify && on('music')) missing.push('Spotify (using MusicBrainz)');
+  if (!c.youtube && on('video')) missing.push('YouTube (paste links only)');
   $('#config-status').innerHTML = missing.length
     ? `<span class="warn" title="Add these as secrets: Worker → Settings → Variables and Secrets">Missing keys: ${esc(missing.join(', '))}</span>`
     : '<span class="okay">All sources connected</span>';
@@ -164,6 +170,9 @@ document.addEventListener('myshelf:search', (e) => {
 document.addEventListener('myshelf:library-changed', () => Promise.all([loadLibrary(), loadCollections()]));
 $$('.tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
 
+// Settings saved with different media turned on/off: redo the missing-keys note.
+document.addEventListener('myshelf:types', (e) => { if (lastConfig) renderConfig(lastConfig.c, e.detail); });
+
 // ───────── search ─────────
 $$('.type-btn').forEach((b) =>
   b.addEventListener('click', () => {
@@ -177,7 +186,7 @@ $$('.type-btn').forEach((b) =>
   }),
 );
 
-// "Paste a link" — BoardGameGeek for board games, Spotify for music.
+// "Paste a link" — BoardGameGeek for board games, Spotify for music, YouTube for videos and channels.
 const LINK_FORMS = {
   boardgame: {
     placeholder: 'Can\'t find it? Paste a BoardGameGeek link…',
@@ -189,6 +198,11 @@ const LINK_FORMS = {
     ok: (url) => /open\.spotify\.com\/(intl-[a-z-]+\/)?(album|track|playlist)\/\w+|^spotify:(album|track|playlist):\w+|^https?:\/\/(spotify\.link|spoti\.fi)\//i.test(url),
     error: 'That doesn\'t look like a Spotify link. In Spotify, use Share → Copy link on an album, song or playlist.',
   },
+  video: {
+    placeholder: 'Paste a YouTube video or channel link…',
+    ok: (url) => /(youtube\.com\/(watch\?|shorts\/|live\/|embed\/|@|channel\/|c\/|user\/)|youtu\.be\/)/i.test(url) || /^@[\w.-]{2,}$/.test(url),
+    error: 'That doesn\'t look like a YouTube link. Use Share → Copy link on a video, or copy a channel\'s address.',
+  },
 };
 function syncLinkForm() {
   const f = LINK_FORMS[state.type];
@@ -197,25 +211,67 @@ function syncLinkForm() {
 }
 syncLinkForm();
 
+// ───────── friends' takes: has a friend rated or written about this? ─────────
+// Loaded once (in the background) the first time you search; matched by the shared database key, or else by title.
+let takesPromise = null;
+const loadTakes = () => (takesPromise ||= api('friends?takes=1').then((d) => d.takes || []).catch(() => []));
+const normTitle = (t) => String(t || '').toLowerCase().replace(/^(the|a|an)\s+/, '').replace(/[^a-z0-9]+/g, '');
+function takesFor(takes, { type, source, sourceId, title, year }) {
+  const key = source && sourceId ? `${type}:${source}:${sourceId}` : '';
+  const t = normTitle(title);
+  const seen = new Set();
+  return takes.filter((k) => {
+    if (k.type !== type) return false;
+    const same = (key && k.extKey === key) || (t && normTitle(k.title) === t && (!year || !k.year || String(k.year) === String(year)));
+    if (!same || seen.has(k.friend.url)) return false;
+    seen.add(k.friend.url);
+    return true;
+  });
+}
+const takeStars = (r) => (r == null ? '' : '★'.repeat(Math.floor(r)) + (r % 1 ? '½' : ''));
+function takesHtml(list, { open = false } = {}) {
+  if (!list.length) return '';
+  const names = list.map((k) => k.friend.name);
+  const who = names.length <= 2 ? names.join(' and ') : `${names.slice(0, 2).join(', ')} and ${names.length - 2} more`;
+  return `<details class="takes"${open ? ' open' : ''}>
+    <summary><span class="takes-dot" aria-hidden="true"></span>${esc(who)} ${list.length === 1 ? 'has' : 'have'} this on their shelf</summary>
+    <ul>${list.map((k) => `<li>
+      <p class="take-who"><strong>${esc(k.friend.name)}</strong> ${k.rating != null ? `<span class="take-stars">${takeStars(k.rating)}</span>` : ''}
+        <span class="muted small">${esc(TYPES[k.type] ? { finished: TYPES[k.type].verb, 'in-progress': TYPES[k.type].doing, want: TYPES[k.type].want, abandoned: TYPES[k.type].dropped }[k.status] || '' : '')}</span>
+        ${k.url ? `<a class="small" href="${esc(k.url)}" target="_blank" rel="noopener">Open ↗</a>` : ''}</p>
+      ${k.review ? `<p class="take-text">${esc(mentionsPlain(k.review).length > 320 ? `${mentionsPlain(k.review).slice(0, 320).replace(/\s+\S*$/, '')}…` : mentionsPlain(k.review))}</p>` : ''}
+    </li>`).join('')}</ul>
+  </details>`;
+}
+
 async function runSearch(q) {
   $('#search-msg').textContent = 'Searching…';
   $('#results').innerHTML = '';
+  const takesLoading = loadTakes();
   try {
     const { results } = await api(`search?type=${state.type}&q=${encodeURIComponent(q)}`);
     state.results = results;
     $('#search-msg').textContent = results.length ? `${results.length} result${results.length === 1 ? '' : 's'} — pick one to add it.` : 'No matches. Try different words, or add it manually.';
     $('#results').innerHTML = results
       .map((r, i) => `
-        <button type="button" class="result" data-i="${i}">
-          ${coverThumb(r, 96)}
-          <span class="result-text">
-            <strong>${esc(r.title)}</strong>
-            <span>${esc(r.creator)}${r.creator && r.year ? ' · ' : ''}${esc(r.year)}</span>
-            ${r.details?.kind ? `<span class="muted small">${esc(r.details.kind)}</span>` : ''}
-            <span class="src">${esc(SOURCE_NAMES[r.source] || r.source)}</span>
-          </span>
-        </button>`)
+        <div class="result-wrap" data-i="${i}">
+          <button type="button" class="result" data-i="${i}">
+            ${coverThumb(r, 96)}
+            <span class="result-text">
+              <strong>${esc(r.title)}</strong>
+              <span>${esc(r.creator)}${r.creator && r.year ? ' · ' : ''}${esc(r.year)}</span>
+              ${r.details?.kind ? `<span class="muted small">${esc(r.details.kind)}</span>` : ''}
+              <span class="src">${esc(SOURCE_NAMES[r.source] || r.source)}</span>
+            </span>
+          </button>
+          <div class="result-takes"></div>
+        </div>`)
       .join('');
+    // Friends' takes fill in when they arrive (friends' sites can be slow).
+    const takes = await takesLoading;
+    if (takes.length && state.results === results) {
+      $$('#results .result-wrap').forEach((w) => { w.querySelector('.result-takes').innerHTML = takesHtml(takesFor(takes, results[Number(w.dataset.i)])); });
+    }
   } catch (err) {
     $('#search-msg').textContent = '';
     toast(err.message, 'error');
@@ -402,8 +458,22 @@ function openEditor(item, slug = null) {
   $('#editor-refresh-bgg').hidden = !(slug && (item.type || 'book') === 'boardgame');
   updateCreatorLabel();
   renderCoverPreview();
+  showEditorTakes(item, slug);
   editor.showModal();
   form.title.focus();
+}
+
+// In the editor: what friends thought of this, while you write your own (new entries and edits alike).
+async function showEditorTakes(item, slug) {
+  const box = $('#editor-takes');
+  box.hidden = true;
+  box.innerHTML = '';
+  const src = item.source || {};
+  const source = Object.keys(SOURCE_NAMES).find((k) => SOURCE_NAMES[k] === src.name) || '';
+  const list = takesFor(await loadTakes(), { type: item.type, source, sourceId: src.id, title: item.title, year: item.year });
+  if (state.editing?.slug !== slug || !editor.open) return;
+  box.innerHTML = takesHtml(list, { open: !slug });
+  box.hidden = !list.length;
 }
 
 // Only one entry is featured at a time; say which one this would replace.
@@ -502,9 +572,10 @@ form.addEventListener('submit', async (e) => {
   try {
     const res = await api('save', { method: 'POST', body: { slug, item, body: form.body.value } });
     if (!slug) rememberSettings(item);
-    state.saved[res.slug] = { slug: res.slug, ...res.item, body: form.body.value };
+    state.saved[res.slug] = { slug: res.slug, ...res.item, body: res.body ?? form.body.value };
     const after = state.afterSave;
     editor.close();
+    if (res.mentioned?.length) toast(`Saved. Let ${res.mentioned.length === 1 ? 'your friend' : `${res.mentioned.length} friends`} know you mentioned them.`);
     if (after) after(res.slug, { slug: res.slug, ...res.item });
     else showPreview(res.slug);
     loadLibrary();
@@ -928,6 +999,7 @@ function openArrangeFor(index) {
       toast(`Saved “${saved.title}”.`);
       loadLibrary();
     }),
+    onRecommend: (i) => import('./recommend-dialog.js').then((m) => m.openRecommend({ slug: i.slug, title: i.title })),
     onAdd: c.slug && !isAutoShelf(c) ? () => {
       document.querySelector('.ar-dialog')?.close();
       startAddingTo(c.slug, types.size === 1 ? [...types][0] : null);
@@ -989,7 +1061,7 @@ function showPreview(slug) {
         ${body ? `<section class="my-thoughts-card">
           <p class="eyebrow">${esc(t.label)} · ${esc(STATUS_WORDS(it.type, it.status))}${thoughtsDate ? ' · ' + fmtDate(thoughtsDate) : ''}</p>
           <h2>My thoughts ${it.rating != null ? `<span class="rating">${starText(it.rating)}</span>` : ''}</h2>
-          <div class="prose">${marked.parse(body)}</div>
+          <div class="prose">${mentionsHtml(marked.parse(body))}</div>
         </section>` : ''}
         ${it.creator ? `<p class="creator">${esc(t.creator)}: ${esc(it.creator)}</p>` : ''}
         <div class="item-meta">

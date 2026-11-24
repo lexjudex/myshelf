@@ -1,6 +1,7 @@
 ---
 import Base from '../../layouts/Base.astro';
 import { TYPES, TYPE_KEYS } from '../../lib/types.js';
+import { ACCENTS, DEFAULT_ACCENT } from '../../../server/site.js';
 import '../../styles/admin.css';
 import '../../styles/decor.css';
 export const prerender = true;
@@ -169,6 +170,20 @@ const typesJson = JSON.stringify(TYPES);
                 {TYPE_KEYS.map((t) => <label class="check"><input type="checkbox" name="types" value={t} checked /> <span>{TYPES[t].plural}</span></label>)}
               </div>
             </fieldset>
+            <fieldset class="span2 look">
+              <legend>Look</legend>
+              <p class="muted small">How your site looks to visitors. Anyone can still switch light or dark for themselves (bottom of the page, or the phone menu); that choice stays in their browser.</p>
+              <div class="look-modes" role="radiogroup" aria-label="Light or dark">
+                <label class="look-mode"><input type="radio" name="mode" value="dark" checked /> <span class="look-swatch look-dark" aria-hidden="true"></span> Dark</label>
+                <label class="look-mode"><input type="radio" name="mode" value="light" /> <span class="look-swatch look-light" aria-hidden="true"></span> Light</label>
+              </div>
+              <div class="accent-picks" role="radiogroup" aria-label="Accent colour">
+                {ACCENTS.map(([hex, name]) => (
+                  <label class="accent-pick" title={name}><input type="radio" name="accent" value={hex} checked={hex === DEFAULT_ACCENT} /><span style={`--c:${hex}`} aria-hidden="true"></span><span class="sr-only">{name}</span></label>
+                ))}
+                <label class="accent-custom" title="Pick any colour"><input type="radio" name="accent" value="custom" /><input type="color" name="accentCustom" value="#d99a4e" aria-label="Custom accent colour" /> Custom</label>
+              </div>
+            </fieldset>
             <div class="row span2"><button class="btn primary" type="submit">Save</button><span id="site-msg" class="muted small"></span></div>
           </form>
           <h2>Shelf decorations</h2>
@@ -204,10 +219,6 @@ const typesJson = JSON.stringify(TYPES);
       </div>
     </section>
 
-    <!-- Shown whether or not you're logged in: a per-browser display preference. -->
-    <div class="device-prefs">
-      <label class="pref-switch"><input type="checkbox" class="shelf-effects" checked /> <span><strong>Shelf effects</strong> — items turn to face you and shelves slide in as you scroll. Turn off to show every cover side by side. <span class="pref-note">Saved in this browser only.</span></span></label>
-    </div>
 
     <!-- Editor (modal) -->
     <dialog id="editor" class="editor">
@@ -277,10 +288,11 @@ const typesJson = JSON.stringify(TYPES);
             </fieldset>
             <label>Tags <input name="tags" placeholder="comma, separated" /></label>
             <label>Genres <input name="genres" placeholder="comma, separated" /></label>
+            <div class="span2 editor-takes" id="editor-takes" hidden></div>
             <label class="span2">
               <span class="label-row">My notes / journal <span class="muted small">(Markdown)</span>
                 <button type="button" class="btn ghost small" id="add-entry">＋ Dated entry</button></span>
-              <textarea name="body" rows="8" placeholder="What did you think?"></textarea>
+              <textarea name="body" rows="8" placeholder="What did you think? (type @ to mention a friend)" data-mentions></textarea>
             </label>
             <div class="span2 featured-field">
               <label class="check"><input type="checkbox" name="featured" /> <span><strong>Featured</strong> — show these notes in <em>My Ramblings</em> on the home page</span></label>
@@ -317,30 +329,13 @@ const typesJson = JSON.stringify(TYPES);
       <div id="preview-body"></div>
     </dialog>
 
-    <!-- Recommend an item to friends -->
-    <dialog id="recommend" class="editor recommend">
-      <form id="recommend-form" method="dialog">
-        <header class="editor-head">
-          <h2 id="recommend-title">Recommend</h2>
-          <button type="button" class="btn ghost small" data-close-rec>✕</button>
-        </header>
-        <div class="rec-body">
-          <fieldset><legend>Send to</legend><div id="rec-groups" class="rec-groups" hidden></div><div id="rec-friends" class="checks"></div></fieldset>
-          <label>Note <span class="muted small">(optional)</span><textarea name="note" rows="3" maxlength="1000" placeholder="Why they’ll love it"></textarea></label>
-        </div>
-        <footer class="editor-foot">
-          <span class="spacer"></span>
-          <button type="button" class="btn ghost" data-close-rec>Cancel</button>
-          <button type="submit" class="btn primary" id="rec-send">Send</button>
-        </footer>
-      </form>
-    </dialog>
-
     <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
   </div>
   <script>
     import '../../scripts/admin.js';
     import '../../scripts/friends.js';
     import '../../scripts/decor-settings.js';
+    import { enableMentionPicker } from '../../scripts/mention-picker.js';
+    enableMentionPicker();
   </script>
 </Base>

@@ -2,7 +2,7 @@
 // An item rendered as a 3D object that matches its media type:
 // books, game cartridges, CD jewel cases, vinyl record sleeves, VHS boxes and board game boxes.
 // Front face = cover art; side face = spine/edge with the title.
-import { TYPES, isVinyl } from '../lib/types.js';
+import { TYPES, isVinyl, isChannel } from '../lib/types.js';
 // height = the slot (row) height; unit = the size a book is drawn at. They're the same unless the
 // shelf holds board games, which get a taller row so their boxes can stand bigger than the books.
 interface Props { item: any; height?: number; unit?: number; href: string; front?: boolean }
@@ -20,8 +20,11 @@ const SHAPES = {
   boardgame: { kind: 'box',  bh: 1.25, w: 1.25, d: 0.3,  min: 24 },
   // A record sleeve: square, a good bit taller than a CD (and a book), and thin.
   vinyl:     { kind: 'vinyl', bh: 1.18, w: 1.18, d: 0.06, min: 10 },
+  // YouTube: a little widescreen picture in a black bezel; channels get a square one for their avatar.
+  video:     { kind: 'screen', bh: 0.66, w: 1.17, d: 0.07, min: 10 },
+  channel:   { kind: 'screen', bh: 0.9,  w: 0.9,  d: 0.07, min: 10 },
 };
-const s = (isVinyl(item) && SHAPES.vinyl) || SHAPES[item.type] || SHAPES.book;
+const s = (isVinyl(item) && SHAPES.vinyl) || (isChannel(item) && SHAPES.channel) || SHAPES[item.type] || SHAPES.book;
 let bh = Math.round(u * s.bh);
 let w = Math.round(u * s.w);
 // Board game boxes come in all shapes: size the box to the cover's real proportions,
@@ -46,6 +49,7 @@ const onErr = "this.closest('.book3d').classList.remove('has-cover');this.remove
   href={href}
   class:list={['book3d', `kind-${s.kind}`, { 'is-front': front, 'has-cover': !!item.cover }]}
   data-type={item.type}
+  data-kind={isChannel(item) ? 'channel' : undefined}
   title={label}
   aria-label={label}
   style={`--h:${h}px; --u:${u}px; --bh:${bh}px; --w:${w}px; --d:${d}px; --h0:${h}px; --u0:${u}px; --bh0:${bh}px; --w0:${w}px; --d0:${d}px; --tc:${t.color}; --spine-img:${spineImg}`}

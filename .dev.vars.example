@@ -7,6 +7,7 @@ TWITCH_CLIENT_SECRET= # video games via IGDB (optional)
 BGG_TOKEN= # board games (optional)
 SPOTIFY_CLIENT_ID= # music (optional)
 SPOTIFY_CLIENT_SECRET= # music (optional)
+YOUTUBE_API_KEY= # YouTube search + channel links (optional; video links work without it)
 GOOGLE_BOOKS_KEY= # optional
 CONTACT_EMAIL= # optional
 GITHUB_TOKEN= # optional: lets Manage → Settings → Updates sync your fork

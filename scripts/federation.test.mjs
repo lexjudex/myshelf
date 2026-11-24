@@ -477,3 +477,118 @@ test('inbox: delete one message, mark read and unread, mark all read', async () 
   assert.deepEqual(inbox.map((m) => m.kind), ['friend-accept']);
   await assert.rejects(fed.deleteMessage(a, rec.id), /not found/);
 });
+
+// ───────── 0.5.0 ─────────
+
+async function threeFriends() {
+  const A = 'https://alex.example', B = 'https://bea.example', C = 'https://cal.example';
+  const alex = fakeEnv(), bea = fakeEnv(), cal = fakeEnv();
+  await saveSite(alex, { title: 'Alex Shelf', owner: 'Alex Moore' });
+  await saveSite(bea, { title: 'Bea Shelf', owner: 'Bea Ortiz' });
+  await saveSite(cal, { title: 'Cal Shelf', owner: 'Cal' });
+  const net = network({ [A]: alex, [B]: bea, [C]: cal });
+  for (const [env, at, other] of [[bea, B, A], [cal, C, A]]) {
+    await fed.addFriend(alex, `${A}/api/friends`, at, '', net);
+    const pending = (await fed.overview(env, `${at}/api/friends`)).friends.find((f) => f.url === other);
+    await fed.acceptFriend(env, `${at}/api/friends`, pending.id, net);
+  }
+  const ids = Object.fromEntries((await fed.overview(alex, `${A}/api/friends`)).friends.map((f) => [f.url, f.id]));
+  return { A, B, C, alex, bea, cal, net, ids };
+}
+
+test('mentions: @name in notes and comments links the friend and tells them once', async () => {
+  const { A, B, C, alex, bea, cal, net } = await threeFriends();
+  // Notes: a plain @bea becomes a link; Bea is told, Cal isn't. Editing the notes again doesn't tell her twice.
+  const body = await fed.linkMentions(alex, 'Played it with @bea. Email me@x.com');
+  assert.equal(body, `Played it with @[Bea Ortiz](${B}). Email me@x.com`);
+  const { slug } = await saveItem(alex, { item: { title: 'Wingspan', type: 'boardgame', status: 'finished' }, body });
+  assert.deepEqual(await fed.notesMentions(alex, `${A}/api/save`, { slug, body, before: '' }, net), [B]);
+  assert.deepEqual(await fed.notesMentions(alex, `${A}/api/save`, { slug, body: `${body} Great.`, before: body }, net), []);
+  const m = (await fed.overview(bea, `${B}/api/friends`)).inbox.find((x) => x.kind === 'mention');
+  assert.equal(m.payload.where, 'notes');
+  assert.equal(m.payload.item.title, 'Wingspan');
+  assert.equal(m.payload.item.url, `${A}/item/${slug}/`);
+  assert.equal(m.payload.text, 'Played it with @Bea Ortiz. Email me@x.com');
+  assert.ok(!(await fed.overview(cal, `${C}/api/friends`)).inbox.some((x) => x.kind === 'mention'));
+  // "Only me" notes never notify.
+  const priv = await saveItem(alex, { item: { title: 'Diary', type: 'book', status: 'finished', visibility: 'private' }, body: `@[Cal](${C}) hi` });
+  assert.deepEqual(await fed.notesMentions(alex, `${A}/api/save`, { slug: priv.slug, body: `@[Cal](${C}) hi`, before: '' }, net), []);
+
+  // A comment on Bea's item that tags Cal: Bea gets the comment, Cal gets a mention naming whose item it's on.
+  await saveItem(bea, { item: { title: 'Dune', type: 'book', status: 'finished' }, body: 'Spice.' });
+  const shelf = await fed.friendShelf(alex, `${A}/api/friends`, (await fed.overview(alex, `${A}/api/friends`)).friends.find((f) => f.url === B).id, net);
+  const dune = shelf.items.find((i) => i.title === 'Dune');
+  await fed.commentOnFriend(alex, `${A}/api/friends`, { friendUrl: B, uid: dune.uid, text: 'You have to read this @cal', item: dune }, net);
+  const calBox = (await fed.overview(cal, `${C}/api/friends`)).inbox.find((x) => x.kind === 'mention');
+  assert.equal(calBox.payload.where, 'comment');
+  assert.equal(calBox.payload.owner.url, B);
+  assert.equal(calBox.payload.item.title, 'Dune');
+  const beaBox = (await fed.overview(bea, `${B}/api/friends`)).inbox;
+  assert.equal(beaBox.find((x) => x.kind === 'comment').payload.text, `You have to read this @[Cal](${C})`);
+  assert.equal(beaBox.filter((x) => x.kind === 'mention').length, 1); // only the one from Alex's notes
+});
+
+test('recommend: pass along something from a friend’s shelf, credited to them', async () => {
+  const { A, B, C, alex, bea, cal, net, ids } = await threeFriends();
+  await saveItem(bea, { item: { title: 'Arrival', type: 'movie', status: 'finished', source: { name: 'TMDB', id: '329865' } }, body: '' });
+  const shelf = await fed.friendShelf(alex, `${A}/api/friends`, ids[B], net);
+  const arrival = shelf.items.find((i) => i.title === 'Arrival');
+  const { results } = await fed.recommend(alex, `${A}/api/friends`, { fromFriendUrl: B, uid: arrival.uid, friendIds: [ids[C], ids[B]], note: 'Bea loved it' }, net);
+  assert.deepEqual(results.map((r) => r.ok), [true, false]); // not back to Bea herself
+  const rec = (await fed.overview(cal, `${C}/api/friends`)).inbox.find((x) => x.kind === 'recommend');
+  assert.equal(rec.payload.item.title, 'Arrival');
+  assert.equal(rec.payload.item.extKey, 'movie:tmdb:329865');
+  assert.deepEqual(rec.payload.via, { name: 'Bea Ortiz', url: B });
+  await assert.rejects(fed.recommend(alex, `${A}/api/friends`, { fromFriendUrl: B, uid: 'nope', friendIds: [ids[C]] }, net), /isn’t on their shelf/);
+});
+
+test('friend takes: friends’ ratings and notes, to show when adding something', async () => {
+  const { A, B, alex, bea, net } = await threeFriends();
+  await saveItem(bea, { item: { title: 'Dune', type: 'book', status: 'finished', rating: 4.5, source: { name: 'Open Library', id: 'OL893415W' } }, body: 'So good.' });
+  await saveItem(bea, { item: { title: 'Unrated', type: 'book', status: 'want' }, body: '' });
+  await saveItem(bea, { item: { title: 'Secret', type: 'book', status: 'finished', rating: 2, visibility: 'friends' }, body: '' });
+  const takes = await fed.friendTakes(alex, `${A}/api/friends`, { fresh: true }, net);
+  assert.deepEqual(takes.map((t) => t.title).sort(), ['Dune', 'Secret']);
+  const dune = takes.find((t) => t.title === 'Dune');
+  assert.equal(dune.extKey, 'book:openlibrary:OL893415W');
+  assert.equal(dune.review, 'So good.');
+  assert.equal(dune.rating, 4.5);
+  assert.equal(dune.friend.name, 'Bea Ortiz');
+});
+
+test('look: light/dark and accent are cleaned; new media types start on for older sites', async () => {
+  const { cleanTheme, onAccent, getSite } = await import('../server/site.js');
+  assert.deepEqual(cleanTheme({ mode: 'light', accent: '#4FB3A9' }), { mode: 'light', accent: '#4fb3a9' });
+  assert.deepEqual(cleanTheme({ mode: 'neon', accent: 'red;}' }), { mode: 'dark', accent: '#d99a4e' });
+  assert.equal(onAccent('#d99a4e'), '#1a1408');
+  assert.equal(onAccent('#1d3b8a'), '#ffffff');
+  const env = fakeEnv();
+  // A site that saved its media choices before YouTube existed gets it turned on...
+  await env.DB.prepare('SELECT 1').first().catch(() => {});
+  await saveSite(env, { title: 'S', types: ['book', 'movie'] });
+  const { setSetting, getSetting } = await import('../server/db.js');
+  const saved = await getSetting(env, 'site');
+  delete saved.typesSeen;
+  await setSetting(env, 'site', saved);
+  assert.deepEqual((await getSite(env)).types, ['book', 'movie', 'video']);
+  // ...but once they save with it off, it stays off.
+  await saveSite(env, { title: 'S', types: ['book', 'movie'] });
+  assert.deepEqual((await getSite(env)).types, ['book', 'movie']);
+  const site = await saveSite(env, { title: 'S', theme: { mode: 'light', accent: '#a98be0' } });
+  assert.deepEqual(site.theme, { mode: 'light', accent: '#a98be0' });
+  assert.deepEqual((await saveSite(env, { title: 'S2' })).theme, { mode: 'light', accent: '#a98be0' });
+});
+
+test('journal: notes remember when they last changed; other edits leave it alone', async () => {
+  const env = fakeEnv();
+  const { slug } = await saveItem(env, { item: { title: 'Dune', type: 'book', status: 'finished' }, body: 'First.' });
+  const first = (await getItem(env, slug)).item.notesEditedAt;
+  assert.ok(first);
+  await new Promise((r) => setTimeout(r, 5));
+  await saveItem(env, { slug, item: { title: 'Dune', type: 'book', status: 'finished', rating: 5 }, body: 'First.' });
+  assert.equal((await getItem(env, slug)).item.notesEditedAt, first);
+  await saveItem(env, { slug, item: { title: 'Dune', type: 'book', status: 'finished', rating: 5 }, body: 'Second.' });
+  assert.ok((await getItem(env, slug)).item.notesEditedAt > first);
+  await saveItem(env, { slug, item: { title: 'Dune', type: 'book', status: 'finished' }, body: '' });
+  assert.equal((await getItem(env, slug)).item.notesEditedAt, undefined);
+});

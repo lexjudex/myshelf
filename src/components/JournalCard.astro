@@ -1,11 +1,11 @@
 ---
 // One journal entry card — used on /journal and in the "My Ramblings" section on the home page.
 import Cover from './Cover.astro';
-import { fmtDate, renderBody } from '../lib/items.js';
+import { fmtDate, renderBody, mentionsHtml } from '../lib/items.js';
 import { TYPES, STATUS_LABEL, stars } from '../lib/types.js';
 
-interface Props { entry: any; clamp?: boolean }
-const { entry: e, clamp = false } = Astro.props;
+interface Props { entry: any; clamp?: boolean; edited?: string | null }
+const { entry: e, clamp = false, edited = null } = Astro.props;
 const d = e.data;
 const date = (d.status === 'finished' && d.dateFinished) || d.dateStarted || d.dateAdded;
 const html = renderBody(e.body);
@@ -14,10 +14,10 @@ const href = `/item/${e.id}/`;
 <article class:list={['journal-entry', { 'journal-entry-clamp': clamp }]}>
   <Cover item={d} height={120} link={href} />
   <div>
-    <p class="eyebrow">{TYPES[d.type].label} · {STATUS_LABEL(d.type, d.status)}{date && <> · {fmtDate(date)}</>}</p>
+    <p class="eyebrow">{TYPES[d.type].label} · {STATUS_LABEL(d.type, d.status)}{date && <> · {fmtDate(date)}</>}{edited && <span class="je-edited"> · Edited {fmtDate(edited)}</span>}</p>
     <h2><a href={href}>{d.title}</a> {d.rating != null && <span class="rating">{stars(d.rating)}</span>}</h2>
     {d.creator && <p class="creator">{d.creator}</p>}
-    <div class="prose" set:html={html} />
+    <div class="prose" set:html={mentionsHtml(html)} />
     {clamp && <a class="keep-reading" href={href}>Keep reading →</a>}
   </div>
 </article>

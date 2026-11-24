@@ -11,6 +11,7 @@ const SOURCE_KEYS = {
   musicbrainz: 'musicbrainz',
   igdb: 'igdb',
   boardgamegeek: 'bgg', bgg: 'bgg',
+  youtube: 'youtube',
 };
 
 export function extKeyOf(item) {

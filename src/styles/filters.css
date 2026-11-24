@@ -1,8 +1,8 @@
 /* Board Games filter bar */
 .bg-filters {
   margin: 0 0 18px; padding: 14px 18px;
-  border: 1px solid rgba(241,230,208,0.12); border-radius: 16px;
-  background: rgba(255,255,255,0.03);
+  border: 1px solid color-mix(in srgb, var(--cream) 12%, transparent); border-radius: 16px;
+  background: color-mix(in srgb, var(--cream) 3%, transparent);
 }
 .bgf-head { display: flex; align-items: center; gap: 12px; }
 .bgf-toggle { display: inline-flex; align-items: center; gap: 8px; font: inherit; font-weight: 700; font-size: 1rem; color: var(--cream); background: none; border: 0; padding: 0; cursor: pointer; }
@@ -17,16 +17,16 @@
 .bgf-chip {
   font: inherit; font-size: 0.85rem; cursor: pointer;
   padding: 5px 12px; border-radius: 999px;
-  color: var(--cream-soft); background: transparent; border: 1px solid rgba(241,230,208,0.18);
+  color: var(--cream-soft); background: transparent; border: 1px solid color-mix(in srgb, var(--cream) 18%, transparent);
   transition: border-color 0.15s, color 0.15s, background 0.15s;
 }
 .bgf-chip:hover { border-color: var(--accent); color: var(--cream); }
-.bgf-chip.on { border-color: var(--accent); color: var(--accent); background: rgba(217, 154, 78, 0.12); font-weight: 600; }
-.bgf-chip[data-value=""].on { color: var(--cream); border-color: rgba(241,230,208,0.4); background: rgba(255,255,255,0.05); }
+.bgf-chip.on { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); font-weight: 600; }
+.bgf-chip[data-value=""].on { color: var(--cream); border-color: color-mix(in srgb, var(--cream) 40%, transparent); background: color-mix(in srgb, var(--cream) 5%, transparent); }
 .bgf-check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--cream); cursor: pointer; }
 .bgf-check.disabled { opacity: 0.45; cursor: default; }
 .bgf-check input { accent-color: var(--accent); }
-.bgf-tags .bgf-chips { max-height: 114px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; scrollbar-width: thin; scrollbar-color: rgba(241,230,208,0.3) transparent; } /* 3 rows of chips */
+.bgf-tags .bgf-chips { max-height: 114px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--cream) 30%, transparent) transparent; } /* 3 rows of chips */
 .bgf-empty { margin: 14px 0 0; color: var(--cream-soft); }
 .bgf-linkbtn { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
 .shelf-section[hidden] { display: none; }

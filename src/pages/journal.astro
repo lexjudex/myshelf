@@ -2,17 +2,147 @@
 import Base from '../layouts/Base.astro';
 import JournalCard from '../components/JournalCard.astro';
 import CopyLink from '../components/CopyLink.astro';
-import { getItems } from '../lib/items.js';
+import { getItems, editedAt } from '../lib/items.js';
+import { TYPES } from '../lib/types.js';
+import '../styles/filters.css';
 
 const entries = (await getItems(Astro.locals.runtime.env)).filter((e) => e.body && e.body.trim());
+// Filters only offer choices that would narrow the list.
+const types = Object.keys(TYPES).filter((t) => entries.some((e) => e.data.type === t));
+const generic = { finished: 'Finished', 'in-progress': 'In progress', want: 'Want to', abandoned: 'Abandoned' };
+const statuses = Object.keys(generic).filter((s) => entries.some((e) => e.data.status === s));
+const SORTS = [['edited', 'Last edited'], ['date', 'Date finished / started'], ['rating', 'Highest rated'], ['title', 'Title A–Z']];
 ---
 <Base title="Journal">
   <section class="page-head">
-    <p class="eyebrow">{entries.length} entries</p>
+    <p class="eyebrow"><span id="journal-count">{entries.length}</span> entries</p>
     <h1>Journal<CopyLink /></h1>
   </section>
-  <div class="journal-feed">
-    {entries.map((e) => <JournalCard entry={e} />)}
+
+  {entries.length > 1 && (
+    <section class="bg-filters journal-tools" id="journal-tools" aria-label="Search, sort and filter">
+      <div class="jt-row">
+        <label class="jt-search">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+          <input type="search" id="jt-q" placeholder="Search titles, creators and notes…" autocomplete="off" aria-label="Search the journal" />
+        </label>
+        <label class="jt-sort">Sort
+          <select id="jt-sort">{SORTS.map(([v, l]) => <option value={v}>{l}</option>)}</select>
+        </label>
+      </div>
+      {(types.length > 1 || statuses.length > 1) && (
+        <div class="bgf-body">
+          {types.length > 1 && (
+            <div class="bgf-group">
+              <span class="bgf-label">Type</span>
+              <div class="bgf-chips" data-jfilter="type">
+                <button type="button" class="bgf-chip on" data-value="">Any</button>
+                {types.map((t) => <button type="button" class="bgf-chip" data-value={t}>{TYPES[t].plural}</button>)}
+              </div>
+            </div>
+          )}
+          {statuses.length > 1 && (
+            <div class="bgf-group">
+              <span class="bgf-label">Status</span>
+              <div class="bgf-chips" data-jfilter="status">
+                <button type="button" class="bgf-chip on" data-value="">Any</button>
+                {statuses.map((s) => <button type="button" class="bgf-chip" data-value={s}>{generic[s]}</button>)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      <p class="bgf-empty" id="jt-empty" hidden>Nothing matches. <button type="button" class="bgf-linkbtn" id="jt-clear">Clear search and filters</button></p>
+    </section>
+  )}
+
+  <div class="journal-feed" id="journal-feed">
+    {entries.map((e) => {
+      const d = e.data;
+      const date = (d.status === 'finished' && d.dateFinished) || d.dateStarted || d.dateAdded || '';
+      return (
+        <div class="journal-item" data-type={d.type} data-status={d.status} data-rating={d.rating ?? ''} data-date={date}
+          data-edited={editedAt(e) || ''} data-title={String(d.title || '').toLowerCase().replace(/^(the|a|an)\s+/, '')}
+          data-text={`${d.title} ${d.creator || ''} ${(d.tags || []).join(' ')} ${e.body}`.toLowerCase()}>
+          <JournalCard entry={e} edited={editedAt(e)} />
+        </div>
+      );
+    })}
     {entries.length === 0 && <p class="shelf-empty">No journal entries yet.</p>}
   </div>
 </Base>
+
+<script>
+  // Search, sort and filter the journal in the browser. Choices go in the address bar so a view can be shared.
+  const tools = document.getElementById('journal-tools');
+  const feed = document.getElementById('journal-feed');
+  if (tools && feed) {
+    const items = [...feed.querySelectorAll('.journal-item')];
+    const q = document.getElementById('jt-q');
+    const sort = document.getElementById('jt-sort');
+    const state = { type: '', status: '' };
+    const url = new URLSearchParams(location.search);
+    q.value = url.get('q') || '';
+    if ([...sort.options].some((o) => o.value === url.get('sort'))) sort.value = url.get('sort');
+    for (const k of Object.keys(state)) state[k] = url.get(k) || '';
+
+    const time = (v) => (v ? new Date(v).getTime() || 0 : 0);
+    const SORT = {
+      edited: (a, b) => time(b.dataset.edited) - time(a.dataset.edited),
+      date: (a, b) => time(b.dataset.date) - time(a.dataset.date),
+      rating: (a, b) => (Number(b.dataset.rating) || -1) - (Number(a.dataset.rating) || -1) || time(b.dataset.date) - time(a.dataset.date),
+      title: (a, b) => a.dataset.title.localeCompare(b.dataset.title),
+    };
+
+    function render() {
+      const words = q.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+      let shown = 0;
+      for (const el of [...items].sort(SORT[sort.value] || SORT.edited)) {
+        const ok = (!state.type || el.dataset.type === state.type) && (!state.status || el.dataset.status === state.status)
+          && words.every((w) => el.dataset.text.includes(w));
+        el.hidden = !ok;
+        if (ok) shown++;
+        feed.appendChild(el);
+      }
+      feed.classList.toggle('show-edited', sort.value === 'edited');
+      tools.querySelectorAll('[data-jfilter]').forEach((g) => g.querySelectorAll('.bgf-chip').forEach((c) => {
+        const on = c.dataset.value === state[g.dataset.jfilter];
+        c.classList.toggle('on', on);
+        c.setAttribute('aria-pressed', String(on));
+      }));
+      document.getElementById('journal-count').textContent = shown === items.length ? String(items.length) : `${shown} of ${items.length}`;
+      document.getElementById('jt-empty').hidden = shown > 0;
+      const out = new URLSearchParams();
+      if (q.value.trim()) out.set('q', q.value.trim());
+      if (sort.value !== 'edited') out.set('sort', sort.value);
+      for (const [k, v] of Object.entries(state)) if (v) out.set(k, v);
+      history.replaceState(null, '', out.toString() ? `?${out}` : location.pathname);
+    }
+
+    q.addEventListener('input', render);
+    sort.addEventListener('change', render);
+    tools.addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-jfilter] .bgf-chip');
+      if (!chip) return;
+      state[chip.closest('[data-jfilter]').dataset.jfilter] = chip.dataset.value;
+      render();
+    });
+    document.getElementById('jt-clear').addEventListener('click', () => {
+      q.value = '';
+      state.type = state.status = '';
+      render();
+    });
+    render();
+  }
+</script>
+
+<style>
+  .journal-tools .jt-row { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+  .jt-search { flex: 1 1 260px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--cream) 18%, transparent); color: var(--cream-soft); }
+  .jt-search:focus-within { border-color: var(--accent); }
+  .jt-search input { flex: 1; min-width: 0; font: inherit; font-size: 0.92rem; color: var(--cream); background: none; border: 0; padding: 9px 0; outline: none; }
+  .jt-sort { display: inline-flex; align-items: center; gap: 8px; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--cream-soft); }
+  .jt-sort select { font: inherit; font-size: 0.9rem; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--cream); background: var(--wall-2); border: 1px solid color-mix(in srgb, var(--cream) 18%, transparent); border-radius: 999px; padding: 7px 12px; }
+  .journal-tools .bgf-body { margin-top: 12px; }
+  .journal-item[hidden] { display: none; }
+</style>

@@ -2,6 +2,18 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.5.0 (Nov 2026)
+
+- **YouTube.** A new media type for videos and channels. Search needs a free YouTube key (`YOUTUBE_API_KEY`); without one, paste a video link under the search. Videos stand on the shelf as little widescreen screens and play right on their item page; channels show their avatar. Existing sites get YouTube turned on; switch it off in Settings if you don't want it.
+- **Journal search, sort and filters.** Search titles, creators and notes, filter by type and status, and sort by **Last edited** (the default), date, rating or title. Notes now remember when they were last changed.
+- **@mention friends.** Type `@` in your notes or in a comment and pick a friend (typing `@name` by hand works too). It becomes a link to their MyShelf, and they get a note in their inbox. Friends need this version to receive mention notes.
+- **Recommend from anywhere.** A **Recommend to a friend** button on your item pages (when you're signed in), a paper plane on each item in a shelf's arrange dialog, and **Recommend** on friends' shelves and the Friends feed to pass something along to another friend (they're credited: "from Dillon's shelf").
+- **Friends' takes before you add.** Search results and the editor show which friends already have something, with their rating and notes.
+- **Light mode and accent colours.** Manage → Settings → **Look** sets your site to light or dark and picks the accent colour (eight presets or any colour). Visitors can still flip light/dark for themselves.
+- **Display switches moved.** **Shelf effects** and **Light mode** switches are now at the bottom of every page and at the bottom of the phone bubble menu (no longer in Settings).
+- Fixed: the phone bubble menu button was hard to see on light pages (item pages, journal cards). It's now solid enough to read anywhere.
+- Fixed: the "Missing keys" note in Manage no longer lists keys for media types you've turned off (no BGG nag without board games).
+
 ## 0.4.1 (Nov 2026)
 
 - **Bigger home page shelves.** Each collection on the home page now shows up to 24 items (was 12). A collection with more than that ends with a **+N more** card that opens the full collection, so nothing goes missing without a sign.

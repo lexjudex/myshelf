@@ -2,6 +2,9 @@
 // review text and comment threads. The markup functions are plain string builders with no DOM access, so
 // Astro pages can also call them while rendering on the server.
 
+import { mentionsText, mentionsPlain } from '../lib/mentions.js';
+export { mentionsPlain };
+
 export const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 export const token = () => { try { return localStorage.getItem('myshelf_token') || ''; } catch { return ''; } };
 
@@ -38,7 +41,7 @@ export function thumb(TYPES, cover, title, type, h = 52) {
 export function reviewHtml(md) {
   const text = esc(String(md || '').trim());
   if (!text) return '';
-  const inline = (s) => s
+  const inline = (s) => mentionsText(s)
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
     .replace(/(^|[^*])\*(?!\s)(.+?)\*/g, '$1<em>$2</em>')
     .replace(/^#{1,6}\s+/gm, '')
@@ -80,23 +83,25 @@ export function commentHtml(c) {
     <p class="c-meta"><a class="c-author" href="${esc(c.authorUrl)}" target="_blank" rel="noopener">${esc(nick(c.authorUrl) || c.author || host(c.authorUrl))}</a>
       <span class="c-when">${esc(fmt(c.createdAt))}</span>
       <button type="button" class="c-del" data-del-comment hidden>Delete</button></p>
-    <p class="c-text">${esc(c.text)}</p>
+    <p class="c-text">${mentionsText(esc(c.text))}</p>
   </li>`;
 }
 
 const countLabel = (n) => (n ? `${n} ${n === 1 ? 'comment' : 'comments'}` : 'Comment');
 
 /** comments: [] or the list from a friend's feed. Pass null (an older site) to show no thread at all. */
-export function threadHtml(comments, { friendUrl = '', uid = '', ownSlug = '', open = false } = {}) {
+export function threadHtml(comments, { friendUrl = '', uid = '', ownSlug = '', open = false, item = null } = {}) {
   if (!Array.isArray(comments)) return '';
   const n = comments.length;
-  const where = ownSlug ? `data-own-slug="${esc(ownSlug)}"` : `data-friend="${esc(friendUrl)}" data-uid="${esc(uid)}"`;
+  // item (a friend's): what the comment is on, so anyone you @mention in it can be told.
+  const about = item ? ` data-item="${esc(JSON.stringify({ title: item.title || '', type: item.type || '', cover: item.cover || '', url: item.url || '' }))}"` : '';
+  const where = ownSlug ? `data-own-slug="${esc(ownSlug)}"` : `data-friend="${esc(friendUrl)}" data-uid="${esc(uid)}"${about}`;
   return `<div class="thread${n ? '' : ' empty'}" ${where}>
     <button type="button" class="thread-toggle" aria-expanded="${open}">${BUBBLE}<span class="thread-count">${countLabel(n)}</span></button>
     <div class="thread-body"${open ? '' : ' hidden'}>
       <ul class="comments">${comments.map(commentHtml).join('')}</ul>
       <form class="comment-form" hidden>
-        <textarea name="text" rows="2" maxlength="1000" placeholder="Add a comment…" required></textarea>
+        <textarea name="text" rows="2" maxlength="1000" placeholder="Add a comment… (type @ to mention a friend)" required data-mentions></textarea>
         <button type="submit" class="btn primary small">Post</button>
       </form>
     </div>
@@ -171,7 +176,7 @@ export function bindThreads(root, { me = '', toast = () => {} } = {}) {
     try {
       const body = thread.dataset.ownSlug
         ? { action: 'comment-own', slug: thread.dataset.ownSlug, text }
-        : { action: 'comment', friendUrl: thread.dataset.friend, uid: thread.dataset.uid, text };
+        : { action: 'comment', friendUrl: thread.dataset.friend, uid: thread.dataset.uid, text, item: (() => { try { return JSON.parse(thread.dataset.item || 'null'); } catch { return null; } })() };
       const { comment } = await api('friends', { method: 'POST', body });
       thread.querySelector('.comments').insertAdjacentHTML('beforeend', commentHtml(comment || { id: '', author: 'You', authorUrl: me, text, createdAt: new Date().toISOString() }));
       form.reset();
@@ -193,7 +198,7 @@ export const waiting = (m, friends) => ['unread', 'read'].includes(m.status) && 
   || (m.kind === 'friend-request' && friends.find((f) => f.id === m.friendId)?.status === 'pending'));
 
 export function inboxHtml(inbox, friends, TYPES) {
-  if (!inbox.length) return '<li class="muted">Nothing yet. Friend requests, recommendations, borrow requests, hearts and comments show up here.</li>';
+  if (!inbox.length) return '<li class="muted">Nothing yet. Friend requests, recommendations, borrow requests, hearts, comments and mentions show up here.</li>';
   const typeLabel = (t) => TYPES[t]?.label || t || '';
   return inbox.map((m) => {
     const who = `<strong>${esc(m.fromName)}</strong>`;
@@ -218,7 +223,8 @@ export function inboxHtml(inbox, friends, TYPES) {
       const link = it.url || it.source?.url;
       body = `<span class="inbox-item">${thumb(TYPES, it.cover, it.title, it.type)}<span>${who} recommends
         <strong>${link ? `<a href="${esc(link)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title)}</strong>
-        <span class="muted small">${esc(typeLabel(it.type))}${it.creator ? ` · ${esc(it.creator)}` : ''}${it.year ? ` · ${esc(it.year)}` : ''}</span></span></span>`;
+        <span class="muted small">${esc(typeLabel(it.type))}${it.creator ? ` · ${esc(it.creator)}` : ''}${it.year ? ` · ${esc(it.year)}` : ''}</span>${p.via?.url ? `
+        <span class="muted small">from <a href="${esc(p.via.url)}" target="_blank" rel="noopener">${esc(nick(p.via.url) || p.via.name || host(p.via.url))}’s shelf</a></span>` : ''}</span></span>`;
       actions = p.alreadyHave
         ? `<a class="btn ghost small" href="/item/${esc(p.alreadyHave)}/" target="_blank">You have this</a>`
         : `<button class="btn ghost small" data-add-rec="${esc(m.id)}">Add it</button>`;
@@ -234,7 +240,7 @@ export function inboxHtml(inbox, friends, TYPES) {
     } else if (m.kind === 'comment') {
       const it = p.item || {};
       body = `<span class="inbox-item">${thumb(TYPES, it.cover, it.title, it.type)}<span>${who} commented on <strong>${yourItem(it)}</strong></span></span>`;
-      if (p.text) body += `<p class="inbox-note">“${esc(p.text)}”</p>`;
+      if (p.text) body += `<p class="inbox-note">“${mentionsText(esc(p.text))}”</p>`;
       actions = `${it.visibility === 'public' && it.slug ? `<a class="btn ghost small" href="/item/${esc(it.slug)}/#comments" target="_blank">Reply</a>` : ''}
         <button class="btn ghost small danger" data-inbox-del-comment="${esc(p.commentId || m.id)}" title="Remove this comment from your item">Delete comment</button>`;
     } else if (m.kind === 'comment-reply') {
@@ -243,13 +249,20 @@ export function inboxHtml(inbox, friends, TYPES) {
       const whose = author === m.fromName ? 'their' : `${esc(m.fromName)}’s`;
       const title = it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title);
       body = `<span class="inbox-item">${thumb(TYPES, it.cover, it.title, it.type)}<span><strong>${esc(author)}</strong> also commented on ${whose} <strong>${title}</strong></span></span>`;
-      if (p.text) body += `<p class="inbox-note">“${esc(p.text)}”</p>`;
+      if (p.text) body += `<p class="inbox-note">“${mentionsText(esc(p.text))}”</p>`;
       if (it.url) actions = `<a class="btn ghost small" href="${esc(it.url)}" target="_blank" rel="noopener">View thread</a>`;
+    } else if (m.kind === 'mention') {
+      const it = p.item || {};
+      const title = it.url ? `<a href="${esc(it.url)}" target="_blank" rel="noopener">${esc(it.title)}</a>` : esc(it.title);
+      const onWhose = p.owner?.url ? `${esc(nick(p.owner.url) || p.owner.name || host(p.owner.url))}’s` : 'their';
+      body = `<span class="inbox-item">${thumb(TYPES, it.cover, it.title, it.type)}<span>${who} mentioned you ${p.where === 'comment' ? `in a comment on ${onWhose}` : 'in their notes on'} <strong>${title}</strong></span></span>`;
+      if (p.text) body += `<p class="inbox-note">“${esc(p.text)}”</p>`;
+      if (it.url) actions = `<a class="btn ghost small" href="${esc(it.url)}" target="_blank" rel="noopener">${p.where === 'comment' ? 'View thread' : 'Read it'}</a>`;
     } else if (m.kind === 'borrow-reply') {
       body = `${who} ${p.answer === 'yes' ? 'said <strong>yes</strong> to' : 'can’t lend you'} <strong>${esc(p.title)}</strong>${p.answer === 'yes' ? '.' : ' right now.'}`;
     }
     return `<li class="inbox-row${m.status === 'unread' ? ' unread' : ''}">
-      <div class="inbox-text">${body} ${when}${['comment', 'comment-reply'].includes(m.kind) ? '' : note}</div>
+      <div class="inbox-text">${body} ${when}${['comment', 'comment-reply', 'mention'].includes(m.kind) ? '' : note}</div>
       <div class="inbox-actions">${actions}${done ? `<span class="muted small">${done}</span>` : ''}
         <span class="inbox-ctls">
           <button type="button" class="inbox-ctl" data-inbox-del="${esc(m.id)}" title="Delete this notification" aria-label="Delete this notification">✕</button>
@@ -294,10 +307,11 @@ export function shelfHtml({ friend, items }, TYPES, { me = '', filter = '' } = {
           <strong>${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener">${esc(i.title)}</a>` : esc(i.title)}${i.youHave ? ' <span class="vis-badge">You have this</span>' : ''}${i.visibility === 'friends' ? ' <span class="vis-badge">Friends only</span>' : ''}</strong>
           <span class="muted small">${[esc(i.creator || ''), stars(i.rating)].filter(Boolean).join(' · ')}</span>
           ${i.review ? `<div class="review clamp">${reviewHtml(i.review)}</div>` : ''}
-          ${threadHtml(i.comments, { friendUrl: friend.url, uid: i.uid })}
+          ${threadHtml(i.comments, { friendUrl: friend.url, uid: i.uid, item: i })}
         </span>
         ${signedIn ? `<span class="lib-actions">
           ${heartBtn(i.hearted, `data-heart="${esc(i.uid)}" data-friend="${esc(friend.id)}" data-title="${esc(i.title)}"`)}
+          <button type="button" class="btn ghost small" data-rec-uid="${esc(i.uid)}" data-rec-friend="${esc(friend.url)}" data-rec-friend-id="${esc(friend.id)}" data-rec-title="${esc(i.title)}" title="Recommend this to another friend">Recommend</button>
           ${i.available ? `<button class="btn ghost small" data-ask="${esc(i.uid)}" data-friend="${esc(friend.id)}" data-title="${esc(i.title)}">Ask to borrow</button>` : i.owned ? '<span class="muted small">Lent out</span>' : ''}
         </span>` : ''}
       </li>`).join('')}</ul>`).join('');

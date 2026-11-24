@@ -2,7 +2,7 @@
 import Base from '../../layouts/Base.astro';
 import Cover from '../../components/Cover.astro';
 import CopyLink from '../../components/CopyLink.astro';
-import { getEntry, getShelves, fmtDate, renderBody } from '../../lib/items.js';
+import { getEntry, getShelves, fmtDate, renderBody, mentionsHtml } from '../../lib/items.js';
 import { inShelf } from '../../lib/sorting.js';
 import { TYPES, STATUS_LABEL, DETAIL_LABELS, HIDDEN_DETAILS, formatDetail, stars } from '../../lib/types.js';
 import { itemComments } from '../../../server/federation/index.js';
@@ -15,7 +15,7 @@ const entry = /^[a-z0-9][a-z0-9-]{0,120}$/.test(slug) ? await getEntry(env, slug
 if (!entry) return new Response(null, { status: 404, statusText: 'Not found' });
 const d = entry.data;
 const t = TYPES[d.type] || TYPES.book;
-const bodyHtml = renderBody(entry.body);
+const bodyHtml = mentionsHtml(renderBody(entry.body));
 const shelves = (await getShelves(env)).filter((s) => inShelf(d, s));
 const details = Object.entries(d.details || {})
   .filter(([k]) => !HIDDEN_DETAILS.has(k))
@@ -25,6 +25,8 @@ const hasBody = Boolean(bodyHtml);
 // Only Finished entries show a finished date (an old one can linger after the status changed).
 const finished = d.status === 'finished' ? d.dateFinished : null;
 const thoughtsDate = finished || d.dateStarted || d.dateAdded;
+// YouTube videos play right on the page (the privacy-enhanced player, no cookies until you press play).
+const ytVideoId = d.type === 'video' ? (String(d.source?.id || '').match(/^video:([A-Za-z0-9_-]{11})$/) || [])[1] || '' : '';
 const expansions = d.type === 'boardgame' && Array.isArray(d.expansions) ? d.expansions : [];
 // Comments from friends (and your replies). Visitors see them; signed in, you can reply and delete.
 let comments = [];
@@ -37,7 +39,14 @@ try { comments = await itemComments(env, Astro.url.href, slug); } catch {}
   </a>
   <article class="item-page">
     <div class="item-cover">
-      <Cover item={d} height={d.type === 'music' || d.type === 'boardgame' ? 300 : 360} link={false} eager />
+      {ytVideoId ? (
+        <div class="yt-embed">
+          <iframe src={`https://www.youtube-nocookie.com/embed/${ytVideoId}`} title={`${d.title} (YouTube video)`} loading="lazy"
+            allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+        </div>
+      ) : (
+        <Cover item={d} height={d.type === 'music' || d.type === 'boardgame' || d.type === 'video' ? 300 : 360} link={false} eager />
+      )}
     </div>
     <div class="item-info">
       <p class="eyebrow"><a href={`/type/${d.type}/`}>{t.label}</a>{d.year && <> · {d.year}</>}</p>
@@ -56,6 +65,14 @@ try { comments = await itemComments(env, Astro.url.href, slug); } catch {}
       <div class="item-meta">
         <span class:list={['status', `status-${d.status}`]}>{STATUS_LABEL(d.type, d.status)}</span>
         {d.rating != null && !hasBody && <span class="rating" aria-label={`${d.rating} out of 5`}>{stars(d.rating)}</span>}
+      </div>
+
+      {/* Shown by the script below, only to you (signed in on this browser). */}
+      <div class="item-actions" id="item-actions" hidden>
+        <button type="button" class="item-action" data-rec-slug={entry.id} data-rec-title={d.title}>
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>
+          Recommend to a friend
+        </button>
       </div>
 
       <dl class="facts">
@@ -122,6 +139,8 @@ try { comments = await itemComments(env, Astro.url.href, slug); } catch {}
 <script>
   // Comments: signed in on this browser, you can reply and delete (the section shows even when it's empty).
   import { token, api, bindThreads, setNicknames } from '../../scripts/friends-ui.js';
+  import { enableMentionPicker } from '../../scripts/mention-picker.js';
+  enableMentionPicker();
   const section = document.getElementById('comments');
   const toastEl = document.getElementById('fr-toast');
   let toastTimer;
@@ -132,6 +151,9 @@ try { comments = await itemComments(env, Astro.url.href, slug); } catch {}
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => (toastEl.hidden = true), 6000);
   };
+  import { bindRecommendButtons } from '../../scripts/recommend-dialog.js';
+  bindRecommendButtons(document.getElementById('item-actions'));
+  if (token()) api('ping').then(() => { document.getElementById('item-actions').hidden = false; }).catch(() => {});
   if (section && token()) {
     api('ping').then(() => {
       section.hidden = false;

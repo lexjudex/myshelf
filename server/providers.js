@@ -556,6 +556,135 @@ async function searchBgg(q, env) {
   return bggResults(env, rankBggHits(hits, q).slice(0, 15));
 }
 
+// ───────────────────────── YouTube: videos and channels ─────────────────────────
+// With YOUTUBE_API_KEY (free, YouTube Data API v3 in Google Cloud), search finds videos and channels and a
+// pasted channel link works. Without it, a pasted video link still works (YouTube's public oEmbed).
+
+/** A YouTube link → { kind: 'video', id } | { kind: 'channel', id? , handle?, user? }, else null. */
+export function youtubeRefFromUrl(input) {
+  const s = String(input || '').trim();
+  let m = s.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|live\/|embed\/|v\/)|youtu\.be\/|youtube-nocookie\.com\/embed\/)([A-Za-z0-9_-]{11})/i);
+  if (m) return { kind: 'video', id: m[1] };
+  m = s.match(/youtube\.com\/channel\/(UC[A-Za-z0-9_-]{20,})/i);
+  if (m) return { kind: 'channel', id: m[1] };
+  m = s.match(/youtube\.com\/@([A-Za-z0-9._-]{2,100})/i) || s.match(/^@([A-Za-z0-9._-]{2,100})$/);
+  if (m) return { kind: 'channel', handle: m[1] };
+  m = s.match(/youtube\.com\/(?:c|user)\/([A-Za-z0-9._-]{2,100})/i);
+  if (m) return { kind: 'channel', user: m[1] };
+  return null;
+}
+
+/** "PT1H2M10S" → minutes (rounded, at least 1). */
+export function isoMinutes(d) {
+  const m = String(d || '').match(/^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!m) return undefined;
+  const mins = (Number(m[1] || 0) * 1440) + Number(m[2] || 0) * 60 + Number(m[3] || 0) + Number(m[4] || 0) / 60;
+  return mins > 0 ? Math.max(1, Math.round(mins)) : undefined;
+}
+
+function youtube(env, path, params) {
+  const usp = new URLSearchParams({ ...params, key: env.YOUTUBE_API_KEY });
+  return fetchJson(`https://www.googleapis.com/youtube/v3/${path}?${usp}`, {}, 'YouTube');
+}
+
+// The biggest picture YouTube has without black bars: maxres, else the 320×180 "mq" one (hq/sd are letterboxed 4:3).
+const ytThumbs = (t = {}) => (t.maxres || t.standard?.width / t.standard?.height > 1.5 && t.standard || t.medium || t.high || t.default || {}).url || '';
+
+const ytVideo = (v) => result({
+  type: 'video',
+  source: 'youtube',
+  sourceId: `video:${v.id}`,
+  title: decodeEntities(v.snippet?.title || ''),
+  creator: decodeEntities(v.snippet?.channelTitle || ''),
+  year: yearOf(v.snippet?.publishedAt),
+  cover: ytThumbs(v.snippet?.thumbnails),
+  description: truncate(v.snippet?.description || ''),
+  details: { kind: 'Video', runtime: isoMinutes(v.contentDetails?.duration), channel: decodeEntities(v.snippet?.channelTitle || '') || undefined },
+  url: `https://www.youtube.com/watch?v=${v.id}`,
+});
+
+const ytChannel = (c) => result({
+  type: 'video',
+  source: 'youtube',
+  sourceId: `channel:${c.id}`,
+  title: decodeEntities(c.snippet?.title || ''),
+  creator: c.snippet?.customUrl || '',
+  year: yearOf(c.snippet?.publishedAt),
+  cover: (c.snippet?.thumbnails?.high || c.snippet?.thumbnails?.medium || c.snippet?.thumbnails?.default || {}).url || '',
+  description: truncate(c.snippet?.description || ''),
+  details: {
+    kind: 'Channel',
+    handle: c.snippet?.customUrl || undefined,
+    subscribers: c.statistics?.hiddenSubscriberCount ? undefined : Number(c.statistics?.subscriberCount) || undefined,
+    videos: Number(c.statistics?.videoCount) || undefined,
+  },
+  url: c.snippet?.customUrl ? `https://www.youtube.com/${c.snippet.customUrl}` : `https://www.youtube.com/channel/${c.id}`,
+});
+
+async function youtubeVideos(env, ids) {
+  if (!ids.length) return [];
+  const data = await youtube(env, 'videos', { part: 'snippet,contentDetails', id: ids.join(','), maxResults: '50' });
+  const byId = new Map((data.items || []).map((v) => [v.id, v]));
+  return ids.map((id) => byId.get(id)).filter(Boolean).map(ytVideo);
+}
+
+async function youtubeChannels(env, params) {
+  const data = await youtube(env, 'channels', { part: 'snippet,statistics', ...params });
+  return (data.items || []).map(ytChannel);
+}
+
+/** A video without an API key: YouTube's public oEmbed (title, channel and thumbnail). */
+async function youtubeOembed(id, env) {
+  const url = `https://www.youtube.com/watch?v=${id}`;
+  const res = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`, { headers: { 'user-agent': userAgent(env) } });
+  if (res.status === 404 || res.status === 400 || res.status === 401) throw new HttpError(404, 'No public video found at that YouTube link.');
+  if (!res.ok) throw new HttpError(502, `YouTube lookup failed (${res.status})`);
+  const o = await res.json();
+  // maxresdefault exists for most HD videos; otherwise the 16:9 "mq" thumbnail.
+  let cover = `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`;
+  try { if (!(await fetch(cover, { method: 'HEAD' })).ok) cover = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`; } catch { cover = `https://i.ytimg.com/vi/${id}/mqdefault.jpg`; }
+  return result({
+    type: 'video', source: 'youtube', sourceId: `video:${id}`,
+    title: o.title || '', creator: o.author_name || '', cover,
+    details: { kind: 'Video', channel: o.author_name || undefined },
+    url,
+  });
+}
+
+async function youtubeFromUrl(input, env) {
+  const ref = youtubeRefFromUrl(input);
+  if (!ref) throw new HttpError(400, 'That doesn’t look like a YouTube video or channel link.');
+  if (ref.kind === 'video') {
+    if (!env.YOUTUBE_API_KEY) return [await youtubeOembed(ref.id, env)];
+    const res = await youtubeVideos(env, [ref.id]);
+    if (!res.length) throw new HttpError(404, 'No public video found at that YouTube link.');
+    return res;
+  }
+  if (!env.YOUTUBE_API_KEY) throw new HttpError(400, 'Adding channels needs a YouTube key (YOUTUBE_API_KEY). Video links work without one.');
+  const params = ref.id ? { id: ref.id } : ref.handle ? { forHandle: `@${ref.handle}` } : { forUsername: ref.user };
+  const res = await youtubeChannels(env, params);
+  if (!res.length) throw new HttpError(404, 'No channel found at that YouTube link.');
+  return res;
+}
+
+async function searchYoutube(q, env) {
+  if (youtubeRefFromUrl(q)) return youtubeFromUrl(q, env);
+  if (!env.YOUTUBE_API_KEY) {
+    throw new HttpError(400, 'Searching YouTube needs a YouTube key (YOUTUBE_API_KEY). Until then, paste a video link below.');
+  }
+  const data = await youtube(env, 'search', { part: 'snippet', q, type: 'video,channel', maxResults: '15', safeSearch: 'none' });
+  const items = data.items || [];
+  const videoIds = items.filter((i) => i.id?.kind === 'youtube#video').map((i) => i.id.videoId);
+  const channelIds = items.filter((i) => i.id?.kind === 'youtube#channel').map((i) => i.id.channelId);
+  // Search results are thin (no length, no subscriber count): fetch the full records, then keep YouTube's order.
+  const [videos, channels] = await Promise.all([
+    youtubeVideos(env, videoIds),
+    channelIds.length ? youtubeChannels(env, { id: channelIds.join(',') }) : [],
+  ]);
+  const byKey = new Map([...videos, ...channels].map((r) => [r.sourceId, r]));
+  return items.map((i) => byKey.get(i.id?.kind === 'youtube#video' ? `video:${i.id.videoId}` : `channel:${i.id?.channelId}`)).filter(Boolean);
+}
+
 // ───────────────────────── Public API ─────────────────────────
 
 export async function search(type, q, env) {
@@ -566,6 +695,7 @@ export async function search(type, q, env) {
     case 'music': return searchMusic(q, env);
     case 'videogame': return searchIgdb(q, env);
     case 'boardgame': return searchBgg(q, env);
+    case 'video': return searchYoutube(q, env);
     default: throw new HttpError(400, `Unknown type: ${type}`);
   }
 }
@@ -647,5 +777,6 @@ export function configured(env) {
     spotify: Boolean(env.SPOTIFY_CLIENT_ID && env.SPOTIFY_CLIENT_SECRET),
     igdb: Boolean(env.TWITCH_CLIENT_ID && env.TWITCH_CLIENT_SECRET),
     bgg: Boolean(env.BGG_TOKEN),
+    youtube: Boolean(env.YOUTUBE_API_KEY),
   };
 }

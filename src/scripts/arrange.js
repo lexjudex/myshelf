@@ -2,7 +2,7 @@
 import Sortable from 'sortablejs';
 import '../styles/arrange.css';
 
-const COLORS = { book: '#8a3b2e', movie: '#2e4a6b', tv: '#4b3b6b', music: '#2f5e4e', videogame: '#6b4b1f', boardgame: '#5e2f45' };
+const COLORS = { book: '#8a3b2e', movie: '#2e4a6b', tv: '#4b3b6b', music: '#2f5e4e', videogame: '#6b4b1f', boardgame: '#5e2f45', video: '#7a2424' };
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 function thumb(i) {
@@ -48,6 +48,14 @@ function build() {
     const item = current.items.find((i) => i.slug === slug);
     if (item) current.onEdit(item);
   });
+  // Paper plane: recommend that item to friends.
+  list.addEventListener('click', (e) => {
+    const rec = e.target.closest('.ar-rec');
+    if (!rec) return;
+    e.preventDefault();
+    const item = current.items.find((i) => i.slug === rec.closest('.ar-item').dataset.slug);
+    if (item) current.onRecommend(item);
+  });
   // Red ✕ marks an item to come off this collection; click again (↺) to keep it. Nothing changes until you save.
   list.addEventListener('click', (e) => {
     const btn = e.target.closest('.ar-remove');
@@ -90,6 +98,7 @@ function updateRemoved() {
   list.querySelectorAll('.ar-item:not(.is-removed) .ar-num').forEach((el, i) => (el.textContent = i + 1));
 }
 
+const SEND = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>';
 const PENCIL = '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
 
 function itemHtml(i, n, removed = false) {
@@ -97,6 +106,8 @@ function itemHtml(i, n, removed = false) {
     current.onEdit ? `<button type="button" class="ar-edit" aria-label="Edit ${esc(i.title)}" title="Edit this item">${PENCIL}</button>` : ''
   }${
     current.canRemove?.(i) ? `<button type="button" class="ar-remove" aria-label="${removed ? `Keep ${esc(i.title)}` : `Remove ${esc(i.title)} from this collection`}" title="${removed ? 'Keep it on this shelf' : 'Remove from this collection'}">${removed ? '↺' : '✕'}</button>` : ''
+  }${
+    current.onRecommend ? `<button type="button" class="ar-rec" aria-label="Recommend ${esc(i.title)} to a friend" title="Recommend to a friend">${SEND}</button>` : ''
   }${thumb(i)}<span class="ar-name">${esc(i.title)}</span></li>`;
 }
 
@@ -123,15 +134,16 @@ export function updateItem(slug, item) {
  * canRemove(item): show the red ✕ on that item (hand-picked collection members only).
  * onAdd(): shows an "＋ Add more" button that runs it (e.g. go to search with the collection pre-checked).
  * onEdit(item): shows a pencil on each item that runs it (open the item editor).
+ * onRecommend(item): shows a paper plane on each item that runs it (recommend it to friends).
  * onClose(): runs whenever the dialog closes (saved or not).
  */
-export function openArrange({ title, items, onSave, canRemove = null, onAdd = null, onEdit = null, onClose = null }) {
+export function openArrange({ title, items, onSave, canRemove = null, onAdd = null, onEdit = null, onRecommend = null, onClose = null }) {
   if (!dialog) build();
-  current = { items, onSave, canRemove, onAdd, onEdit, onClose };
+  current = { items, onSave, canRemove, onAdd, onEdit, onRecommend, onClose };
   dialog.querySelector('.ar-title').textContent = `Arrange “${title}”`;
   dialog.querySelector('.ar-hint').textContent = (canRemove
     ? 'Drag covers into the order you want. Use the red ✕ to take something off this shelf.'
-    : 'Drag covers into the order you want. Items you add later appear at the front.') + (onEdit ? ' The pencil edits an item.' : '');
+    : 'Drag covers into the order you want. Items you add later appear at the front.') + (onEdit ? ' The pencil edits an item.' : '') + (onRecommend ? ' The paper plane recommends it to friends.' : '');
   dialog.querySelector('[data-ar-add]').hidden = !onAdd;
   render(items);
   updateRemoved();
@@ -141,7 +153,7 @@ export function openArrange({ title, items, onSave, canRemove = null, onAdd = nu
     ghostClass: 'ar-ghost-item',
     chosenClass: 'ar-chosen',
     delay: 120, delayOnTouchOnly: true, // on phones: press & hold briefly to pick up, so scrolling still works
-    filter: '.ar-remove, .ar-edit', preventOnFilter: false, // the ✕ and pencil are buttons, not drag handles
+    filter: '.ar-remove, .ar-edit, .ar-rec', preventOnFilter: false, // the ✕ and pencil are buttons, not drag handles
     onSort: updateRemoved,
   });
   dialog.showModal();

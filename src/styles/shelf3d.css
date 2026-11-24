@@ -89,6 +89,14 @@
   max-height: calc(var(--bh) * 0.32);
 }
 
+/* YouTube: the picture sits in a black screen bezel; channel avatars are round inside it. */
+.kind-screen .b3-front { background: #0c0c0e; padding: 6%; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.14); }
+.kind-screen .b3-front > img { border-radius: 2px; }
+.kind-screen .b3-front > .b3-ph { border-radius: 2px; }
+.kind-screen .b3-spine { background: #1b1b1f; }
+.kind-screen.has-cover .b3-spine::before { opacity: 0.45; }
+.book3d[data-kind='channel'] .b3-front > img { border-radius: 50%; }
+
 /* Active item: lift and shadow. */
 .book3d.is-front .b3-front { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.1), 6px 10px 22px rgba(0,0,0,0.55); }
 .book3d:focus-visible .b3-front { outline: 2px solid var(--accent, #d99a4e); outline-offset: 3px; }

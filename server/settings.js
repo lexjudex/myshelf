@@ -4,7 +4,7 @@ import { getSetting, setSetting } from './db.js';
 
 const SORTS = ['newest', 'oldest', 'title', 'creator', 'rating', 'year-new', 'year-old', 'custom'];
 const SLUG = /^[a-z0-9][a-z0-9-]{0,120}$/;
-const ARRANGE_KEY = /^(book|movie|tv|music|videogame|boardgame):(want|in-progress|finished|abandoned)$/;
+const ARRANGE_KEY = /^(book|movie|tv|music|videogame|boardgame|video):(want|in-progress|finished|abandoned)$/;
 
 export const getCollections = (env) => getSetting(env, 'collections', []);
 export const getArrangements = (env) => getSetting(env, 'arrangements', {});

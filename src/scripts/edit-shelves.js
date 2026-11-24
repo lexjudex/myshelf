@@ -77,6 +77,7 @@ function editItem(mod, slug) {
 }
 const arrangeExtras = (mod) => ({
   onEdit: (item) => editItem(mod, item.slug),
+  onRecommend: (item) => import('./recommend-dialog.js').then((m) => m.openRecommend({ slug: item.slug, title: item.title })),
   onClose: () => { if (edited) location.reload(); },
 });
 

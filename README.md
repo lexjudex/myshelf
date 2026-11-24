@@ -1,6 +1,6 @@
 # MyShelf
 
-A self-hosted media journal and virtual bookshelf for books, movies, TV, music, video games and board games. Search a database, pick the match, and the cover and details import automatically. Write your thoughts, sort things into collections, and they appear on your shelves. Connect with friends who run their own MyShelf to share recommendations and lend each other things.
+A self-hosted media journal and virtual bookshelf for books, movies, TV, music, video games, board games and YouTube. Search a database, pick the match, and the cover and details import automatically. Write your thoughts, sort things into collections, and they appear on your shelves. Connect with friends who run their own MyShelf to share recommendations and lend each other things.
 
 **Cost: $0.** Everything runs on Cloudflare's free plan (one Worker, a D1 database and KV storage, no credit card needed). Your copy of the code lives in a free GitHub account. Everyone runs their own copy, so your shelf and your data stay in your own accounts.
 
@@ -12,7 +12,7 @@ If MyShelf is useful to you, you can support its development on Ko-fi:
 
 ```
 You (admin page) ──► /api/* on your Worker (holds your API keys)
-                        ├─► searches Open Library / Google Books / TMDB / Spotify / IGDB / BGG
+                        ├─► searches Open Library / Google Books / TMDB / Spotify / IGDB / BGG / YouTube
                         └─► saves the entry to D1 and the cover image to KV
 Visitors ──► pages render straight from D1, so every change is live immediately
 Friends' MyShelf sites ◄──► /federation/v1/* (signed messages; see "Friends" below)
@@ -62,12 +62,17 @@ Add each one in your Worker → **Settings → Variables and Secrets** → **Add
 | **IGDB** (video games) | dev.twitch.tv/console → Register Your Application (redirect URL `http://localhost`, client type Confidential). Your Twitch account needs 2FA turned on. | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` |
 | **BoardGameGeek** | boardgamegeek.com/applications → register a non-commercial app → create a token. Approval can take a while. | `BGG_TOKEN` |
 | **Spotify** (music, optional) | developer.spotify.com/dashboard → Create app → check **Web API** → redirect URI `http://127.0.0.1:8788/callback` (required, but unused). | `SPOTIFY_CLIENT_ID`, `SPOTIFY_CLIENT_SECRET` |
+| **YouTube** (optional) | console.cloud.google.com → pick or create a project → **APIs & Services → Library** → enable **YouTube Data API v3** → **Credentials → Create credentials → API key**. (Already have a Google Books key? Enable YouTube on the same project and reuse it.) | `YOUTUBE_API_KEY` |
 | Open Library | No key needed. | |
 | Google Books | Optional. Works without a key at low volume. | `GOOGLE_BOOKS_KEY` |
 | Contact email | Optional. Sent to Open Library and MusicBrainz, as they request. | `CONTACT_EMAIL` |
 | GitHub (updates, optional) | Forks only. github.com/settings/personal-access-tokens → **Generate new token** → *Only select repositories*: your fork → **Repository permissions → Contents: Read and write**. Lets **Manage → Settings → Updates** pull in new versions for you. | `GITHUB_TOKEN` |
 
 Without Spotify, or if it ever fails, music search uses **MusicBrainz + Cover Art Archive** automatically.
+Without a YouTube key you can still add a video by pasting its link (under the YouTube search); searching and channels need the key.
+
+You only need keys for the media you track: turn a type off in **Manage → Settings** and its missing key stops showing in the header.
+
 With Spotify you can also add public playlists, and paste an album, song or playlist link (Share → Copy link) into the box under the Music search. Spotify only sends a playlist's track list to its owner, so a playlist is saved with its name, cover, description and link.
 
 ## Using it
@@ -76,7 +81,9 @@ With Spotify you can also add public playlists, and paste an album, song or play
 - **Library:** edit, delete, or **Recommend** anything to friends.
 - **Collections:** create, rename, reorder and remove shelves.
 - **Friends:** your address to share, friend requests, your inbox, and your friends' shelves.
-- **Settings:** site name, your name, public address, which kinds of media your site shows, backup and restore. (The shelf effects switch is under the Manage card, for anyone.)
+- **Settings:** site name, your name, public address, which kinds of media your site shows, your site's **Look** (light or dark, and an accent colour), backup and restore.
+- **Display switches:** at the bottom of every page (and of the phone menu), anyone can turn **Shelf effects** off and switch **Light mode** on or off for their own browser.
+- **Journal:** search your notes, filter by type or status, and sort by **Last edited**, date, rating or title.
 - Every item page has a small **Edit** link that goes straight to the editor.
 
 In the editor, **Who can see it** sets each item to *Everyone*, *Friends only*, or *Only me*. Only *Everyone* items appear on your public pages. **I own a copy** lets friends ask to borrow it, and **Lent to** tracks who has it.
@@ -89,7 +96,9 @@ Friends are other people running their own MyShelf. There's no central server: y
 2. They paste it into **Add friend**. You get a request in your inbox and click **Accept**.
 3. Now you can:
    - see each other's *Friends only* items (**View shelf**), with "You have this" next to anything you both own,
-   - **Recommend** something from your Library; it lands in their inbox with an **Add it** button,
+   - **Recommend** something (from your Library, any item page, the paper plane in a shelf's arrange dialog, or pass along something from a friend's shelf); it lands in their inbox with an **Add it** button,
+   - **@mention** a friend in your notes or a comment (type `@` and pick them). It links to their MyShelf and drops a note in their inbox,
+   - see **what friends thought** before you add something: search results and the editor show friends who have it, with their rating and notes,
    - **Ask to borrow** anything they've marked *I own a copy*. Saying yes marks it as lent on their shelf.
    - tap the **heart** on any of their items to say you enjoyed it too. They get a note in their inbox; tap again to take it back. (Your friend needs a copy of MyShelf with hearts, so ask them to update if it says otherwise.)
 

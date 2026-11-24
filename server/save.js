@@ -29,18 +29,26 @@ export async function saveItem(env, payload) {
   const isEdit = Boolean(payload.slug);
 
   let previous = null;
+  let prevBody = '';
   let slug;
   if (isEdit) {
     slug = assertSlug(payload.slug);
     const row = await getItem(env, slug);
     if (!row) throw new HttpError(404, 'Item to update was not found');
     previous = row.item;
+    prevBody = String(row.body || '').trim();
     item.dateAdded = item.dateAdded || previous.dateAdded || null;
   } else {
     slug = await uniqueSlug(env, slugify(`${item.type} ${item.title} ${item.year || ''}`));
     item.dateAdded = item.dateAdded || new Date().toISOString().slice(0, 10);
   }
   for (const [k, v] of Object.entries(item)) if (v == null) delete item[k];
+
+  // Remember when the notes themselves last changed (the Journal can sort by it). Other edits don't count.
+  const body = String(payload.body || '').trim();
+  if (body && body !== prevBody) item.notesEditedAt = new Date().toISOString();
+  else if (!body) delete item.notesEditedAt;
+  else if (previous?.notesEditedAt) item.notesEditedAt = previous.notesEditedAt;
 
   const oldStored = storedCoverName(previous?.cover) ? previous.cover : null;
   let removeOld = false;

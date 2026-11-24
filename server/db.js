@@ -189,8 +189,8 @@ async function backfillItemKeys(DB) {
 }
 
 const now = () => new Date().toISOString();
-const rowToItem = (r) => ({ slug: r.slug, uid: r.uid || null, item: JSON.parse(r.data), body: r.body || '', createdAt: r.created_at || null });
-const COLS = 'slug, uid, data, body, created_at';
+const rowToItem = (r) => ({ slug: r.slug, uid: r.uid || null, item: JSON.parse(r.data), body: r.body || '', createdAt: r.created_at || null, updatedAt: r.updated_at || null });
+const COLS = 'slug, uid, data, body, created_at, updated_at';
 
 /**
  * Every item: [{ slug, uid, item, body }].

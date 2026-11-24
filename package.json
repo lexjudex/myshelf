@@ -1,9 +1,9 @@
 {
   "name": "myshelf",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "private": true,
   "type": "module",
-  "description": "A self-hosted media journal and virtual bookshelf (books, movies, TV, music, video games, board games).",
+  "description": "A self-hosted media journal and virtual bookshelf (books, movies, TV, music, video games, board games, YouTube).",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
@@ -45,6 +45,9 @@
       },
       "SPOTIFY_CLIENT_SECRET": {
         "description": "The Client Secret from the same Spotify app (optional)."
+      },
+      "YOUTUBE_API_KEY": {
+        "description": "Optional. YouTube search and channel links (video links work without it). In Google Cloud, turn on **YouTube Data API v3** and create an API key. Leave blank to add it later."
       },
       "GOOGLE_BOOKS_KEY": {
         "description": "Optional. Books work without it."
