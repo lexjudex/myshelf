@@ -2,9 +2,9 @@
    bar you can drag, move with ↑ ↓, or take off the page; the actions sit under the bookcase. */
 .pshelf-tools { float: right; margin-top: 6px; }
 /* Media pages: ＋ and ✎ sit right after the title, like the pencil on collection pages */
-.pshelf-tools.pshelf-inline { float: none; margin: 0 0 0 4px; display: inline-flex; gap: 6px; vertical-align: middle; }
+.pshelf-tools.pshelf-inline { float: none; margin: 0 0 0 12px; display: inline-flex; gap: 6px; vertical-align: middle; }
 .pshelf-tools.pshelf-inline[hidden] { display: none; }
-.pshelf-add-item { text-decoration: none; vertical-align: middle; margin-left: 12px; }
+.pshelf-add-item { text-decoration: none; vertical-align: middle; margin-left: 8px; }
 .pshelf-add-item[hidden] { display: none; }
 .pshelf-inline .pshelf-start[hidden] { display: none; }
 .pshelf-tools[hidden] { display: none; }
@@ -84,7 +84,7 @@
   background: transparent; color: var(--cream-soft); cursor: pointer; vertical-align: middle;
   transition: color 0.15s, border-color 0.15s, background 0.15s;
 }
-.page-head h1 .pshelf-add-item { margin-left: 12px; }
+.page-head h1 .pshelf-add-item { margin-left: 8px; }
 .page-head h1 .pshelf-add-item:hover, .page-head h1 .pshelf-add-item:focus-visible,
 .page-head h1 .pshelf-inline .pshelf-start:hover, .page-head h1 .pshelf-inline .pshelf-start:focus-visible {
   color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); outline: none;
