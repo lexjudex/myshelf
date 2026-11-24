@@ -5,6 +5,7 @@ The version number lives in `package.json` and shows in **Manage → Settings �
 ## 0.5.1 (Nov 2026)
 
 - **YouTube without a new key.** Pasting a channel link now works with no key at all (video links already did). Searching YouTube by name uses your existing Google Books key once **YouTube Data API v3** is switched on in that Google Cloud project (one click); `YOUTUBE_API_KEY` is only needed to use a separate key. The "Missing keys" note no longer mentions YouTube.
+- **Edit shelves right on the page.** Signed in, the Shelves page and every media page have an **Edit shelves** button. Drag whole shelves into a new order (or use ↑ ↓), take a shelf off the page (✕; nothing is deleted), and **＋ Add a shelf**: put back one you took off, add a starter shelf, or make a new empty one. Press **Save shelves** and the page shows it. Media pages keep their own order (Books can differ from Movies); collections still appear on every media page, so adding or removing one there changes them all. Collections can now also be shown **Nowhere**, kept but hidden (Manage → Collections → Show on).
 - Fixed: the "paste a link" box (YouTube, Spotify, BoardGameGeek) was too narrow to see the link. The YouTube search box now says "Search YouTube…".
 
 ## 0.5.0 (Nov 2026)

@@ -6,42 +6,59 @@ import CopyLink from '../../components/CopyLink.astro';
 import MediaFilters from '../../components/MediaFilters.astro';
 import '../../styles/filters.css';
 import { getItems, getShelves, getArrangements } from '../../lib/items.js';
+import { getLayouts } from '../../../server/settings.js';
+import ShelfEditor from '../../components/ShelfEditor.astro';
 import { TYPES, TYPE_KEYS, STATUS_LABEL } from '../../lib/types.js';
-import { sortShelf, inShelf, showsOnType } from '../../lib/sorting.js';
+import { sortShelf, inShelf, showsOnType, isAutoShelf, STARTER_SHELVES, findStarter } from '../../lib/sorting.js';
 
 const { type } = Astro.params;
 if (!TYPE_KEYS.includes(type) || !(await enabledTypes(Astro.locals.runtime.env)).includes(type)) return new Response(null, { status: 404, statusText: 'Not found' });
 const env = Astro.locals.runtime.env;
 const t = TYPES[type];
-const [items, shelves, arrangements] = await Promise.all([getItems(env), getShelves(env), getArrangements(env)]);
+const [items, shelves, arrangements, layouts] = await Promise.all([getItems(env), getShelves(env), getArrangements(env), getLayouts(env)]);
+const layout = layouts[type] || { order: [], hidden: [] };
 const all = items.filter((e) => e.data.type === type);
+// Collections shown on media pages. One with nothing of this type is drawn hidden, so "Edit shelves" can still move it.
 const typeCollections = shelves
   .filter(showsOnType)
-  .map((c) => ({ c, items: sortShelf(all.filter((e) => inShelf(e.data, c)), c) }))
-  .filter((x) => x.items.length);
-const groups = ['in-progress', 'finished', 'want', 'abandoned']
+  .map((c) => ({ id: `c:${c.slug}`, c, items: sortShelf(all.filter((e) => inShelf(e.data, c)), c) }));
+const statuses = ['in-progress', 'finished', 'want', 'abandoned']
   .map((status) => {
     const key = `${type}:${status}`;
     const list = all.filter((e) => e.data.status === status);
     // Arranged with the pencil? Use that order (new items first); otherwise newest first.
     const items = arrangements[key] ? sortShelf(list, { sort: 'custom', order: arrangements[key] }) : list;
-    return { status, key, label: STATUS_LABEL(type, status), items };
+    return { id: `s:${status}`, status, key, label: STATUS_LABEL(type, status), items };
   })
   .filter((g) => g.items.length);
+const groups = statuses.filter((g) => !(layout.hidden || []).includes(g.status));
+// This page's own order (set with "Edit shelves"); anything not in it yet keeps the usual spot: collections, then statuses.
+const pos = new Map((layout.order || []).map((id, i) => [id, i]));
+const rank = (id, fallback) => (pos.has(id) ? pos.get(id) : 1000 + fallback);
+const ordered = [...typeCollections.map((x, i) => ({ ...x, kind: 'c', r: rank(x.id, i) })), ...groups.map((g, i) => ({ ...g, kind: 's', r: rank(g.id, 100 + i) }))]
+  .sort((a, b) => a.r - b.r);
+const hasShelves = ordered.some((x) => x.items.length);
+const addable = [
+  ...statuses.filter((g) => (layout.hidden || []).includes(g.status)).map((g) => ({ id: g.id, name: g.label, note: `${g.items.length} ${g.items.length === 1 ? t.label.toLowerCase() : t.plural.toLowerCase()}` })),
+  ...shelves.filter((c) => !showsOnType(c)).map((c) => ({ id: `c:${c.slug}`, name: c.name, note: isAutoShelf(c) ? 'Fills itself' : 'Your collection' })),
+  ...STARTER_SHELVES.filter((st) => !findStarter(shelves, st)).map((st) => ({ id: `starter:${st.key}`, name: st.label, note: st.hint })),
+];
 ---
 <Base title={t.plural}>
   <section class="page-head">
+    <ShelfEditor page={type} addable={addable} />
     <p class="eyebrow">{all.length} {all.length === 1 ? t.label : t.plural}</p>
     <h1>{t.plural}<CopyLink /></h1>
   </section>
   {all.length > 0 && <MediaFilters items={all} type={type} />}
   <div class="bookcase">
-    {groups.length === 0 && <Shelf items={[]} empty={`No ${t.plural.toLowerCase()} yet.`} />}
-    {typeCollections.map(({ c, items }) => (
-      <Shelf title={c.name} description={c.description} items={items} href={`/shelf/${c.slug}/`} seeAll scroll collection={c.slug}
-        height={type === 'music' ? 160 : 180} filterable />
-    ))}
+    {!hasShelves && <Shelf items={[]} empty={all.length ? 'No shelves on this page.' : `No ${t.plural.toLowerCase()} yet.`} />}
     {/* Status shelves work like collections: one scrolling row, with SEE ALL once there are more than 10. */}
-    {groups.map((g) => <Shelf title={g.label} items={g.items} href={`/type/${type}/${g.status}/`} seeAll scroll arrangeKey={g.key} height={type === 'music' ? 160 : 180} filterable />)}
+    {ordered.map((x) => x.kind === 'c' ? (
+      <Shelf title={x.c.name} description={x.c.description} items={x.items} href={`/shelf/${x.c.slug}/`} seeAll scroll collection={x.c.slug}
+        height={type === 'music' ? 160 : 180} filterable shelfId={x.id} editOnly={x.items.length === 0} kind={isAutoShelf(x.c) ? 'auto' : 'manual'} empty={`No ${t.plural.toLowerCase()} on this shelf yet.`} />
+    ) : (
+      <Shelf title={x.label} items={x.items} href={`/type/${type}/${x.status}/`} seeAll scroll arrangeKey={x.key} height={type === 'music' ? 160 : 180} filterable shelfId={x.id} kind="status" />
+    ))}
   </div>
 </Base>

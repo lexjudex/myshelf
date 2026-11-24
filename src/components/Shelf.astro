@@ -4,8 +4,10 @@ import { filterData } from '../lib/filters.js';
 import { isVinyl } from '../lib/types.js';
 import '../styles/shelf3d.css';
 import '../styles/arrange.css';
-interface Props { items: any[]; title?: string; href?: string; description?: string; scroll?: boolean; limit?: number; height?: number; empty?: string; collection?: string; arrangeKey?: string; filterable?: boolean; seeAll?: boolean }
-const { items, title, href, description, scroll = false, limit, height = 180, empty = 'Nothing here yet.', collection, arrangeKey, filterable = false, seeAll = false } = Astro.props;
+// shelfId ('c:<collection>' or 's:<status>'): lets "Edit shelves" on the page move or remove this shelf.
+// editOnly: drawn hidden, shown only while editing (an empty collection on a media page).
+interface Props { items: any[]; title?: string; href?: string; description?: string; scroll?: boolean; limit?: number; height?: number; empty?: string; collection?: string; arrangeKey?: string; filterable?: boolean; seeAll?: boolean; shelfId?: string; editOnly?: boolean; kind?: string }
+const { items, title, href, description, scroll = false, limit, height = 180, empty = 'Nothing here yet.', collection, arrangeKey, filterable = false, seeAll = false, shelfId, editOnly = false, kind } = Astro.props;
 const editable = Boolean(collection || arrangeKey);
 // SEE ALL only appears once a collection has more than 10 items.
 const showSeeAll = seeAll && href && items.length > 10;
@@ -21,7 +23,7 @@ const rowHeight = Math.round(height * Math.max(1, ...shown.map((e) => scaleOf(e.
 const others = shown.filter((e) => e.data.type !== 'boardgame');
 const rowHeightNoBoxes = others.length ? Math.round(height * Math.max(1, ...others.map((e) => scaleOf(e.data)))) : 0;
 ---
-<section class="shelf-section">
+<section class:list={['shelf-section', { 'shelf-edit-only': editOnly }]} data-shelf-id={shelfId} data-shelf-title={shelfId ? title : undefined} data-shelf-kind={kind} hidden={editOnly}>
   {title && (
     <div class="shelf-head">
       <h2>{href ? <a href={href}>{title}</a> : title}</h2>

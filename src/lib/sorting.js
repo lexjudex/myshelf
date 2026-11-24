@@ -109,7 +109,7 @@ export function inShelf(item, shelf, now = Date.now()) {
   return now - new Date(d).getTime() <= Number(shelf.within) * 86400000;
 }
 
-/** Where a collection appears: 'shelves' (home page, default), 'type' (media pages) or 'both'. */
-export const SHOW_OPTIONS = { shelves: 'Shelves page', type: 'Media pages', both: 'Both' };
+/** Where a collection appears: 'shelves' (home page, default), 'type' (media pages), 'both', or 'none' (kept, not shown). */
+export const SHOW_OPTIONS = { shelves: 'Shelves page', type: 'Media pages', both: 'Both', none: 'Nowhere (hidden)' };
 export const showsOnHome = (c) => !c.show || c.show === 'shelves' || c.show === 'both';
 export const showsOnType = (c) => c.show === 'type' || c.show === 'both';

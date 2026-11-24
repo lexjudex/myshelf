@@ -8,7 +8,8 @@ import { getSite } from '../../server/site.js';
 import { getDecor } from '../../server/decor.js';
 import { decorStyle, decorClasses, decorInner, decorMaxStyle } from '../lib/decor.js';
 import { getItems, getShelves } from '../lib/items.js';
-import { sortShelf, inShelf, showsOnHome } from '../lib/sorting.js';
+import { sortShelf, inShelf, showsOnHome, isAutoShelf, STARTER_SHELVES, findStarter } from '../lib/sorting.js';
+import ShelfEditor from '../components/ShelfEditor.astro';
 import { TYPES, TYPE_KEYS } from '../lib/types.js';
 
 const env = Astro.locals.runtime.env;
@@ -23,10 +24,16 @@ const [items, shelves, site, decor] = decorPreview
 // (items are already sorted newest first).
 const hasNotes = (e) => e.body && e.body.trim();
 const latestThought = items.find((e) => e.data.featured === true && hasNotes(e)) || items.find(hasNotes);
+// "Edit shelves" (signed in): shelves that could be put on this page.
+const addable = decorPreview ? [] : [
+  ...shelves.filter((s) => !showsOnHome(s)).map((s) => ({ id: `c:${s.slug}`, name: s.name, note: isAutoShelf(s) ? 'Fills itself' : 'Your collection' })),
+  ...STARTER_SHELVES.filter((st) => !findStarter(shelves, st)).map((st) => ({ id: `starter:${st.key}`, name: st.label, note: st.hint })),
+];
 ---
 <Base noindex={decorPreview}>
   {decorPreview && <script is:inline>document.documentElement.classList.add('decor-preview');</script>}
   <section class="hero">
+    {!decorPreview && <ShelfEditor page="home" addable={addable} />}
     <h1>{site.title}{site.owner && <span class="hero-owner"><span class="sep">|</span>{site.owner}</span>}<CopyLink label="Copy link to this shelf" /></h1>
     <p>{site.tagline}</p>
   </section>
@@ -42,7 +49,7 @@ const latestThought = items.find((e) => e.data.featured === true && hasNotes(e))
   <div class="bookcase scroll-motion">
     {shelves.filter(showsOnHome).map((s) => {
       const list = sortShelf(items.filter((e) => inShelf(e.data, s)), s);
-      return <Shelf title={s.name} description={s.description} items={list} href={`/shelf/${s.slug}/`} seeAll scroll limit={24} empty="No items on this shelf yet." collection={s.slug} />;
+      return <Shelf title={s.name} description={s.description} items={list} href={`/shelf/${s.slug}/`} seeAll scroll limit={24} empty="No items on this shelf yet." collection={s.slug} shelfId={`c:${s.slug}`} kind={isAutoShelf(s) ? 'auto' : 'manual'} />;
     })}
   </div>
 

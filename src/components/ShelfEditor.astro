@@ -1,0 +1,17 @@
+---
+// "Edit shelves": rearrange, add and remove whole shelves right on the page (Shelves page and media pages).
+// Only shown to you, in a browser signed in to Manage. See src/scripts/page-shelves.js.
+// addable: shelves that could be put on this page: [{ id: 'c:<slug>' | 's:<status>' | 'starter:<key>', name, note }]
+import '../styles/page-shelves.css';
+interface Props { page: string; addable?: { id: string; name: string; note?: string }[] }
+const { page, addable = [] } = Astro.props;
+---
+<div class="pshelf-tools" data-shelves-page={page} data-addable={JSON.stringify(addable)} hidden>
+  <button type="button" class="pshelf-start">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/><path d="M18 15v6M15 18h6"/></svg>
+    Edit shelves
+  </button>
+</div>
+<script>
+  import '../scripts/page-shelves.js';
+</script>

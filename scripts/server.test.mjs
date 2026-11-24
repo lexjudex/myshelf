@@ -639,3 +639,18 @@ test('YouTube: links work without a key; a Books key without YouTube enabled fal
     globalThis.fetch = real;
   }
 });
+
+test('page layouts: shelf order and hidden status shelves per media page; collections can be shown nowhere', async () => {
+  const { saveLayout, getLayouts, cleanLayout, cleanCollections } = await import('../server/settings.js');
+  const { showsOnHome, showsOnType } = await import('../src/lib/sorting.js');
+  const env = fakeEnv();
+  const saved = await saveLayout(env, 'book', { order: ['c:favorites', 's:finished', 's:bogus', 'x:1', 'c:favorites'], hidden: ['abandoned', 'nope'] });
+  assert.deepEqual(saved, { order: ['c:favorites', 's:finished'], hidden: ['abandoned'] });
+  assert.deepEqual((await getLayouts(env)).book, saved);
+  await assert.rejects(saveLayout(env, 'home', { order: [] }), /Which page/);
+  assert.deepEqual(cleanLayout({}), { order: [], hidden: [] });
+  const [c] = cleanCollections([{ name: 'Old', show: 'none' }]);
+  assert.equal(c.show, 'none');
+  assert.equal(showsOnHome(c), false);
+  assert.equal(showsOnType(c), false);
+});

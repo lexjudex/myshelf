@@ -4,7 +4,7 @@
 // from the old site's address, a few at a time.
 import { HttpError } from './util.js';
 import { listItems, putItems, setSetting, getItemByUid } from './db.js';
-import { getCollections, getArrangements, cleanCollections } from './settings.js';
+import { getCollections, getArrangements, cleanCollections, getLayouts, cleanLayout } from './settings.js';
 import { getSite, saveSite } from './site.js';
 import { getDecor, cleanDecor } from './decor.js';
 import { normalizeItem } from './markdown.js';
@@ -12,8 +12,8 @@ import { assertSlug } from './paths.js';
 import { storedCoverName, IMG_PREFIX, EXT, MIME, aspectOf } from './covers.js';
 
 export async function exportBackup(env, origin) {
-  const [items, collections, arrangements, site, decor] = await Promise.all([
-    listItems(env), getCollections(env), getArrangements(env), getSite(env), getDecor(env),
+  const [items, collections, arrangements, site, decor, layouts] = await Promise.all([
+    listItems(env), getCollections(env), getArrangements(env), getSite(env), getDecor(env), getLayouts(env),
   ]);
   return {
     format: 'myshelf-backup',
@@ -24,6 +24,7 @@ export async function exportBackup(env, origin) {
     items: items.sort((a, b) => a.slug.localeCompare(b.slug)),
     collections,
     arrangements,
+    layouts,
     decor,
   };
 }
@@ -45,6 +46,9 @@ export async function restoreBackup(env, data) {
   for (let i = 0; i < rows.length; i += 50) await putItems(env, rows.slice(i, i + 50));
   if (Array.isArray(data.collections)) await setSetting(env, 'collections', cleanCollections(data.collections));
   if (data.arrangements && typeof data.arrangements === 'object') await setSetting(env, 'arrangements', data.arrangements);
+  if (data.layouts && typeof data.layouts === 'object') {
+    await setSetting(env, 'layouts', Object.fromEntries(Object.entries(data.layouts).filter(([k]) => /^[a-z]+$/.test(k)).map(([k, v]) => [k, cleanLayout(v)])));
+  }
   if (data.site && typeof data.site === 'object') await saveSite(env, data.site);
   // Decorations: the list now, the images with the covers (restoreCovers).
   if (Array.isArray(data.decor)) await setSetting(env, 'decor', cleanDecor(data.decor));

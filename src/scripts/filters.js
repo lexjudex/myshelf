@@ -100,6 +100,8 @@ function init() {
     // Shelves: update counts, hide empty ones, and tell the 3D shelf which items are visible.
     for (const section of document.querySelectorAll('.bookcase .shelf-section')) {
       const shelf = section.querySelector('.shelf');
+      // Shelves with nothing on them to begin with (a "No shelves" note, an empty one shown only while editing) are left alone.
+      if (!shelf || !shelf.querySelector('.shelf-slot')) continue;
       const visible = shelf.querySelectorAll('.shelf-slot:not([hidden])').length;
       const count = section.querySelector('.count-n') || section.querySelector('.count');
       if (count) count.textContent = visible;
