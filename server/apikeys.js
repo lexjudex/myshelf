@@ -13,6 +13,10 @@ import { getSetting, setSetting, hasDb } from './db.js';
 
 // One group per service; `types` are the media it serves (so turned-off media can say so).
 export const KEY_GROUPS = [
+  // First: lets Settings → Updates install new versions with one click (setup step 4 in the README).
+  { id: 'github', label: 'Updates from GitHub (recommended)', types: [], fields: [
+    { name: 'GITHUB_TOKEN', label: 'GitHub token' },
+  ] },
   { id: 'tmdb', label: 'Movies & TV (TMDB)', types: ['movie', 'tv'], fields: [
     { name: 'TMDB_TOKEN', label: 'API Read Access Token' },
   ] },
@@ -32,9 +36,6 @@ export const KEY_GROUPS = [
   ] },
   { id: 'youtube', label: 'YouTube search (optional)', types: ['video'], fields: [
     { name: 'YOUTUBE_API_KEY', label: 'API key (only if it’s not your Google Books key)' },
-  ] },
-  { id: 'github', label: 'Updates from GitHub (optional)', types: [], fields: [
-    { name: 'GITHUB_TOKEN', label: 'GitHub token' },
   ] },
   { id: 'contact', label: 'Contact email (optional)', types: [], fields: [
     { name: 'CONTACT_EMAIL', label: 'Email', plain: true },

@@ -2,6 +2,11 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.7.2 (Nov 2026)
+
+- **Simpler setup guide.** The README is now a numbered walkthrough with direct links to every page you need: forking, Cloudflare's import and Worker settings, GitHub's token page, and each API key's sign-up page (TMDB, Twitch, BoardGameGeek, Spotify, Google). Setting your admin password and making a GitHub token are now main steps instead of extras. The developer details are tucked away at the bottom.
+- **GitHub token first in Settings → API keys**, marked *recommended*, since it's what lets **Update now** work.
+
 ## 0.7.1 (Nov 2026)
 
 - **The Recently Finished ✕ moved into the shelf's edit screen.** It's no longer on the covers. Open the shelf's ✎ (Arrange), press the red ✕ on anything you want off it (↺ keeps it), then **Save changes**. Its finished date moves back past the shelf's time window, as before.
