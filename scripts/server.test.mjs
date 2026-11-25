@@ -778,3 +778,29 @@ test('local dates: the browser’s day, not UTC’s', async () => {
     if (prev === undefined) delete process.env.TZ; else process.env.TZ = prev;
   }
 });
+
+test('update check: compares versions from the original project, cached', async () => {
+  const { compareVersions, latestVersion, _resetLatest } = await import('../server/latest.js');
+  const { VERSION } = await import('../server/version.js');
+  assert.equal(compareVersions('0.7.10', '0.7.9'), 1);
+  assert.equal(compareVersions('0.8', '0.8.0'), 0);
+  assert.equal(compareVersions('0.6.9', '0.7.0'), -1);
+
+  _resetLatest();
+  const env = fakeEnv();
+  let calls = 0;
+  const newer = async (url) => { calls++; assert.match(url, /raw\.githubusercontent\.com\/lexjudex\/myshelf\/main\/package\.json$/); return new Response(JSON.stringify({ version: '99.0.0' })); };
+  assert.deepEqual(await latestVersion(env, { fetcher: newer }), { current: VERSION, latest: '99.0.0', behind: true });
+  await latestVersion(env, { fetcher: newer });
+  assert.equal(calls, 1); // cached
+  _resetLatest(); // a new isolate still has it from D1
+  await latestVersion(env, { fetcher: newer });
+  assert.equal(calls, 1);
+
+  _resetLatest();
+  const same = async () => new Response(JSON.stringify({ version: VERSION }));
+  assert.equal((await latestVersion(fakeEnv(), { fetcher: same })).behind, false);
+  _resetLatest();
+  const down = async () => new Response('nope', { status: 500 });
+  assert.deepEqual(await latestVersion(fakeEnv(), { fetcher: down }), { current: VERSION, latest: '', behind: false });
+});

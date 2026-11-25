@@ -72,6 +72,19 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 20px 60px; }
 }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-family: var(--serif); font-weight: 800; font-size: 1.35rem; }
 .brand-mark { color: var(--accent); font-size: 1.5rem; }
+.brand-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; min-width: 0; }
+.brand-owner { margin-left: -4px; font-weight: 500; color: var(--cream-soft); letter-spacing: -0.01em; }
+.brand-owner .sep { color: var(--accent); margin: 0 0.3em; font-weight: 400; }
+/* "Update available": a small quiet pill next to your name, only for you */
+.update-pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px;
+  font-family: var(--sans, inherit); font-size: 0.74rem; font-weight: 600; text-decoration: none; white-space: nowrap;
+  color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+.update-pill::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.update-pill:hover { background: color-mix(in srgb, var(--accent) 20%, transparent); }
+.update-pill[hidden] { display: none; }
 .site-nav { display: flex; flex-wrap: wrap; gap: 8px; }
 /* outlined pills (same style as the old type bubbles under the tagline) */
 .site-nav a {
@@ -359,8 +372,6 @@ a.expansion:hover .expansion-title { color: var(--accent-ink); text-decoration: 
 .copy-link.is-copied .copy-link-tip { opacity: 1; }
 
 /* "MyShelf | Lex Judge" */
-.hero-owner { font-weight: 500; color: var(--cream-soft); letter-spacing: -0.01em; }
-.hero-owner .sep { color: var(--accent); margin: 0 0.25em; font-weight: 400; }
 
 /* Journal thumbnails keep their own size instead of stretching across the card (was broken on phones). */
 .journal-entry > .cover { justify-self: start; align-self: start; width: max-content; }

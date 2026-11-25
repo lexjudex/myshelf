@@ -65,6 +65,8 @@ export async function saveSite(env, input = {}) {
   }
   const site = {
     title: clean(input.title, 80) || defaults.title,
+    // The big heading on the Shelves page (your site's name and your name sit in the top bar).
+    heading: clean(input.heading, 80) || defaults.heading,
     tagline: clean(input.tagline, 200),
     owner: clean(input.owner, 80),
     // The address friends use to reach you. Leave blank to use whatever address you open the site on.

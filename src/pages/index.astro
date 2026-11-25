@@ -34,7 +34,7 @@ const addable = decorPreview ? [] : [
   {decorPreview && <script is:inline>document.documentElement.classList.add('decor-preview');</script>}
   <section class="hero">
     {!decorPreview && <ShelfEditor page="home" addable={addable} />}
-    <h1>{site.title}{site.owner && <span class="hero-owner"><span class="sep">|</span>{site.owner}</span>}<CopyLink label="Copy link to this shelf" /></h1>
+    <h1>{site.heading}<CopyLink label="Copy link to this shelf" /></h1>
     <p>{site.tagline}</p>
   </section>
 

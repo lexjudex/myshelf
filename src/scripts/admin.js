@@ -1221,6 +1221,10 @@ $('#export-btn').addEventListener('click', async () => {
 // /admin/#add=collection-slug[&type=boardgame] — from "＋ Add more" in a collection's arrange dialog.
 // /admin/#search=<type>&q=<title> — "Add it" on a recommendation in the inbox on the public Friends page.
 function handleHash() {
+  if (location.hash === '#updates') { // the "Update available" pill in the top bar
+    showTab('settings');
+    return requestAnimationFrame(() => $('#updates-heading')?.scrollIntoView({ block: 'start' }));
+  }
   if (location.hash === '#api-keys') {
     showTab('settings');
     return requestAnimationFrame(() => $('#api-keys')?.scrollIntoView({ block: 'start' }));

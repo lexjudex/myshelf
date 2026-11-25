@@ -114,7 +114,7 @@ Open Library and MusicBrainz ask apps to include an email so they can reach you 
 
 ## Keeping up to date
 
-When a new version is out, open **Manage → Settings → Updates** and click **Update now**. Cloudflare redeploys your site in a minute or two, and any database changes apply themselves. This needs your GitHub token (Step 4) and Source code link (Step 5).
+When a new version is out, a small **Update available** pill appears next to your name at the top of your site (only you see it). Click it, or open **Manage → Settings → Updates**, and click **Update now**. Cloudflare redeploys your site in a minute or two, and any database changes apply themselves. This needs your GitHub token (Step 4) and Source code link (Step 5).
 
 You can also update on GitHub: open `github.com/YOUR-USERNAME/myshelf` and click **Sync fork → Update branch**.
 
@@ -141,7 +141,7 @@ Sign in at `/admin/` (the **Manage** link in your site's footer).
 - **Library:** everything you've added. Edit, delete, or recommend to a friend.
 - **Collections:** your shelves. Some fill themselves (like *Currently* or *Recently Finished*), and others you fill by hand. Drag them into order.
 - **Friends:** your address to share, friend requests, and your inbox.
-- **Settings:** your site's name, which media it shows, light or dark look and accent colour, shelf decorations (up to three images on top of the bookcase), API keys, updates, and backups.
+- **Settings:** your site's name, the Shelves page heading, which media it shows, light or dark look and accent colour, shelf decorations (up to three images on top of the bookcase), API keys, updates, and backups.
 
 On your site itself, when you're signed in:
 

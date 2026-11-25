@@ -2,6 +2,12 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.8.0 (Nov 2026)
+
+- **Your name in the top bar.** The home link at the top now reads *MyShelf | Your name*. The big heading on the Shelves page says **Featured Shelves** instead of repeating it. Change the heading in **Manage → Settings → Shelves page heading**.
+- **"Update available."** When a newer MyShelf is out, a small pill appears next to your name in the top bar. Only you see it, in a browser where you're signed in to Manage. It opens **Settings → Updates**. The check needs no GitHub token: it reads the version number from the original project on GitHub every few hours, so it works for every copy.
+- Manage now shows your site's name in the top bar too (it used to say MyShelf there).
+
 ## 0.7.2 (Nov 2026)
 
 - **Simpler setup guide.** The README is now a numbered walkthrough with direct links to every page you need: forking, Cloudflare's import and Worker settings, GitHub's token page, and each API key's sign-up page (TMDB, Twitch, BoardGameGeek, Spotify, Google). Setting your admin password and making a GitHub token are now main steps instead of extras. The developer details are tucked away at the bottom.

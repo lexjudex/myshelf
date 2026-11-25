@@ -253,7 +253,7 @@ const siteForm = $('#site-form');
 async function loadSite() {
   try {
     const { site } = await api('site');
-    for (const k of ['title', 'tagline', 'owner', 'url', 'source']) siteForm[k].value = site[k] || '';
+    for (const k of ['title', 'heading', 'tagline', 'owner', 'url', 'source']) siteForm[k].value = site[k] || '';
     $$('input[name="types"]', siteForm).forEach((cb) => (cb.checked = site.types.includes(cb.value)));
     applyTypes(site.types);
     fillLook(site.theme);
@@ -362,6 +362,7 @@ document.addEventListener('click', async (e) => {
   b.textContent = 'Updating…';
   try {
     const r = await api('updates', { method: 'POST', body: {} });
+    try { sessionStorage.removeItem('myshelf_latest'); } catch {} // the top-bar pill checks again next time
     $('#updates').innerHTML = r.updated
       ? '<p><strong>Updated.</strong> Cloudflare is rebuilding your site now, and the new version goes live in a couple of minutes. Reload the page after that.</p>'
       : `<p>${esc(r.message)}</p>`;
@@ -377,7 +378,7 @@ document.addEventListener('myshelf:ready', loadSite);
 document.addEventListener('myshelf:tab', (e) => { if (e.detail === 'settings') loadSite(); });
 siteForm.addEventListener('submit', async (e) => {
   e.preventDefault();
-  const body = Object.fromEntries(['title', 'tagline', 'owner', 'url', 'source'].map((k) => [k, siteForm[k].value]));
+  const body = Object.fromEntries(['title', 'heading', 'tagline', 'owner', 'url', 'source'].map((k) => [k, siteForm[k].value]));
   body.types = $$('input[name="types"]:checked', siteForm).map((cb) => cb.value);
   body.theme = readLook();
   if (!body.types.length) { $('#site-msg').textContent = 'Keep at least one kind of media turned on.'; return; }

@@ -78,10 +78,14 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
   </head>
   <body>
     <header class="site-header">
-      <a href="/" class="brand">
-        <span class="brand-mark" aria-hidden="true">▤</span>
-        <span>{site.title}</span>
-      </a>
+      <div class="brand-row">
+        <a href="/" class="brand">
+          <span class="brand-mark" aria-hidden="true">▤</span>
+          <span class="brand-title">{site.title}</span>{site.owner && <span class="brand-owner"><span class="sep" aria-hidden="true">|</span>{site.owner}</span>}
+        </a>
+        {/* Only you see this (signed in on this browser), when a newer MyShelf is out. See the script below. */}
+        <a href="/admin/#updates" class="update-pill" id="update-pill" hidden>Update available</a>
+      </div>
       <nav class="site-nav" aria-label="Main">
         {navItems.map((n) => (
           <a href={n.href} class:list={{ active: n.active }} aria-current={n.active ? 'page' : undefined}>
@@ -91,6 +95,29 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
         ))}
       </nav>
     </header>
+    <script is:inline>
+      // Pages built ahead of time (Manage, 404) don't know your site's name: reuse the one from the last live page.
+      try {
+        var b = document.querySelector('.brand'), ls2 = window.localStorage;
+        if (document.documentElement.hasAttribute('data-static')) { var saved = ls2.getItem('myshelf_brand'); if (saved && b) b.innerHTML = saved; }
+        else if (b) ls2.setItem('myshelf_brand', b.innerHTML);
+      } catch (e) {}
+    </script>
+    <script>
+      // "Update available" next to your name: only in a browser signed in to Manage, checked at most once an hour.
+      const pill = document.getElementById('update-pill');
+      const token = (() => { try { return localStorage.getItem('myshelf_token') || ''; } catch { return ''; } })();
+      const show = (r) => { if (pill && r?.behind) { pill.hidden = false; pill.title = `MyShelf ${r.latest} is out (you have ${r.current})`; } };
+      if (pill && token) {
+        let cached = null;
+        try { cached = JSON.parse(sessionStorage.getItem('myshelf_latest') || 'null'); } catch {}
+        if (cached && Date.now() - cached.at < 3600_000) show(cached);
+        else fetch('/api/latest', { headers: { authorization: `Bearer ${token}` } })
+          .then((r) => (r.ok ? r.json() : null))
+          .then((r) => { if (!r) return; try { sessionStorage.setItem('myshelf_latest', JSON.stringify({ ...r, at: Date.now() })); } catch {} show(r); })
+          .catch(() => {});
+      }
+    </script>
     <main>
       <slot />
     </main>
