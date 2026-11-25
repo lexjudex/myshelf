@@ -944,4 +944,7 @@ test('page cache: keeps public pages, serves them, clears on changes', async () 
   assert.equal(hit.headers.get('x-myshelf-cache'), 'hit');
   await clearPages(env);
   assert.equal(await cachedPage(env, url), null);
+  // A page kept by an older build (whose /_astro/ files are gone after a deploy) is never served.
+  await env.DB.prepare('INSERT INTO page_cache (path, html, created_at) VALUES (?1, ?2, ?3)').bind('old-build|/', '<old>', new Date().toISOString()).run();
+  assert.equal(await cachedPage(env, url), null);
 });

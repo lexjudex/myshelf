@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.9.4 (Nov 2026)
+
+- **Fixed: swiping and other shelf features stopped working after an update.** Pages kept by 0.9.2's page cache could outlive an update and point to script files the update had replaced, so the shelves' scripts (swiping, turning covers, editing shelves) didn't load. Kept pages now belong to the version that made them, and an update starts fresh.
+
 ## 0.9.3 (Nov 2026)
 
 - **Link previews (share cards).** Sharing a link to your MyShelf in iMessage, Slack, Discord, Facebook or X now shows a proper preview. Your pages show a card drawn from your site's name, your name, your tagline, your colours and a shelf of your latest covers. Manage draws it in the background and redraws it whenever any of those change. An item's page shows its cover, title and description. Until Manage has drawn your card, a generic MyShelf card is used. Page titles now include your name too (*MyShelf | Your name*).

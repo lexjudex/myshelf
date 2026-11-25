@@ -4,9 +4,15 @@
 // the free Workers plan allows a request (10 ms), so busy moments ended in "Error 1102: Worker exceeded resource
 // limits". Public pages look the same for every visitor (anything only you see is added by the browser after you
 // sign in), so the finished HTML is kept and served as is. Any change to the site (every POST, PUT or DELETE,
-// including friends' messages arriving) clears it, and kept pages are rebuilt after a few hours anyway, so
+// including friends' messages arriving) clears it, a new deploy starts fresh, and kept pages are rebuilt after a
+// few hours anyway, so
 // shelves like "Recently Finished" that depend on today's date stay right.
 import { ensureSchema, hasDb } from './db.js';
+import { VERSION, COMMIT, BUILT } from './version.js';
+
+// Kept pages name this build's script and style files (/_astro/…, which change with every deploy), so a page is
+// only reused by the build that made it. Pages kept by an older build are skipped and cleared out.
+const BUILD = [VERSION, COMMIT, BUILT].filter(Boolean).join(':') || 'dev';
 
 const MAX_AGE = 6 * 3600_000;
 const MAX_HTML = 1_500_000; // D1 rows top out at 2 MB
@@ -17,7 +23,8 @@ export function isCacheable(request, url) {
   return request.method === 'GET' && !url.search && !request.headers.has('authorization') && CACHEABLE.test(url.pathname);
 }
 
-const key = (url) => url.pathname.replace(/\/?$/, '/');
+const key = (url) => `${BUILD}|${url.pathname.replace(/\/?$/, '/')}`;
+let swept = false;
 
 /** The kept page for this URL, or null. */
 export async function cachedPage(env, url) {
@@ -41,6 +48,10 @@ export async function keepPage(env, url, response) {
     const html = await response.text();
     if (html.length > MAX_HTML) return;
     const DB = await ensureSchema(env);
+    if (!swept) {
+      swept = true;
+      await DB.prepare('DELETE FROM page_cache WHERE substr(path, 1, ?1) <> ?2').bind(BUILD.length + 1, `${BUILD}|`).run();
+    }
     await DB.prepare(
       'INSERT INTO page_cache (path, html, created_at) VALUES (?1, ?2, ?3) ON CONFLICT (path) DO UPDATE SET html = ?2, created_at = ?3',
     ).bind(key(url), html, new Date().toISOString()).run();
