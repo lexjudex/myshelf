@@ -4,6 +4,7 @@ The version number lives in `package.json` and shows in **Manage → Settings �
 
 ## 0.9.5 (Nov 2026)
 
+- **YouTube pages on phones.** A video's page kept the player and the text side by side on phones, squeezing the title and your notes into a narrow column. On phones the player now sits full width above the title, like covers on other pages.
 - **YouTube plaques look right on phones.** The plaque now has a thin brushed-platinum frame, so it stands out on the dark shelves instead of blending in, and the nameplate's title stays readable at phone sizes. Edge-on, it shows the platinum edge with the title.
 - **Shelf decorations: Lock and Undo.** The preview starts **locked**, so nothing moves if you touch or drag it by accident (and on a phone you can scroll past it). Click **Locked** to unlock it and drag, then lock it again. **Undo** (or Ctrl/⌘+Z) steps back through your last changes: moves, sizes, frames and order. Adding a decoration unlocks the preview so you can place it.
 - **Updates come first in Settings.** Which version you're running, and the Update button when a new one is out, are now at the top of Manage → Settings.
