@@ -120,6 +120,16 @@ const MIGRATIONS = [
       `ALTER TABLE friends ADD COLUMN nickname TEXT NOT NULL DEFAULT ''`,
     ],
   },
+  {
+    version: 7, // finished public pages, kept so they don't have to be built on every visit (see server/page-cache.js)
+    sql: [
+      `CREATE TABLE IF NOT EXISTS page_cache (
+        path TEXT PRIMARY KEY,
+        html TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )`,
+    ],
+  },
 ];
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

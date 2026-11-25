@@ -265,6 +265,15 @@ test('Books merge Open Library + Google Books even if one fails', async () => {
   assert.equal(res[0].cover, 'https://covers.openlibrary.org/b/id/123-L.jpg');
 });
 
+test('Book search: both sources down gives a plain-words error naming each', async () => {
+  mockFetch([
+    ['openlibrary.org/search.json', () => new Response('error code: 521', { status: 521 })],
+    ['googleapis.com/books', () => new Response('quota', { status: 429 })],
+  ]);
+  await assert.rejects(() => search('book', 'mycelium', {}), /Open Library is down right now, and Google Books needs a key/);
+  await assert.rejects(() => search('book', 'mycelium', { GOOGLE_BOOKS_KEY: 'k' }), /Google Books is refusing requests/);
+});
+
 // ── GitHub commit flow ──
 
 const astro = (url, env, init) => ({ request: new Request(url, init), url: new URL(url), locals: { runtime: { env } }, params: {} });
@@ -313,19 +322,20 @@ test('saveItem: editing keeps slug, date added and cover; replacing/deleting cle
 
 test('cover copies: stored for the current cover, kept on edits, dropped and cleaned up when the cover changes', async () => {
   const { saveCoverCopy } = await import('../server/cover-copies.js');
-  const saveSpine = (env, b) => saveCoverCopy(env, { kind: 'spine', ...b });
+  const bytes = new TextEncoder().encode('fake-jpeg').buffer;
+  const copy = (env, b) => saveCoverCopy(env, { type: 'image/jpeg', buf: bytes, ...b });
+  const saveSpine = (env, b) => copy(env, { kind: 'spine', ...b });
   const env = fakeEnv();
   mockFetch([['example.com', () => new Response(PNG_1x2, { headers: { 'content-type': 'image/png' } })]]);
   const first = await saveItem(env, { item: { title: 'Dune', type: 'book', year: 1965, status: 'finished', cover: 'https://example.com/a.png' }, body: '' });
-  const jpeg = 'data:image/jpeg;base64,' + Buffer.from('fake-jpeg').toString('base64');
-  await assert.rejects(() => saveSpine(env, { slug: first.slug, cover: '/img/other.png', image: jpeg }), /cover changed/);
-  await assert.rejects(() => saveSpine(env, { slug: first.slug, cover: first.item.cover, image: 'data:image/svg+xml;base64,AAAA' }), /JPEG or WebP/);
-  const { spine } = await saveSpine(env, { slug: first.slug, cover: first.item.cover, image: jpeg });
+  await assert.rejects(() => saveSpine(env, { slug: first.slug, cover: '/img/other.png' }), /cover changed/);
+  await assert.rejects(() => saveSpine(env, { slug: first.slug, cover: first.item.cover, type: 'image/svg+xml' }), /JPEG or WebP/);
+  const { spine } = await saveSpine(env, { slug: first.slug, cover: first.item.cover });
   assert.match(spine, /^\/img\/book-dune-1965-spine-[a-z0-9]+\.jpg$/);
   assert.equal(env.COVERS._store.size, 2);
-  const { shelfCover } = await saveCoverCopy(env, { kind: 'shelf', slug: first.slug, cover: first.item.cover, image: jpeg });
+  const { shelfCover } = await copy(env, { kind: 'shelf', slug: first.slug, cover: first.item.cover });
   assert.match(shelfCover, /^\/img\/book-dune-1965-shelf-[a-z0-9]+\.jpg$/);
-  await assert.rejects(() => saveCoverCopy(env, { kind: 'poster', slug: first.slug, cover: first.item.cover, image: jpeg }), /kind/);
+  await assert.rejects(() => copy(env, { kind: 'poster', slug: first.slug, cover: first.item.cover }), /kind/);
   assert.equal(env.COVERS._store.size, 3);
   // The admin form doesn't send spine back; an edit that keeps the cover keeps the spine.
   const edit = await saveItem(env, { slug: first.slug, item: { ...first.item, rating: 4 }, body: '' });
@@ -339,8 +349,8 @@ test('cover copies: stored for the current cover, kept on edits, dropped and cle
   assert.equal(swapped.item.spine, undefined);
   assert.equal(swapped.item.shelfCover, undefined);
   assert.equal(env.COVERS._store.size, 1, 'old cover and its copies removed');
-  await saveSpine(env, { slug: first.slug, cover: swapped.item.cover, image: jpeg });
-  await saveCoverCopy(env, { kind: 'shelf', slug: first.slug, cover: swapped.item.cover, image: jpeg });
+  await saveSpine(env, { slug: first.slug, cover: swapped.item.cover });
+  await copy(env, { kind: 'shelf', slug: first.slug, cover: swapped.item.cover });
   await deleteItem(env, first.slug);
   assert.equal(env.COVERS._store.size, 0, 'deleting the item removes its copies too');
 });
@@ -867,4 +877,23 @@ test('update check: versions, changelog and announcements from the original proj
   const down = async () => new Response('nope', { status: 500 });
   const d = await latestVersion(fakeEnv(), { fetcher: down });
   assert.deepEqual([d.latest, d.behind], ['', false]);
+});
+
+test('page cache: keeps public pages, serves them, clears on changes', async () => {
+  const { isCacheable, cachedPage, keepPage, clearPages } = await import('../server/page-cache.js');
+  const env = fakeEnv();
+  const get = (p, headers = {}) => [new Request('https://x.dev' + p, { headers }), new URL('https://x.dev' + p)];
+  for (const p of ['/', '/journal/', '/shelf/favorites/', '/type/book/', '/type/book/finished/', '/item/book-dune/']) assert.ok(isCacheable(...get(p)), p);
+  for (const p of ['/admin/', '/api/save', '/img/a.jpg', '/friends/', '/library.json', '/federation/v1/shelf', '/?decor-preview']) assert.ok(!isCacheable(...get(p)), p);
+  assert.ok(!isCacheable(...get('/', { authorization: 'Bearer x' })));
+  const url = new URL('https://x.dev/');
+  assert.equal(await cachedPage(env, url), null);
+  await keepPage(env, url, new Response('<p>404</p>', { status: 404, headers: { 'content-type': 'text/html' } }));
+  assert.equal(await cachedPage(env, url), null, 'errors are not kept');
+  await keepPage(env, url, new Response('<h1>Shelves</h1>', { headers: { 'content-type': 'text/html; charset=utf-8' } }));
+  const hit = await cachedPage(env, url);
+  assert.equal(await hit.text(), '<h1>Shelves</h1>');
+  assert.equal(hit.headers.get('x-myshelf-cache'), 'hit');
+  await clearPages(env);
+  assert.equal(await cachedPage(env, url), null);
 });

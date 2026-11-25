@@ -63,7 +63,18 @@ async function searchGoogleBooks(q, env) {
 async function searchBooks(q, env) {
   const [ol, gb] = await Promise.allSettled([searchOpenLibrary(q, env), searchGoogleBooks(q, env)]);
   const out = [...(ol.status === 'fulfilled' ? ol.value : []), ...(gb.status === 'fulfilled' ? gb.value : [])];
-  if (!out.length && ol.status === 'rejected' && gb.status === 'rejected') throw ol.reason;
+  if (!out.length && ol.status === 'rejected' && gb.status === 'rejected') {
+    // Say what went wrong with each, in plain words: "Open Library is down right now. Google Books: …".
+    const why = (label, err) => {
+      const status = Number(String(err?.message || '').match(/\((\d{3})\)/)?.[1]) || 0;
+      if (status >= 500) return `${label} is down right now`;
+      if (status === 429 || status === 403) return env.GOOGLE_BOOKS_KEY || label !== 'Google Books'
+        ? `${label} is refusing requests right now`
+        : 'Google Books needs a key (free; add it in Manage → Settings → API keys)';
+      return `${label} didn't answer (${err?.message || 'unknown error'})`;
+    };
+    throw new HttpError(502, `Book search isn't working: ${why('Open Library', ol.reason)}, and ${why('Google Books', gb.reason)}. Try again in a bit, or use Add manually.`);
+  }
   return out;
 }
 
@@ -834,6 +845,7 @@ export async function bggFind(env, title, year) {
 export function configured(env) {
   return {
     books: true,
+    googleBooks: Boolean(env.GOOGLE_BOOKS_KEY),
     tmdb: Boolean(env.TMDB_TOKEN),
     spotify: Boolean(env.SPOTIFY_CLIENT_ID && env.SPOTIFY_CLIENT_SECRET),
     igdb: Boolean(env.TWITCH_CLIENT_ID && env.TWITCH_CLIENT_SECRET),

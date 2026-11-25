@@ -1,12 +1,12 @@
 {
   "announcements": [
     {
-      "id": "2026-11-iphone-crash-fix",
-      "message": "Important fix: MyShelf 0.9.1 stops the Shelves page crashing on iPhones. Please update, then open Manage on a computer for a minute or two so it can make small copies of your covers.",
+      "id": "2026-11-cpu-limit-fix",
+      "message": "Important fix: MyShelf 0.9.2 stops iPhone crashes on the Shelves page and \"Error 1102\" pages on bigger libraries. Please update, then open Manage on a computer for a minute or two so it can make small copies of your covers.",
       "link": "https://github.com/lexjudex/myshelf/blob/main/CHANGELOG.md",
       "linkText": "What's new",
       "until": "2027-01-31",
-      "below": "0.9.1"
+      "below": "0.9.2"
     }
   ]
 }
