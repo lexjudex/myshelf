@@ -8,6 +8,7 @@ The version number lives in `package.json` and shows in **Manage → Settings �
 - **Progress bars.** Books (page X of Y), TV shows (episode X of Y) and legacy or campaign board games (X of Y games, chapters, months, scenarios or missions) show a **Progress** box while you're in the middle of them. The total fills in from the page or episode count. Board games ticked **Legacy or campaign game** (BGG's *Legacy Game* mechanic ticks it for you) get campaign progress. The progress shows as a thin bar along the bottom of the cover on your shelves, and as a bar with "Page 212 of 412 · 51%" on the item page.
 - **✕ on Recently Finished.** Signed in, the cover facing out on a Recently Finished shelf (any automatic *Finished* collection with a time window) has a ✕. It moves the finished date to just past the shelf's window (a year and a day ago on the starter shelf), so the item drops off. **Undo** puts the old date back.
 - Fixed: **Refresh from BGG** showed in the editor for things that aren't board games.
+- Fixed: dates filled in for you (Started, Finished, Lent since, Date added, the ✕ above, backup file names) used UTC, so in the evening across the Americas they came out a day late. They now use your own time zone.
 
 ## 0.6.0 (Nov 2026)
 

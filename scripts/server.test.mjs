@@ -763,3 +763,18 @@ test('progress: saved tidy, drawn only for books, TV and legacy games in progres
   assert.ok(isLegacy({ type: 'boardgame', details: { mechanics: ['Legacy Game', 'Cooperative Game'] } }));
   assert.equal(progressOf({ ...game, details: { mechanics: ['Legacy Game'] } }).pct, 42);
 });
+
+test('local dates: the browser’s day, not UTC’s', async () => {
+  const { localDate, localDaysAgo } = await import('../src/lib/dates.js');
+  // 9:30 pm on Nov 24 in New York is already Nov 25 in UTC.
+  const prev = process.env.TZ;
+  process.env.TZ = 'America/New_York';
+  try {
+    const evening = new Date('2026-11-25T02:30:00Z');
+    assert.equal(evening.toISOString().slice(0, 10), '2026-11-25');
+    assert.equal(localDate(evening), '2026-11-24');
+    assert.match(localDaysAgo(366), /^\d{4}-\d{2}-\d{2}$/);
+  } finally {
+    if (prev === undefined) delete process.env.TZ; else process.env.TZ = prev;
+  }
+});

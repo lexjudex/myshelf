@@ -1,6 +1,8 @@
 // ✕ on "Recently Finished" shelves (any automatic Finished collection with a time window), signed in only.
 // It sits on the cover that's facing out. Pressing it moves the item's finished date to just past the shelf's
 // window (a year and a day ago on the starter shelf), so it drops off. Undo puts the old date back.
+import { localDaysAgo as daysAgo } from '../lib/dates.js';
+
 const token = (() => { try { return localStorage.getItem('myshelf_token') || ''; } catch { return ''; } })();
 
 async function api(path, { method = 'GET', body } = {}) {
@@ -15,7 +17,6 @@ async function api(path, { method = 'GET', body } = {}) {
 }
 
 const slugOf = (slot) => (slot.querySelector('.book3d')?.getAttribute('href') || '').replace(/^\/item\//, '').replace(/\/$/, '');
-const daysAgo = (n) => new Date(Date.now() - n * 86400000).toISOString().slice(0, 10);
 
 // ───────── a toast with an Undo button ─────────
 let toastEl, toastTimer;

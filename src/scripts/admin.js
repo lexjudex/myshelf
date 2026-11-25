@@ -5,6 +5,7 @@ import { SORTS, sortShelf, inShelf, AUTO_RULES, SHOW_OPTIONS, WITHIN_OPTIONS, RA
 import { openArrange, updateItem as updateArrangeItem } from './arrange.js';
 import Sortable from 'sortablejs';
 import { isLegacy, progressTotal, progressOf } from '../lib/types.js';
+import { localDate } from '../lib/dates.js';
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const root = $('#admin');
@@ -585,7 +586,7 @@ function syncProgressText() {
 form.status.addEventListener('change', () => {
   syncAutoChecks();
   syncFields();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDate();
   // Moving off Finished clears the finished date; switching back brings it back (or today's date).
   if (form.status.value !== 'finished' && form.dateFinished.value) {
     form.dataset.stashedFinished = form.dateFinished.value;
@@ -638,7 +639,8 @@ form.addEventListener('submit', async (e) => {
     visibility: form.visibility.value,
     owned: form.owned.checked,
     lentTo: form.lentTo.value.trim(),
-    lentSince: form.lentTo.value.trim() ? form.lentSince.value || new Date().toISOString().slice(0, 10) : null,
+    lentSince: form.lentTo.value.trim() ? form.lentSince.value || localDate() : null,
+    ...(slug ? {} : { dateAdded: localDate() }), // your date, not the server's (UTC)
     legacy: form.type.value === 'boardgame' && form.legacy.checked,
     progress: { at: form.progressAt.value, of: form.progressOf.value, unit: form.progressUnit.value },
   };
@@ -1207,7 +1209,7 @@ $('#export-btn').addEventListener('click', async () => {
     const res = await fetch('/api/export', { headers: { authorization: `Bearer ${getToken()}` } });
     if (!res.ok) throw new Error(`Backup failed (${res.status})`);
     const url = URL.createObjectURL(await res.blob());
-    const a = Object.assign(document.createElement('a'), { href: url, download: `myshelf-backup-${new Date().toISOString().slice(0, 10)}.json` });
+    const a = Object.assign(document.createElement('a'), { href: url, download: `myshelf-backup-${localDate()}.json` });
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 5000);
   } catch (err) {
