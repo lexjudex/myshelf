@@ -265,13 +265,13 @@ test('Books merge Open Library + Google Books even if one fails', async () => {
   assert.equal(res[0].cover, 'https://covers.openlibrary.org/b/id/123-L.jpg');
 });
 
-test('Book search: both sources down gives a plain-words error naming each', async () => {
+test('Book search: both sources failing says Open Library is busy (and suggests a Google Books key)', async () => {
   mockFetch([
     ['openlibrary.org/search.json', () => new Response('error code: 521', { status: 521 })],
     ['googleapis.com/books', () => new Response('quota', { status: 429 })],
   ]);
-  await assert.rejects(() => search('book', 'mycelium', {}), /Open Library is down right now, and Google Books needs a key/);
-  await assert.rejects(() => search('book', 'mycelium', { GOOGLE_BOOKS_KEY: 'k' }), /Google Books is refusing requests/);
+  await assert.rejects(() => search('book', 'mycelium', {}), /Open Library is busy, try again in a few moments\. A free Google Books key/);
+  await assert.rejects(() => search('book', 'mycelium', { GOOGLE_BOOKS_KEY: 'k' }), (e) => e.message === 'Open Library is busy, try again in a few moments.');
 });
 
 // ── GitHub commit flow ──
