@@ -2,6 +2,14 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.9.3 (Nov 2026)
+
+- **Link previews (share cards).** Sharing a link to your MyShelf in iMessage, Slack, Discord, Facebook or X now shows a proper preview. Your pages show a card drawn from your site's name, your name, your tagline, your colours and a shelf of your latest covers. Manage draws it in the background and redraws it whenever any of those change. An item's page shows its cover, title and description. Until Manage has drawn your card, a generic MyShelf card is used. Page titles now include your name too (*MyShelf | Your name*).
+- **Open Library links bring their cover.** A pasted link with an edition picked (…`?edition=`…) now uses that edition's cover. If the book has no cover of its own, the cover comes from one of its editions, or failing that from Google Books.
+- **Tidier Collections page.** Each collection is now a card: name and kind of shelf on top, then the description, then *Show on*, *Sort* and *Keep* side by side (stacked on phones). Checkboxes on dark sites no longer look ticked when they aren't.
+- **Library pages.** Manage → Library shows 25 items at a time, with page buttons underneath. Searching or picking a type starts again from page 1.
+- **Branch previews build again.** `wrangler.jsonc` has an (intentionally empty) `previews` block, so Cloudflare's builds for pull requests stop failing. Previews get no database, so they can't touch your real shelf.
+
 ## 0.9.2 (Nov 2026)
 
 - **Fixed: "Error 1102: Worker exceeded resource limits."** Building a page with a big library takes more computing time than Cloudflare's free plan allows each visit, so busy moments failed with Error 1102. Finished pages are now kept and reused, so most visits don't build anything. Every change you make clears them, so pages are never out of date, and they're rebuilt every few hours anyway.

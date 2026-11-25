@@ -23,6 +23,10 @@
   "kv_namespaces": [
     { "binding": "COVERS" }
   ],
+  // Branch builds (pull requests) deploy a Preview with `wrangler preview`, which needs this block. It's empty on
+  // purpose: Previews get no database or cover storage, so a test branch can never touch your real shelf.
+  // (Pages on a Preview say storage isn't connected; that's expected. Production deploys ignore this block.)
+  "previews": {},
   // Keep variables you add in the Cloudflare dashboard when the site redeploys.
   "keep_vars": true,
   "observability": { "enabled": true }

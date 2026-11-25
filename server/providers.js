@@ -64,7 +64,11 @@ async function searchGoogleBooks(q, env) {
 export function openLibraryRefFromUrl(input) {
   const s = String(input || '').trim();
   let m = s.match(/openlibrary\.org\/works\/(OL\d+W)/i);
-  if (m) return { kind: 'work', id: m[1].toUpperCase() };
+  if (m) {
+    // A work page with an edition picked (…?edition=key:/books/OL…M) shows that edition's cover.
+    const ed = decodeURIComponent(s).match(/[?&]edition=(?:key:)?\/?books\/(OL\d+M)/i);
+    return ed ? { kind: 'work', id: m[1].toUpperCase(), edition: ed[1].toUpperCase() } : { kind: 'work', id: m[1].toUpperCase() };
+  }
   m = s.match(/openlibrary\.org\/books\/(OL\d+M)/i);
   if (m) return { kind: 'edition', id: m[1].toUpperCase() };
   m = s.match(/openlibrary\.org\/isbn\/([\dXx-]{10,17})/i);
@@ -83,16 +87,30 @@ async function openLibraryFromUrl(ref, env) {
   if (ref.kind !== 'work') {
     edition = await get(ref.kind === 'isbn' ? `/isbn/${ref.id}` : `/books/${ref.id}`);
     workId = String(edition?.works?.[0]?.key || '').replace('/works/', '');
+  } else if (ref.edition) {
+    edition = await get(`/books/${ref.edition}`).catch(() => null);
   }
   const work = workId ? await get(`/works/${workId}`) : {};
   const authorKeys = (work.authors || []).map((a) => a?.author?.key || a?.key).filter(Boolean).slice(0, 3);
   if (!authorKeys.length) authorKeys.push(...(edition?.authors || []).map((a) => a?.key).filter(Boolean).slice(0, 3));
   const authors = (await Promise.allSettled(authorKeys.map((k) => get(k)))).map((r) => (r.status === 'fulfilled' ? r.value?.name : '')).filter(Boolean);
-  const coverId = [...(edition?.covers || []), ...(work.covers || [])].find((c) => Number(c) > 0);
+  let coverId = [...(edition?.covers || []), ...(work.covers || [])].find((c) => Number(c) > 0);
+  // Many works have no cover of their own; their editions do. Use the first edition that has one.
+  if (!coverId && workId) {
+    const eds = await get(`/works/${workId}/editions`).catch(() => null);
+    coverId = (eds?.entries || []).flatMap((e) => e.covers || []).find((c) => Number(c) > 0);
+  }
   const title = edition?.title || work.title || '';
   const subtitle = edition?.subtitle || work.subtitle || '';
   const desc = [work.description, edition?.description].map((d) => (typeof d === 'string' ? d : d?.value || '')).find(Boolean) || '';
   if (!title) throw new HttpError(404, 'No book found at that Open Library link.');
+  const isbn = edition?.isbn_13?.[0] || edition?.isbn_10?.[0] || undefined;
+  // No cover anywhere on Open Library (its page shows a placeholder): borrow Google Books' cover of the same book.
+  let cover = coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : '';
+  if (!cover) {
+    const q = isbn ? `isbn:${isbn}` : `intitle:${title}${authors[0] ? ` inauthor:${authors[0]}` : ''}`;
+    cover = (await searchGoogleBooks(q, env).catch(() => [])).find((r) => r.cover)?.cover || '';
+  }
   return result({
     type: 'book',
     source: 'openlibrary',
@@ -100,12 +118,12 @@ async function openLibraryFromUrl(ref, env) {
     title: subtitle ? `${title}: ${subtitle}` : title,
     creator: authors.join(', '),
     year: yearOf(work.first_publish_date || edition?.publish_date),
-    cover: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : '',
+    cover,
     description: truncate(desc.replace(/\r/g, '').replace(/\(\[source\][^)]*\)/g, '')),
     genres: (work.subjects || []).slice(0, 4),
     details: {
       pages: edition?.number_of_pages || undefined,
-      isbn: edition?.isbn_13?.[0] || edition?.isbn_10?.[0] || undefined,
+      isbn,
       publisher: edition?.publishers?.[0] || undefined,
     },
     url: workId ? `https://openlibrary.org/works/${workId}` : `https://openlibrary.org/books/${ref.id}`,

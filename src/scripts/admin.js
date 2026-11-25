@@ -6,6 +6,7 @@ import { openArrange, updateItem as updateArrangeItem } from './arrange.js';
 import Sortable from 'sortablejs';
 import { isLegacy, progressTotal, progressOf } from '../lib/types.js';
 import { localDate } from '../lib/dates.js';
+import { drawShareCard, CARD_W, CARD_H } from '../lib/share-card.js';
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const root = $('#admin');
@@ -877,7 +878,51 @@ async function makeCoverCopies() {
     copiesRunning = false;
   }
   if (made) console.info(`Made ${made} shelf cop${made === 1 ? 'y' : 'ies'} of covers.`);
+  makeShareCard().catch((err) => console.warn('Could not update the share card:', err));
 }
+
+// ───────── share card: the picture shown when someone shares a link to your site ─────────
+// Drawn here (the Worker can't afford to draw pictures) from your site name, your name, tagline, colours and your
+// latest public covers, then stored on the site. Redrawn only when one of those changes.
+let shareCardRunning = false;
+async function makeShareCard() {
+  if (shareCardRunning || !getToken() || EMBED) return;
+  shareCardRunning = true;
+  try {
+    const [{ site }, { card }] = await Promise.all([api('site'), api('share-card')]);
+    const when = (i) => i.dateFinished || i.dateStarted || i.dateAdded || '';
+    const picks = state.library
+      .filter((i) => i.shelfCover && (i.visibility || 'public') === 'public' && (site.types || []).includes(i.type))
+      .sort((a, b) => when(b).localeCompare(when(a)))
+      .slice(0, 12)
+      .map((i) => i.shelfCover);
+    let host = location.host;
+    try { if (site.url) host = new URL(site.url).host; } catch {}
+    const opts = { title: site.title, owner: site.owner, tagline: site.tagline, accent: site.theme?.accent, mode: site.theme?.mode, host };
+    const sig = await sha256(JSON.stringify({ v: 1, ...opts, picks }));
+    if (card?.sig === sig) return;
+    await document.fonts.load(`800 76px "Plus Jakarta Sans Variable"`).catch(() => {});
+    const covers = (await Promise.all(picks.map((src) => loadImage(src).catch(() => null)))).filter(Boolean);
+    const canvas = document.createElement('canvas');
+    canvas.width = CARD_W;
+    canvas.height = CARD_H;
+    drawShareCard(canvas.getContext('2d'), { ...opts, covers });
+    const blob = await new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode the card'))), 'image/jpeg', 0.9));
+    const res = await fetch(`/api/share-card?${new URLSearchParams({ sig })}`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${getToken()}`, 'content-type': 'image/jpeg' },
+      body: blob,
+    });
+    if (!res.ok) throw new Error(`Saving the share card failed (${res.status})`);
+  } finally {
+    shareCardRunning = false;
+  }
+}
+async function sha256(text) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 async function loadImage(src) {
   const img = new Image();
   img.src = src; // same site, so the canvas stays readable
@@ -913,6 +958,26 @@ async function uploadCopy(item, kind, blob) {
 function libraryItems() {
   return state.library;
 }
+const LIB_PAGE = 25;
+let libPage = 1;
+// Page buttons: ‹ Prev, 1 … 4 5 6 … 12, Next ›, and "26–50 of 280".
+function renderPager(pages, total) {
+  const nav = $('#lib-pager');
+  nav.hidden = pages <= 1;
+  if (pages <= 1) { nav.innerHTML = ''; return; }
+  const nums = [...new Set([1, libPage - 1, libPage, libPage + 1, pages])].filter((n) => n >= 1 && n <= pages).sort((a, b) => a - b);
+  const parts = [];
+  nums.forEach((n, i) => {
+    if (i && n - nums[i - 1] > 1) parts.push('<span class="pager-gap" aria-hidden="true">…</span>');
+    parts.push(`<button type="button" class="btn ghost small${n === libPage ? ' on' : ''}" data-page="${n}" ${n === libPage ? 'aria-current="page"' : ''}>${n}</button>`);
+  });
+  const from = (libPage - 1) * LIB_PAGE + 1, to = Math.min(total, libPage * LIB_PAGE);
+  nav.innerHTML = `
+    <button type="button" class="btn ghost small" data-page="${libPage - 1}" ${libPage === 1 ? 'disabled' : ''} aria-label="Previous page">‹ Prev</button>
+    <span class="pager-nums">${parts.join('')}</span>
+    <button type="button" class="btn ghost small" data-page="${libPage + 1}" ${libPage === pages ? 'disabled' : ''} aria-label="Next page">Next ›</button>
+    <span class="pager-count muted small">${from}–${to} of ${total}</span>`;
+}
 function renderLibrary() {
   const q = $('#lib-filter').value.trim().toLowerCase();
   const type = $('#lib-type').value;
@@ -921,8 +986,13 @@ function renderLibrary() {
   const list = libraryItems().filter(
     (i) => (!type || i.type === type) && (!q || `${i.title} ${i.creator}`.toLowerCase().includes(q)),
   ).map((i, n) => [i, n]).sort(([a, x], [b, y]) => added(b).localeCompare(added(a)) || y - x).map(([i]) => i);
-  $('#lib-list').innerHTML = list.length
-    ? list
+  // A page at a time: 25 items, newest first, with page buttons underneath.
+  const pages = Math.max(1, Math.ceil(list.length / LIB_PAGE));
+  libPage = Math.min(Math.max(1, libPage), pages);
+  const shown = list.slice((libPage - 1) * LIB_PAGE, libPage * LIB_PAGE);
+  renderPager(pages, list.length);
+  $('#lib-list').innerHTML = shown.length
+    ? shown
         .map((i) => `
       <li class="lib-row">
         ${coverThumb(i, 56)}
@@ -940,8 +1010,15 @@ function renderLibrary() {
         .join('')
     : '<li class="muted">Nothing matches.</li>';
 }
-$('#lib-filter').addEventListener('input', renderLibrary);
-$('#lib-type').addEventListener('change', renderLibrary);
+$('#lib-filter').addEventListener('input', () => { libPage = 1; renderLibrary(); });
+$('#lib-type').addEventListener('change', () => { libPage = 1; renderLibrary(); });
+$('#lib-pager').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-page]');
+  if (!b || b.disabled) return;
+  libPage = Number(b.dataset.page);
+  renderLibrary();
+  $('#lib-filter').closest('.panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+});
 
 async function editSlug(slug, afterSave = null) {
   try {
@@ -994,34 +1071,40 @@ function renderCollections() {
   $('#col-list').innerHTML = state.collections
     .map((c, i) => `
     <li class="col-row" data-i="${i}">
-      <span class="col-move">
-        <span class="col-handle" title="Drag to reorder" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
-        <button class="btn ghost small col-arrow" data-up ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
-        <button class="btn ghost small col-arrow" data-down ${i === state.collections.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
-      </span>
-      <input class="col-name" value="${esc(c.name)}" placeholder="Collection name" />
-      <input class="col-desc" value="${esc(c.description)}" placeholder="Description (optional)" />
-      <label class="col-show" title="Where this collection appears">
-        <span class="muted small">Show on</span>
-        <select class="col-show-select" aria-label="Show on">
-          ${Object.entries(SHOW_OPTIONS).map(([k, label]) => `<option value="${k}" ${(c.show || 'shelves') === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}
-        </select>
-      </label>
-      <span class="col-sort">
-        <span class="muted small">Sort</span>
-        <select class="col-sort-select" aria-label="Sort order">
-          ${Object.entries(SORTS).map(([k, label]) => `<option value="${k}" ${(c.sort || 'newest') === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}
-        </select>
-        ${(c.sort || 'newest') === 'custom' ? `<button class="btn ghost small" data-arrange ${c.slug ? '' : 'disabled title="Save the collection first"'}>Arrange</button>` : ''}
-      </span>
-      <label class="col-within" title="${c.auto === 'finished' ? 'Only keep items finished within this time' : c.auto === 'in-progress' ? 'Only keep items started within this time' : 'Only keep items from within this time'}">
-        <span class="muted small">Keep</span>
-        <select class="col-within-select" aria-label="Time window">
-          ${Object.entries(WITHIN_OPTIONS).map(([k, label]) => `<option value="${k}" ${String(c.within || '') === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}
-        </select>
-      </label>
-      <span class="muted small col-slug">${isAutoShelf(c) ? `auto: ${[c.auto && esc(AUTO_RULES[c.auto] || c.auto), c.minRating && `${c.minRating}★+`].filter(Boolean).join(', ')}` : c.slug ? '/shelf/' + esc(c.slug) : 'new'}</span>
-      <button class="btn ghost small danger" data-remove aria-label="Remove">✕</button>
+      <div class="col-top">
+        <span class="col-move">
+          <span class="col-handle" title="Drag to reorder" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+          <button class="btn ghost small col-arrow" data-up ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button>
+          <button class="btn ghost small col-arrow" data-down ${i === state.collections.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>
+        </span>
+        <input class="col-name" value="${esc(c.name)}" placeholder="Collection name" aria-label="Collection name" />
+        <span class="col-kind col-slug" title="${isAutoShelf(c) ? 'Fills itself' : 'Your own picks'}">${isAutoShelf(c) ? `Auto · ${[c.auto && esc(AUTO_RULES[c.auto] || c.auto), c.minRating && `${c.minRating}★+`].filter(Boolean).join(', ')}` : c.slug ? '/shelf/' + esc(c.slug) : 'New'}</span>
+        <button class="btn ghost small danger" data-remove aria-label="Remove ${esc(c.name || 'collection')}" title="Remove">✕</button>
+      </div>
+      <input class="col-desc" value="${esc(c.description)}" placeholder="Description (optional)" aria-label="Description" />
+      <div class="col-settings">
+        <label class="col-field col-show" title="Where this collection appears">
+          <span>Show on</span>
+          <select class="col-show-select">
+            ${Object.entries(SHOW_OPTIONS).map(([k, label]) => `<option value="${k}" ${(c.show || 'shelves') === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}
+          </select>
+        </label>
+        <div class="col-field col-sort">
+          <span id="col-sort-${i}">Sort</span>
+          <div class="col-sort-line">
+            <select class="col-sort-select" aria-labelledby="col-sort-${i}">
+              ${Object.entries(SORTS).map(([k, label]) => `<option value="${k}" ${(c.sort || 'newest') === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}
+            </select>
+            ${(c.sort || 'newest') === 'custom' ? `<button class="btn ghost small" data-arrange ${c.slug ? '' : 'disabled title="Save the collection first"'}>Arrange</button>` : ''}
+          </div>
+        </div>
+        <label class="col-field col-within" title="${c.auto === 'finished' ? 'Only keep items finished within this time' : c.auto === 'in-progress' ? 'Only keep items started within this time' : 'Only keep items from within this time'}">
+          <span>Keep</span>
+          <select class="col-within-select">
+            ${Object.entries(WITHIN_OPTIONS).map(([k, label]) => `<option value="${k}" ${String(c.within || '') === k ? 'selected' : ''}>${esc(label)}</option>`).join('')}
+          </select>
+        </label>
+      </div>
     </li>`)
     .join('') || '<li class="muted">No collections yet.</li>';
 }

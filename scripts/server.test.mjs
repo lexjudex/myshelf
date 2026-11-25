@@ -279,6 +279,7 @@ test('Open Library links: works, editions and ISBN pages go straight to that boo
   assert.deepEqual(openLibraryRefFromUrl('openlibrary.org/books/OL26242482M/Dune'), { kind: 'edition', id: 'OL26242482M' });
   assert.deepEqual(openLibraryRefFromUrl('https://openlibrary.org/isbn/978-0-441-01359-3'), { kind: 'isbn', id: '9780441013593' });
   assert.equal(openLibraryRefFromUrl('Dune'), null);
+  assert.deepEqual(openLibraryRefFromUrl('https://openlibrary.org/works/OL893415W/Dune?edition=key%3A/books/OL26242482M'), { kind: 'work', id: 'OL893415W', edition: 'OL26242482M' });
   const calls = mockFetch([
     ['/books/OL26242482M.json', () => ({ title: 'Dune', works: [{ key: '/works/OL893415W' }], number_of_pages: 658, isbn_13: ['9780441013593'], publishers: ['Ace'], covers: [999] })],
     ['/works/OL893415W.json', () => ({ title: 'Dune', first_publish_date: 'August 1965', authors: [{ author: { key: '/authors/OL79034A' } }], covers: [123], subjects: ['Science fiction', 'Arrakis'], description: { value: 'Spice.' } })],
@@ -292,6 +293,29 @@ test('Open Library links: works, editions and ISBN pages go straight to that boo
   assert.deepEqual(r.details, { pages: 658, isbn: '9780441013593', publisher: 'Ace' });
   assert.equal(r.url, 'https://openlibrary.org/works/OL893415W');
   assert.ok(!calls.some((c) => c.url.includes('search.json')), 'no search request');
+  // A work link with an edition picked (Vigil): the work has no cover, the edition does.
+  mockFetch([
+    ['/books/OL61250394M.json', () => ({ title: 'Vigil', covers: [15167710], isbn_13: ['9780525509622'], number_of_pages: 174, publishers: ['Random House'] })],
+    ['/works/OL44876808W.json', () => ({ title: 'Vigil', authors: [{ author: { key: '/authors/OL537475A' } }] })],
+    ['/authors/OL537475A.json', () => ({ name: 'George Saunders' })],
+  ]);
+  const [vigil] = await search('book', 'https://openlibrary.org/works/OL44876808W/Vigil?edition=key%3A/books/OL61250394M', {});
+  assert.equal(vigil.cover, 'https://covers.openlibrary.org/b/id/15167710-L.jpg');
+  assert.deepEqual(vigil.details, { pages: 174, isbn: '9780525509622', publisher: 'Random House' });
+  // A work with no cover of its own takes one from its editions.
+  mockFetch([
+    ['/works/OL5W/editions.json', () => ({ entries: [{ covers: [-1] }, { covers: [4242] }] })],
+    ['/works/OL5W.json', () => ({ title: 'Mycelium', authors: [] })],
+  ]);
+  assert.equal((await search('book', 'https://openlibrary.org/works/OL5W/Mycelium', {}))[0].cover, 'https://covers.openlibrary.org/b/id/4242-L.jpg');
+  // No cover anywhere on Open Library: Google Books' cover of the same book.
+  mockFetch([
+    ['/works/OL6W/editions.json', () => ({ entries: [{}] })],
+    ['/works/OL6W.json', () => ({ title: 'Mycelium', authors: [{ author: { key: '/authors/OL1A' } }] })],
+    ['/authors/OL1A.json', () => ({ name: 'Annette Weisser' })],
+    ['googleapis.com/books', (url) => (url.includes('intitle%3AMycelium') ? { items: [{ id: 'g1', volumeInfo: { title: 'Mycelium', imageLinks: { thumbnail: 'http://books.google.com/x.jpg&edge=curl' } } }] } : { items: [] })],
+  ]);
+  assert.equal((await search('book', 'https://openlibrary.org/works/OL6W', {}))[0].cover, 'https://books.google.com/x.jpg');
   mockFetch([['openlibrary.org', () => new Response('nope', { status: 404 })]]);
   await assert.rejects(() => search('book', 'https://openlibrary.org/works/OL1W', {}), /No book found at that Open Library link/);
   mockFetch([['openlibrary.org', () => new Response('error code: 521', { status: 521 })]]);

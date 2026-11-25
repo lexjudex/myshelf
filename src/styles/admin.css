@@ -77,15 +77,12 @@ textarea { resize: vertical; line-height: 1.5; }
 .lib-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
 .pill { background: #f6e0bf; color: #7a4810; border-radius: 999px; padding: 0 7px; font-size: 0.72rem; }
 
-.col-row { display: grid; grid-template-columns: auto minmax(140px, 1fr) minmax(180px, 2fr) auto auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid #e2d6bd; }
-.col-move { display: flex; gap: 4px; align-items: center; }
 .col-handle { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 32px; cursor: grab; color: #6f604a; border-radius: 6px; touch-action: none; }
 .col-handle:hover { color: var(--ink); background: rgba(0,0,0,0.05); }
 .col-handle:active { cursor: grabbing; }
 .col-ghost { opacity: 0.4; background: #f6e0bf; }
 .sortable-chosen .col-handle { color: var(--ink); }
 .btn.needs-save { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 45%, transparent); }
-.col-slug { white-space: nowrap; }
 
 /* Editor modal */
 .editor { border: 0; padding: 0; border-radius: 14px; background: var(--paper); color: var(--ink); width: min(980px, 96vw); max-height: 94vh; box-shadow: 0 40px 80px rgba(0,0,0,0.6); }
@@ -120,7 +117,6 @@ details label { margin-bottom: 10px; }
 @media (max-width: 760px) {
   .editor-grid { grid-template-columns: 1fr; }
   .editor-fields { grid-template-columns: 1fr; }
-  .col-row .col-arrow, .col-row .col-slug { display: none; }
   .lib-row { flex-wrap: wrap; }
 }
 
@@ -142,18 +138,6 @@ details label { margin-bottom: 10px; }
 @media (prefers-reduced-motion: reduce) { .spinner { animation: none; } }
 .btn.warn-btn { background: #c9852b; color: #fff; }
 
-/* Collections: sort + arrange */
-.col-row { grid-template-columns: auto minmax(130px, 1fr) minmax(150px, 1.4fr) auto auto auto auto; }
-.col-show { display: flex; align-items: center; gap: 6px; }
-.col-show select { width: auto; padding: 6px 8px; font-size: 0.85rem; }
-.col-sort { display: flex; gap: 6px; align-items: center; }
-.col-sort select { width: auto; padding: 6px 8px; font-size: 0.85rem; }
-@media (max-width: 960px) {
-  .col-row { grid-template-columns: auto 1fr auto; }
-  .col-desc, .col-sort, .col-show { grid-column: 2 / -1; }
-  .col-row .col-move { grid-row: 1; grid-column: 1; }
-  .col-row [data-remove] { grid-row: 1; grid-column: 3; }
-}
 
 /* Storage status / one-time import */
 .storage-banner {
@@ -178,8 +162,6 @@ details label { margin-bottom: 10px; }
 .exp-search { flex-wrap: wrap; }
 .exp-search input { flex: 1 1 200px; }
 
-.col-within { display: inline-flex; align-items: center; gap: 6px; }
-@media (max-width: 960px) { .col-within { grid-column: 2 / -1; } }
 
 /* "Using your last settings" note in the editor header */
 .remembered { margin-left: auto; margin-right: 10px; font-size: 0.8rem; color: #7a6a50; background: #f3e4c8; border-radius: 999px; padding: 3px 10px; white-space: nowrap; }
@@ -244,13 +226,6 @@ details label { margin-bottom: 10px; }
 .check input { margin-top: 0.2em; flex: 0 0 auto; }
 .featured-field #featured-hint { margin: 4px 0 0 26px; }
 
-/* Collections settings: same size controls everywhere, labels in a tidy column on narrow screens */
-.col-within select { width: auto; padding: 6px 8px; font-size: 0.85rem; }
-@media (max-width: 960px) {
-  .col-show, .col-sort, .col-within { display: grid; grid-template-columns: 58px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
-  .col-show select, .col-sort select, .col-within select { width: 100%; }
-  .col-row { row-gap: 10px; padding: 14px 0; }
-}
 
 /* Admin tabs on phones: one swipeable row instead of overflowing the page */
 @media (max-width: 760px) {
@@ -442,3 +417,48 @@ html.embed .editor::backdrop { background: transparent; }
 .your-version-notes { margin: 4px 0 18px; font-size: 0.9rem; }
 .ub-yours summary { cursor: pointer; font-weight: 600; }
 .ub-yours ul { padding-left: 20px; }
+
+/* ───────── Collections: one card per collection ─────────
+   Top line: drag handle + ↑↓, name, what kind of shelf it is, remove. Then the description, then the three
+   settings side by side (stacked on narrow screens), each with its label above it. */
+.col-list { display: grid; gap: 12px; }
+.col-row {
+  display: grid; gap: 10px; padding: 14px; border: 1px solid #e2d6bd; border-radius: 12px;
+  background: color-mix(in srgb, #fffaf0 70%, transparent);
+}
+.col-top { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.col-move { display: flex; gap: 4px; align-items: center; flex: 0 0 auto; }
+.col-arrow { width: 32px; height: 32px; padding: 0; display: inline-grid; place-items: center; }
+.col-row .col-name { flex: 1 1 auto; min-width: 0; font-weight: 600; }
+.col-kind {
+  flex: 0 0 auto; max-width: 45%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 0.75rem; color: #6f604a; background: #f3e4c8; border-radius: 999px; padding: 3px 10px;
+}
+.col-row [data-remove] { flex: 0 0 auto; width: 32px; height: 32px; padding: 0; display: inline-grid; place-items: center; }
+.col-row .col-desc { width: 100%; }
+.col-settings { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.col-field { display: grid; gap: 4px; min-width: 0; }
+.col-field > span { font-size: 0.78rem; color: #6f604a; }
+.col-field select { width: 100%; min-width: 0; padding: 7px 8px; font-size: 0.88rem; }
+.col-sort-line { display: flex; gap: 6px; min-width: 0; }
+.col-sort-line select { flex: 1 1 auto; }
+.col-sort-line .btn { flex: 0 0 auto; }
+@media (max-width: 760px) {
+  .col-settings { grid-template-columns: 1fr; }
+  .col-kind { display: none; }
+  .col-arrow { display: none; }
+}
+.starter-pick { line-height: 1.35; }
+.starter-pick strong { margin-right: 4px; }
+
+/* Library pages */
+.pager { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px; margin: 14px 0 4px; }
+.pager[hidden] { display: none; }
+.pager-nums { display: inline-flex; align-items: center; gap: 4px; }
+.pager .btn.on { background: var(--accent); color: var(--on-accent, #fff); border-color: var(--accent); }
+.pager-gap { padding: 0 2px; color: #8a7a60; }
+.pager-count { flex-basis: 100%; text-align: center; }
+/* The Manage panels are light even on a dark site: draw their checkboxes and selects light too (on a dark site
+   an unticked box came out as a solid dark square, which read as ticked). */
+.panel { color-scheme: light; }
+.panel input[type='checkbox'], .panel input[type='radio'] { accent-color: var(--accent); }
