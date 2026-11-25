@@ -201,8 +201,13 @@ $$('.type-btn').forEach((b) =>
   }),
 );
 
-// "Paste a link" — BoardGameGeek for board games, Spotify for music, YouTube for videos and channels.
+// "Paste a link" — Open Library for books, BoardGameGeek for board games, Spotify for music, YouTube for videos and channels.
 const LINK_FORMS = {
+  book: {
+    placeholder: 'Can\'t find it? Paste an Open Library link…',
+    ok: (url) => /openlibrary\.org\/(works\/OL\d+W|books\/OL\d+M|isbn\/[\dXx-]{10,17})/i.test(url),
+    error: 'That doesn\'t look like an Open Library book link (openlibrary.org/works/… or openlibrary.org/books/…).',
+  },
   boardgame: {
     placeholder: 'Can\'t find it? Paste a BoardGameGeek link…',
     ok: (url) => /boardgamegeek\.com\/(boardgame|boardgameexpansion|thing)\/\d+/i.test(url),

@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildMarkdown, parseMarkdown, normalizeItem } from '../server/markdown.js';
-import { parseBggSearch, parseBggThings, search, details, igdbScore, rankBggHits, bggIdFromUrl, spotifyRefFromUrl } from '../server/providers.js';
+import { parseBggSearch, parseBggThings, search, details, igdbScore, rankBggHits, bggIdFromUrl, spotifyRefFromUrl, openLibraryRefFromUrl } from '../server/providers.js';
 import { isVinyl } from '../src/lib/types.js';
 import { inShelf, findStarter, STARTER_SHELVES } from '../src/lib/sorting.js';
 import { cleanCollections } from '../server/settings.js';
@@ -272,6 +272,30 @@ test('Book search: both sources failing says Open Library is busy (and suggests 
   ]);
   await assert.rejects(() => search('book', 'mycelium', {}), /Open Library is busy, try again in a few moments\. A free Google Books key/);
   await assert.rejects(() => search('book', 'mycelium', { GOOGLE_BOOKS_KEY: 'k' }), (e) => e.message === 'Open Library is busy, try again in a few moments.');
+});
+
+test('Open Library links: works, editions and ISBN pages go straight to that book', async () => {
+  assert.deepEqual(openLibraryRefFromUrl('https://openlibrary.org/works/OL893415W/Dune?edition=key'), { kind: 'work', id: 'OL893415W' });
+  assert.deepEqual(openLibraryRefFromUrl('openlibrary.org/books/OL26242482M/Dune'), { kind: 'edition', id: 'OL26242482M' });
+  assert.deepEqual(openLibraryRefFromUrl('https://openlibrary.org/isbn/978-0-441-01359-3'), { kind: 'isbn', id: '9780441013593' });
+  assert.equal(openLibraryRefFromUrl('Dune'), null);
+  const calls = mockFetch([
+    ['/books/OL26242482M.json', () => ({ title: 'Dune', works: [{ key: '/works/OL893415W' }], number_of_pages: 658, isbn_13: ['9780441013593'], publishers: ['Ace'], covers: [999] })],
+    ['/works/OL893415W.json', () => ({ title: 'Dune', first_publish_date: 'August 1965', authors: [{ author: { key: '/authors/OL79034A' } }], covers: [123], subjects: ['Science fiction', 'Arrakis'], description: { value: 'Spice.' } })],
+    ['/authors/OL79034A.json', () => ({ name: 'Frank Herbert' })],
+  ]);
+  const [r] = await search('book', 'https://openlibrary.org/books/OL26242482M/Dune', {});
+  assert.equal(r.sourceId, 'OL893415W');
+  assert.equal(r.creator, 'Frank Herbert');
+  assert.equal(r.year, '1965');
+  assert.equal(r.cover, 'https://covers.openlibrary.org/b/id/999-L.jpg', "the edition's own cover");
+  assert.deepEqual(r.details, { pages: 658, isbn: '9780441013593', publisher: 'Ace' });
+  assert.equal(r.url, 'https://openlibrary.org/works/OL893415W');
+  assert.ok(!calls.some((c) => c.url.includes('search.json')), 'no search request');
+  mockFetch([['openlibrary.org', () => new Response('nope', { status: 404 })]]);
+  await assert.rejects(() => search('book', 'https://openlibrary.org/works/OL1W', {}), /No book found at that Open Library link/);
+  mockFetch([['openlibrary.org', () => new Response('error code: 521', { status: 521 })]]);
+  await assert.rejects(() => search('book', 'https://openlibrary.org/works/OL1W', {}), /Open Library is busy, try again in a few moments/);
 });
 
 // ── GitHub commit flow ──

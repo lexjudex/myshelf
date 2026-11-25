@@ -7,6 +7,7 @@ The version number lives in `package.json` and shows in **Manage â†’ Settings â†
 - **Fixed: "Error 1102: Worker exceeded resource limits."** Building a page with a big library takes more computing time than Cloudflare's free plan allows each visit, so busy moments failed with Error 1102. Finished pages are now kept and reused, so most visits don't build anything. Every change you make clears them, so pages are never out of date, and they're rebuilt every few hours anyway.
 - **Making the shelf copies of covers is much lighter.** In 0.9.1 the Manage page sent each copy in a form that took too long for the Worker to unpack, which could trip the same error. Copies that failed get made the next time Manage is open.
 - **Friendlier book search error.** When book search can't get an answer, it now says *"Open Library is busy, try again in a few moments"* instead of a bare error code (Open Library's search fails now and then even while its website works). Without a Google Books key it also suggests adding one, as a backup.
+- **Paste an Open Library link for books.** Like the BoardGameGeek box for board games: under the book search, paste a link to a book on openlibrary.org (a work, an edition, or an ISBN page) and it comes up straight away, with that edition's cover, page count and ISBN when you paste an edition link. Handy when search can't find the right book, or when Open Library's search is busy.
 - **"Missing keys" mentions Google Books (optional).** It's free, and it keeps book search working when Open Library is down.
 
 ## 0.9.1 (Nov 2026)

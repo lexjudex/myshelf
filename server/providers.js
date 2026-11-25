@@ -60,7 +60,69 @@ async function searchGoogleBooks(q, env) {
   });
 }
 
+/** An Open Library link (a work, an edition or an ISBN page) → { kind, id }, else null. */
+export function openLibraryRefFromUrl(input) {
+  const s = String(input || '').trim();
+  let m = s.match(/openlibrary\.org\/works\/(OL\d+W)/i);
+  if (m) return { kind: 'work', id: m[1].toUpperCase() };
+  m = s.match(/openlibrary\.org\/books\/(OL\d+M)/i);
+  if (m) return { kind: 'edition', id: m[1].toUpperCase() };
+  m = s.match(/openlibrary\.org\/isbn\/([\dXx-]{10,17})/i);
+  if (m) return { kind: 'isbn', id: m[1].replace(/-/g, '').toUpperCase() };
+  return null;
+}
+
+/**
+ * A pasted Open Library link → that book, as one search result. Reads the work (and the edition, for an edition
+ * or ISBN link, which gives the page count, ISBN, publisher and that edition's cover) straight from Open Library,
+ * without going through its search, which is the part that fails now and then.
+ */
+async function openLibraryFromUrl(ref, env) {
+  const get = (path) => fetchJson(`https://openlibrary.org${path}.json`, { headers: { 'user-agent': userAgent(env) }, redirect: 'follow' }, 'Open Library');
+  let edition = null, workId = ref.kind === 'work' ? ref.id : '';
+  if (ref.kind !== 'work') {
+    edition = await get(ref.kind === 'isbn' ? `/isbn/${ref.id}` : `/books/${ref.id}`);
+    workId = String(edition?.works?.[0]?.key || '').replace('/works/', '');
+  }
+  const work = workId ? await get(`/works/${workId}`) : {};
+  const authorKeys = (work.authors || []).map((a) => a?.author?.key || a?.key).filter(Boolean).slice(0, 3);
+  if (!authorKeys.length) authorKeys.push(...(edition?.authors || []).map((a) => a?.key).filter(Boolean).slice(0, 3));
+  const authors = (await Promise.allSettled(authorKeys.map((k) => get(k)))).map((r) => (r.status === 'fulfilled' ? r.value?.name : '')).filter(Boolean);
+  const coverId = [...(edition?.covers || []), ...(work.covers || [])].find((c) => Number(c) > 0);
+  const title = edition?.title || work.title || '';
+  const subtitle = edition?.subtitle || work.subtitle || '';
+  const desc = [work.description, edition?.description].map((d) => (typeof d === 'string' ? d : d?.value || '')).find(Boolean) || '';
+  if (!title) throw new HttpError(404, 'No book found at that Open Library link.');
+  return result({
+    type: 'book',
+    source: 'openlibrary',
+    sourceId: workId || ref.id,
+    title: subtitle ? `${title}: ${subtitle}` : title,
+    creator: authors.join(', '),
+    year: yearOf(work.first_publish_date || edition?.publish_date),
+    cover: coverId ? `https://covers.openlibrary.org/b/id/${coverId}-L.jpg` : '',
+    description: truncate(desc.replace(/\r/g, '').replace(/\(\[source\][^)]*\)/g, '')),
+    genres: (work.subjects || []).slice(0, 4),
+    details: {
+      pages: edition?.number_of_pages || undefined,
+      isbn: edition?.isbn_13?.[0] || edition?.isbn_10?.[0] || undefined,
+      publisher: edition?.publishers?.[0] || undefined,
+    },
+    url: workId ? `https://openlibrary.org/works/${workId}` : `https://openlibrary.org/books/${ref.id}`,
+  });
+}
+
 async function searchBooks(q, env) {
+  // A pasted Open Library link goes straight to that book.
+  const ref = openLibraryRefFromUrl(q);
+  if (ref) {
+    try {
+      return [await openLibraryFromUrl(ref, env)];
+    } catch (err) {
+      if (/\(404\)/.test(err?.message || '') || err?.status === 404) throw new HttpError(404, 'No book found at that Open Library link.');
+      throw new HttpError(502, 'Open Library is busy, try again in a few moments.');
+    }
+  }
   const [ol, gb] = await Promise.allSettled([searchOpenLibrary(q, env), searchGoogleBooks(q, env)]);
   const out = [...(ol.status === 'fulfilled' ? ol.value : []), ...(gb.status === 'fulfilled' ? gb.value : [])];
   if (!out.length && ol.status === 'rejected' && gb.status === 'rejected') {
