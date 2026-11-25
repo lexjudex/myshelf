@@ -965,3 +965,18 @@ test('Settings: progress bars for everyone (default) or only the owner', async (
   assert.equal((await saveSite(env, { title: 'X' })).progress, 'owner', 'kept when not sent');
   assert.equal((await saveSite(env, { title: 'X', progress: 'nonsense' })).progress, 'public');
 });
+
+test('ensureSchema never hands one request a migration another request started (Workers drops those)', async () => {
+  const { ensureSchema } = await import('../server/db.js');
+  const env = fakeEnv();
+  // A first request starts migrating and is abandoned (its promise never settles in this "request").
+  const realBatch = env.DB.batch.bind(env.DB);
+  let hang = true;
+  env.DB.batch = (stmts) => (hang ? new Promise(() => {}) : realBatch(stmts));
+  ensureSchema(env); // never awaited, never finishes
+  await new Promise((r) => setTimeout(r, 5));
+  hang = false;
+  // A later request must not wait on that stuck promise: it runs (and finishes) its own.
+  const done = await Promise.race([ensureSchema(env).then(() => 'ok'), new Promise((r) => setTimeout(() => r('stuck'), 2000))]);
+  assert.equal(done, 'ok');
+});

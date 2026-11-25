@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.9.6 (Nov 2026)
+
+- **Fixed: blank pages and "This promise was created by a request that has since ended" when signing in.** When a site starts up, it makes sure its database is up to date. If the first visitor left while that was still running, every later visit to that copy of the site could fail until Cloudflare restarted it: blank pages, and that error on the Manage sign-in. Each visit now checks for itself, so one visitor leaving can't break the site for the rest.
+
 ## 0.9.5 (Nov 2026)
 
 - **YouTube pages on phones.** A video's page kept the player and the text side by side on phones, squeezing the title and your notes into a narrow column. On phones the player now sits full width above the title, like covers on other pages.

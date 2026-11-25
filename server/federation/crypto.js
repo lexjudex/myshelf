@@ -22,20 +22,17 @@ export async function sha256hex(text) {
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-let creating = null;
-
 /** { publicKey: "<base64url>", privateJwk } — created once and stored in the settings table. */
 export async function getIdentity(env) {
   const have = await getSetting(env, 'identity');
   if (have?.publicKey && have?.privateJwk) return have;
-  creating ||= (async () => {
-    const pair = await crypto.subtle.generateKey(ALG, true, ['sign', 'verify']);
-    const privateJwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
-    const identity = { publicKey: privateJwk.x, privateJwk, createdAt: new Date().toISOString() };
-    await setSetting(env, 'identity', identity);
-    return identity;
-  })().finally(() => { creating = null; });
-  await creating;
+  // Made in this request (never a promise shared with other requests, which Cloudflare drops when the request
+  // that started it ends). If two first requests race, check again just before saving so one identity wins.
+  const pair = await crypto.subtle.generateKey(ALG, true, ['sign', 'verify']);
+  const privateJwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
+  const again = await getSetting(env, 'identity');
+  if (again?.publicKey && again?.privateJwk) return again;
+  await setSetting(env, 'identity', { publicKey: privateJwk.x, privateJwk, createdAt: new Date().toISOString() });
   return getSetting(env, 'identity');
 }
 

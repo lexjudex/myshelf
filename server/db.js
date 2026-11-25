@@ -134,7 +134,12 @@ const MIGRATIONS = [
 
 export const SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;
 
-const ready = new WeakMap();
+// Databases already brought up to date in this worker instance. Only the *result* is shared between requests,
+// never an in-progress promise: Cloudflare drops a promise when the request that started it ends, so a shared
+// pending migration (its visitor left mid-way) would leave every later request on this instance failing with
+// "This promise was created by a request that has since ended". Two requests may both migrate at once; the
+// migrations handle that.
+const ready = new WeakSet();
 
 export function hasDb(env) {
   return Boolean(env?.DB);
@@ -163,8 +168,13 @@ async function migrate(DB) {
       // One transaction per migration: it either fully applies (and records its version) or not at all.
       await DB.batch([...m.sql.map((sql) => DB.prepare(sql)), setVersion]);
     } catch (err) {
-      // Another request may have run the same migration a moment ago; that's fine.
-      if ((await schemaVersion(DB)) >= m.version) continue;
+      // Another request may be running (or just ran) the same migration; that's fine. Give it a moment to finish.
+      let done = false;
+      for (let i = 0; i < 20 && !done; i++) {
+        if ((await schemaVersion(DB)) >= m.version) done = true;
+        else await new Promise((r) => setTimeout(r, 50));
+      }
+      if (done) continue;
       throw err;
     }
     if (m.after) await m.after(DB);
@@ -175,13 +185,9 @@ async function migrate(DB) {
 export async function ensureSchema(env) {
   const DB = db(env);
   if (!ready.has(DB)) {
-    const p = migrate(DB).catch((err) => {
-      ready.delete(DB);
-      throw err;
-    });
-    ready.set(DB, p);
+    await migrate(DB);
+    ready.add(DB);
   }
-  await ready.get(DB);
   return DB;
 }
 
