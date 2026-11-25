@@ -64,3 +64,31 @@ export function stars(rating) {
 // (from Spotify or MusicBrainz). Singles, songs, EPs and anything without a kind stay CDs.
 export const VINYL_KINDS = new Set(['album', 'compilation', 'playlist']);
 export const isVinyl = (item) => item?.type === 'music' && VINYL_KINDS.has(String(item.details?.kind || '').trim().toLowerCase());
+
+// ───────── Progress: pages for books, episodes for TV, sessions for legacy / campaign board games ─────────
+// Stored on the item as progress: { at, of, unit? } (unit only for board games). The total defaults to the
+// book's page count or the show's episode count from its details, so usually you only type where you are.
+export const LEGACY_UNITS = ['games', 'chapters', 'months', 'scenarios', 'missions'];
+/** A board game you play through as a campaign: ticked in the editor, or BGG's "Legacy Game" mechanic. */
+export const isLegacy = (item) => item?.type === 'boardgame' && (item.legacy === true || (item.details?.mechanics || []).some((m) => /legacy/i.test(String(m))));
+/** Can this item track progress at all (any status)? */
+export const tracksProgress = (item) => item?.type === 'book' || item?.type === 'tv' || isLegacy(item);
+/** The total a new progress entry starts with: pages or episodes from the details. */
+export function progressTotal(item) {
+  const n = parseInt(item?.type === 'book' ? item.details?.pages : item?.type === 'tv' ? item.details?.episodes : '', 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+/** What to draw: { at, of, pct, text } for items you're in the middle of (or stopped), else null. */
+export function progressOf(item) {
+  if (!tracksProgress(item) || !['in-progress', 'abandoned'].includes(item.status)) return null;
+  const p = item.progress || {};
+  const at = Number(p.at);
+  if (!Number.isFinite(at) || at < 0 || p.at == null || p.at === '') return null;
+  const of = Number(p.of) > 0 ? Number(p.of) : progressTotal(item);
+  const pct = of ? Math.max(0, Math.min(100, Math.round((at / of) * 100))) : null;
+  const unit = LEGACY_UNITS.includes(p.unit) ? p.unit : 'games';
+  const text = item.type === 'book' ? `Page ${at}${of ? ` of ${of}` : ''}`
+    : item.type === 'tv' ? `Episode ${at}${of ? ` of ${of}` : ''}`
+    : `${at}${of ? ` of ${of}` : ''} ${at === 1 && !of ? unit.replace(/s$/, '') : unit}`;
+  return { at, of, pct, text };
+}

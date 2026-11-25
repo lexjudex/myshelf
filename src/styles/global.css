@@ -249,6 +249,10 @@ a.cover:hover, a.cover:focus-visible { transform: translateY(-8px) rotate(-1deg)
 .status-want { background: #dde3ee; color: #2f4466; }
 .status-abandoned { background: #eed8d4; color: #7a2a1e; }
 .rating { color: var(--accent); font-size: 1.15rem; letter-spacing: 0.06em; }
+.item-progress { margin: -6px 0 18px; max-width: 420px; }
+.item-progress-text { display: block; font-size: 0.88rem; font-weight: 600; color: var(--ink-soft); margin-bottom: 6px; }
+.item-progress-bar { display: block; height: 8px; border-radius: 999px; background: var(--paper-2); overflow: hidden; }
+.item-progress-bar > span { display: block; height: 100%; border-radius: inherit; background: var(--accent); }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 18px; font-size: 0.93rem; }
 .facts dt { color: var(--ink-soft); }
 .facts dd { margin: 0; }

@@ -2,7 +2,7 @@
 // An item rendered as a 3D object that matches its media type:
 // books, game cartridges, CD jewel cases, vinyl record sleeves, VHS boxes, board game boxes and award plaques (YouTube).
 // Front face = cover art; side face = spine/edge with the title.
-import { TYPES, isVinyl, isChannel } from '../lib/types.js';
+import { TYPES, isVinyl, isChannel, progressOf } from '../lib/types.js';
 // height = the slot (row) height; unit = the size a book is drawn at. They're the same unless the
 // shelf holds board games, which get a taller row so their boxes can stand bigger than the books.
 interface Props { item: any; height?: number; unit?: number; href: string; front?: boolean }
@@ -44,6 +44,8 @@ if (s.kind === 'box') {
 const d = Math.max(s.min, Math.round(u * s.d));
 const spineImg = item.cover ? `url("${String(item.cover).replace(/"/g, '%22')}")` : 'none';
 const label = `${item.title}${item.creator ? ' — ' + item.creator : ''}`;
+// A thin progress strip along the bottom of the cover, for books, shows and legacy games you're partway through.
+const prog = progressOf(item);
 const onErr = "this.closest('.book3d').classList.remove('has-cover');this.remove();";
 ---
 <a
@@ -84,6 +86,7 @@ const onErr = "this.closest('.book3d').classList.remove('has-cover');this.remove
         </>
       )}
       <span class="b3-gloss"></span>
+      {prog?.pct != null && <span class="b3-progress" title={`${prog.text} (${prog.pct}%)`}><span style={`width:${prog.pct}%`}></span></span>}
       {s.kind === 'vhs' && <span class="vhs-notch"></span>}
       {s.kind === 'bluray' && <span class="br-band"></span>}
     </span>

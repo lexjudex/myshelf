@@ -4,7 +4,7 @@ import Cover from '../../components/Cover.astro';
 import CopyLink from '../../components/CopyLink.astro';
 import { getEntry, getShelves, fmtDate, renderBody, mentionsHtml } from '../../lib/items.js';
 import { inShelf } from '../../lib/sorting.js';
-import { TYPES, STATUS_LABEL, DETAIL_LABELS, HIDDEN_DETAILS, formatDetail, stars } from '../../lib/types.js';
+import { TYPES, STATUS_LABEL, DETAIL_LABELS, HIDDEN_DETAILS, formatDetail, stars, progressOf } from '../../lib/types.js';
 import { itemComments } from '../../../server/federation/index.js';
 import { threadHtml } from '../../scripts/friends-ui.js';
 import '../../styles/friends.css';
@@ -27,6 +27,7 @@ const finished = d.status === 'finished' ? d.dateFinished : null;
 const thoughtsDate = finished || d.dateStarted || d.dateAdded;
 // YouTube videos play right on the page (the privacy-enhanced player, no cookies until you press play).
 const ytVideoId = d.type === 'video' ? (String(d.source?.id || '').match(/^video:([A-Za-z0-9_-]{11})$/) || [])[1] || '' : '';
+const progress = progressOf(d);
 const expansions = d.type === 'boardgame' && Array.isArray(d.expansions) ? d.expansions : [];
 // Comments from friends (and your replies). Visitors see them; signed in, you can reply and delete.
 let comments = [];
@@ -66,6 +67,13 @@ try { comments = await itemComments(env, Astro.url.href, slug); } catch {}
         <span class:list={['status', `status-${d.status}`]}>{STATUS_LABEL(d.type, d.status)}</span>
         {d.rating != null && !hasBody && <span class="rating" aria-label={`${d.rating} out of 5`}>{stars(d.rating)}</span>}
       </div>
+
+      {progress && (
+        <div class="item-progress">
+          <span class="item-progress-text">{progress.text}{progress.pct != null && <> · {progress.pct}%</>}</span>
+          {progress.pct != null && <span class="item-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow={progress.pct} aria-label={progress.text}><span style={`width:${progress.pct}%`}></span></span>}
+        </div>
+      )}
 
       {/* Shown by the script below, only to you (signed in on this browser). */}
       <div class="item-actions" id="item-actions" hidden>

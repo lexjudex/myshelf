@@ -260,14 +260,14 @@ const typesJson = JSON.stringify(TYPES);
                 <option value="abandoned">Abandoned</option>
               </select>
             </label>
-            <label>Rating
+            <label data-field="rating">Rating
               <select name="rating">
                 <option value="">No rating</option>
                 {[5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.5].map((r) => <option value={r}>{'★'.repeat(Math.floor(r)) + (r % 1 ? '½' : '')} ({r})</option>)}
               </select>
             </label>
-            <label>Started <span class="date-field"><input name="dateStarted" type="date" /><button type="button" class="date-clear" data-clear-date="dateStarted" aria-label="Clear started date" title="Clear date">×</button></span></label>
-            <label>Finished <span class="date-field"><input name="dateFinished" type="date" /><button type="button" class="date-clear" data-clear-date="dateFinished" aria-label="Clear finished date" title="Clear date">×</button></span></label>
+            <label data-field="dateStarted">Started <span class="date-field"><input name="dateStarted" type="date" /><button type="button" class="date-clear" data-clear-date="dateStarted" aria-label="Clear started date" title="Clear date">×</button></span></label>
+            <label data-field="dateFinished">Finished <span class="date-field"><input name="dateFinished" type="date" /><button type="button" class="date-clear" data-clear-date="dateFinished" aria-label="Clear finished date" title="Clear date">×</button></span></label>
             <label>Who can see it
               <select name="visibility">
                 <option value="public">Everyone</option>
@@ -275,9 +275,23 @@ const typesJson = JSON.stringify(TYPES);
                 <option value="private">Only me</option>
               </select>
             </label>
-            <label class="check span2"><input type="checkbox" name="owned" /> <span>I own a copy <span class="muted small">(friends can ask to borrow it)</span></span></label>
-            <label>Lent to <input name="lentTo" placeholder="Nobody right now" /></label>
-            <label>Lent since <span class="date-field"><input name="lentSince" type="date" /><button type="button" class="date-clear" data-clear-date="lentSince" aria-label="Clear lent date" title="Clear date">×</button></span></label>
+            <label class="check span2" data-field="legacy"><input type="checkbox" name="legacy" /> <span>Legacy or campaign game <span class="muted small">(track how far through the campaign you are)</span></span></label>
+            <fieldset class="span2 progress-field" data-field="progress">
+              <legend id="progress-legend">Progress</legend>
+              <div class="progress-inputs">
+                <span id="progress-at-label">Page</span>
+                <input name="progressAt" type="number" min="0" step="1" inputmode="numeric" aria-labelledby="progress-at-label" />
+                <span>of</span>
+                <input name="progressOf" type="number" min="1" step="1" inputmode="numeric" aria-label="Total" />
+                <select name="progressUnit" aria-label="Counted in" hidden>
+                  <option value="games">games</option><option value="chapters">chapters</option><option value="months">months</option><option value="scenarios">scenarios</option><option value="missions">missions</option>
+                </select>
+                <span id="progress-pct" class="muted small"></span>
+              </div>
+            </fieldset>
+            <label class="check span2" data-field="owned"><input type="checkbox" name="owned" /> <span>I own a copy <span class="muted small">(friends can ask to borrow it)</span></span></label>
+            <label data-field="lent">Lent to <input name="lentTo" placeholder="Nobody right now" /></label>
+            <label data-field="lent">Lent since <span class="date-field"><input name="lentSince" type="date" /><button type="button" class="date-clear" data-clear-date="lentSince" aria-label="Clear lent date" title="Clear date">×</button></span></label>
             <fieldset class="span2">
               <legend>Collections</legend>
               <div id="editor-collections" class="checks"></div>

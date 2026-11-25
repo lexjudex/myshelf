@@ -4,6 +4,7 @@ import { mentionsHtml, mentionsPlain } from '../lib/mentions.js';
 import { SORTS, sortShelf, inShelf, AUTO_RULES, SHOW_OPTIONS, WITHIN_OPTIONS, RATING_RULES, isAutoShelf, autoMatch, STARTER_SHELVES, findStarter } from '../lib/sorting.js';
 import { openArrange, updateItem as updateArrangeItem } from './arrange.js';
 import Sortable from 'sortablejs';
+import { isLegacy, progressTotal, progressOf } from '../lib/types.js';
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => [...root.querySelectorAll(sel)];
 const root = $('#admin');
@@ -487,6 +488,12 @@ function openEditor(item, slug = null) {
   form.owned.checked = item.owned === true;
   form.lentTo.value = item.lentTo || '';
   form.lentSince.value = item.lentSince || '';
+  form.legacy.checked = item.legacy === true || isLegacy(item);
+  const prog = item.progress || {};
+  form.progressAt.value = prog.at ?? '';
+  form.progressOf.value = prog.of ?? '';
+  form.progressUnit.value = prog.unit || 'games';
+  syncFields();
   updateFeaturedHint();
   const src = item.source || {};
   $('#editor-source').innerHTML = src.url ? `From <a href="${esc(src.url)}" target="_blank" rel="noopener">${esc(src.name)}</a>` : esc(src.name || '');
@@ -531,9 +538,53 @@ form.featured.addEventListener('change', updateFeaturedHint);
 form.body.addEventListener('input', () => { if (form.featured.checked) updateFeaturedHint(); });
 
 form.cover.addEventListener('input', renderCoverPreview);
-form.type.addEventListener('change', () => { updateCreatorLabel(); renderCoverPreview(); renderExpansionsField(); });
+form.type.addEventListener('change', () => { updateCreatorLabel(); renderCoverPreview(); renderExpansionsField(); syncFields(); });
+['owned', 'legacy'].forEach((n) => form[n].addEventListener('change', syncFields));
+['progressAt', 'progressOf', 'progressUnit'].forEach((n) => form[n].addEventListener('input', syncProgressText));
+
+// ───────── only the fields that fit this kind of media and status ─────────
+// Hidden fields aren't saved (see the submit handler), so nothing stale lingers: no "lent to" without a copy,
+// no rating on something you haven't tried yet, no finished date on something you're still reading.
+const PHYSICAL = new Set(['book', 'movie', 'tv', 'music', 'videogame', 'boardgame']); // things you can own and lend
+function fieldsShown() {
+  const type = form.type.value;
+  const status = form.status.value;
+  const owned = PHYSICAL.has(type) && form.owned.checked;
+  return {
+    rating: status !== 'want',
+    dateStarted: status !== 'want',
+    dateFinished: status === 'finished',
+    legacy: type === 'boardgame',
+    progress: ['in-progress', 'abandoned'].includes(status) && (type === 'book' || type === 'tv' || (type === 'boardgame' && form.legacy.checked)),
+    owned: PHYSICAL.has(type),
+    lent: owned,
+  };
+}
+// The item as the editor has it now (enough for the progress rules).
+const editorDraft = () => ({
+  type: form.type.value,
+  status: form.status.value,
+  legacy: form.legacy.checked,
+  details: { ...(state.editing?.extra?.details || {}), ...textToDetails(form.details.value) },
+  progress: { at: form.progressAt.value, of: form.progressOf.value, unit: form.progressUnit.value },
+});
+function syncFields() {
+  const shown = fieldsShown();
+  $$('[data-field]', form).forEach((el) => { el.hidden = !shown[el.dataset.field]; });
+  const type = form.type.value;
+  $('#progress-legend').textContent = type === 'boardgame' ? 'Campaign progress' : 'Progress';
+  $('#progress-at-label').textContent = type === 'book' ? 'Page' : type === 'tv' ? 'Episode' : 'Played';
+  form.progressUnit.hidden = type !== 'boardgame';
+  form.progressOf.placeholder = String(progressTotal(editorDraft()) || (type === 'boardgame' ? 'total' : '?'));
+  syncProgressText();
+}
+function syncProgressText() {
+  const p = progressOf({ ...editorDraft(), status: 'in-progress' });
+  $('#progress-pct').textContent = p?.pct != null ? `${p.pct}%` : '';
+}
 form.status.addEventListener('change', () => {
   syncAutoChecks();
+  syncFields();
   const today = new Date().toISOString().slice(0, 10);
   // Moving off Finished clears the finished date; switching back brings it back (or today's date).
   if (form.status.value !== 'finished' && form.dateFinished.value) {
@@ -588,8 +639,18 @@ form.addEventListener('submit', async (e) => {
     owned: form.owned.checked,
     lentTo: form.lentTo.value.trim(),
     lentSince: form.lentTo.value.trim() ? form.lentSince.value || new Date().toISOString().slice(0, 10) : null,
+    legacy: form.type.value === 'boardgame' && form.legacy.checked,
+    progress: { at: form.progressAt.value, of: form.progressOf.value, unit: form.progressUnit.value },
   };
   delete item.body;
+  // Fields hidden for this media and status are left out, so nothing stale is saved.
+  const shown = fieldsShown();
+  if (!shown.rating) item.rating = null;
+  if (!shown.dateStarted) item.dateStarted = null;
+  if (!shown.owned) item.owned = false;
+  if (!shown.lent) { item.lentTo = ''; item.lentSince = null; }
+  if (!shown.progress) delete item.progress;
+  if (!shown.legacy) delete item.legacy;
   if (!slug && !saveBtn.dataset.confirmDup) {
     const norm = (x) => String(x || '').trim().toLowerCase();
     const dup = libraryItems().find((i) =>

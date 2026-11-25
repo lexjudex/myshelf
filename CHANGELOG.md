@@ -2,6 +2,13 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.7.0 (Nov 2026)
+
+- **Tidier editor.** The add/edit form only shows fields that fit the media and status: no rating or start date on *Want to*, a finished date only on *Finished*, **Lent to** and **Lent since** only once you tick **I own a copy**, and no "own a copy" for YouTube. Hidden fields aren't saved, so nothing stale is left behind.
+- **Progress bars.** Books (page X of Y), TV shows (episode X of Y) and legacy or campaign board games (X of Y games, chapters, months, scenarios or missions) show a **Progress** box while you're in the middle of them. The total fills in from the page or episode count. Board games ticked **Legacy or campaign game** (BGG's *Legacy Game* mechanic ticks it for you) get campaign progress. The progress shows as a thin bar along the bottom of the cover on your shelves, and as a bar with "Page 212 of 412 · 51%" on the item page.
+- **✕ on Recently Finished.** Signed in, the cover facing out on a Recently Finished shelf (any automatic *Finished* collection with a time window) has a ✕. It moves the finished date to just past the shelf's window (a year and a day ago on the starter shelf), so the item drops off. **Undo** puts the old date back.
+- Fixed: **Refresh from BGG** showed in the editor for things that aren't board games.
+
 ## 0.6.0 (Nov 2026)
 
 - **API keys in Settings.** Paste your TMDB, Twitch (IGDB), BoardGameGeek, Spotify, Google Books, YouTube and GitHub keys (and contact email) in **Manage → Settings → API keys**. No more Cloudflare dashboard. Each service has a **Test** button, and saving runs the test for you. Keys are stored encrypted (the encryption key is made automatically and kept in your KV storage, so a database copy alone doesn't give them away). The page only ever shows their last four characters. They're never shared with friends or put in backups.

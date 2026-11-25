@@ -40,6 +40,17 @@ export function normalizeItem(input) {
   item.lentSince = cleanDate(item.lentSince);
   if (!item.lentTo) { delete item.lentTo; delete item.lentSince; }
   else if (!item.lentSince) delete item.lentSince;
+  // Progress (books, TV, legacy board games): { at, of?, unit? } with whole numbers; dropped when empty.
+  if (item.legacy === true || item.legacy === 'true' || item.legacy === 'on') item.legacy = true;
+  else delete item.legacy;
+  const p = item.progress && typeof item.progress === 'object' ? item.progress : null;
+  const at = p && p.at !== '' && p.at != null ? Math.floor(Number(p.at)) : NaN;
+  if (Number.isFinite(at) && at >= 0) {
+    const of = Math.floor(Number(p.of));
+    item.progress = { at: Math.min(at, 1e6) };
+    if (Number.isFinite(of) && of > 0) item.progress.of = Math.min(of, 1e6);
+    if (['games', 'chapters', 'months', 'scenarios', 'missions'].includes(p.unit) && p.unit !== 'games') item.progress.unit = p.unit;
+  } else delete item.progress;
   if (item.details && typeof item.details === 'object') {
     for (const [k, v] of Object.entries(item.details)) if (isEmpty(v)) delete item.details[k];
   }

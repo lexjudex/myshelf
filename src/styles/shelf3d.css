@@ -433,3 +433,29 @@ html.flat-shelves .shelf.shelf-3d { touch-action: auto; }
     --h: max(var(--hb), calc(var(--h0) * var(--box-s) * 1.15)) !important;
   }
 }
+
+/* Progress strip on the cover (books, TV, legacy board games you're partway through) */
+.b3-progress {
+  position: absolute; left: 6%; right: 6%; bottom: 5%; z-index: 3;
+  height: max(3px, calc(var(--u, var(--h)) * 0.022)); border-radius: 999px;
+  background: rgba(0, 0, 0, 0.55); box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+  overflow: hidden; pointer-events: none;
+}
+.b3-progress > span { display: block; height: 100%; border-radius: inherit; background: var(--accent, #d99a4e); }
+.kind-vhs .b3-progress { bottom: 12%; }
+
+/* ✕ on Recently Finished (signed in): only on the cover that's facing out, after it has turned */
+.rf-x {
+  position: absolute; z-index: 5; display: none;
+  width: 24px; height: 24px; padding: 0; border-radius: 50%;
+  align-items: center; justify-content: center; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.35); background: rgba(17, 15, 14, 0.78); color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  animation: rf-in 0.25s ease 0.45s both;
+}
+.shelf-slot:has(> .book3d.is-front) > .rf-x { display: inline-flex; }
+.rf-x:hover, .rf-x:focus-visible { background: var(--danger, #a33a2a); border-color: transparent; outline: none; }
+.rf-x:disabled { opacity: 0.5; cursor: wait; }
+@keyframes rf-in { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
+.rf-toast { display: flex; align-items: center; gap: 14px; }
+.rf-undo { font: inherit; font-weight: 700; color: #fff; background: rgba(255, 255, 255, 0.18); border: 0; border-radius: 6px; padding: 4px 10px; cursor: pointer; }
