@@ -8,7 +8,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 function thumb(i) {
   const ph = `<span class="ar-ph" style="background:${COLORS[i.type] || '#555'}">${esc((i.title || '?').slice(0, 1))}</span>`;
   return i.cover
-    ? `<span class="ar-thumb"><img src="${esc(i.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(this.nextElementSibling.content.cloneNode(true))"><template>${ph}</template></span>`
+    ? `<span class="ar-thumb"><img src="${esc(i.shelfCover || i.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(this.nextElementSibling.content.cloneNode(true))"><template>${ph}</template></span>`
     : `<span class="ar-thumb">${ph}</span>`;
 }
 

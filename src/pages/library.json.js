@@ -15,6 +15,7 @@ export async function GET({ locals, request }) {
     year: e.data.year,
     cover: e.data.cover,
     spine: e.data.spine || '',
+    shelfCover: e.data.shelfCover || '',
     status: e.data.status,
     rating: e.data.rating ?? null,
     collections: e.data.collections,

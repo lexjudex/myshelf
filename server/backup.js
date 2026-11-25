@@ -56,7 +56,7 @@ export async function restoreBackup(env, data) {
 }
 
 function localCoverPaths(item) {
-  return [item.cover, item.spine, ...(item.expansions || []).map((x) => x.cover)]
+  return [item.cover, item.spine, item.shelfCover, ...(item.expansions || []).map((x) => x.cover)]
     .filter((c) => storedCoverName(c) || /^\/covers\/[a-z0-9][a-z0-9.-]*$/i.test(c || ''));
 }
 

@@ -45,6 +45,8 @@ const d = Math.max(s.min, Math.round(u * s.d));
 // Spines are painted with a small copy of the cover (item.spine, made on the Manage page), never the full-size
 // cover: decoding dozens of full-size covers at once is more than iPhones allow a tab, and Safari crashes the page.
 // No small copy yet: the spine is drawn in the type's colour.
+// Fronts use the small shelf copy (item.shelfCover) when there is one; the full-size cover otherwise.
+const frontSrc = item.shelfCover || item.cover;
 const spineSrc = item.cover && item.spine ? String(item.spine) : '';
 const spineImg = spineSrc ? `url("${spineSrc.replace(/"/g, '%22')}")` : 'none';
 const label = `${item.title}${item.creator ? ' — ' + item.creator : ''}`;
@@ -67,7 +69,7 @@ const onErr = "this.closest('.book3d').classList.remove('has-cover','has-spine')
         <span class="plq-board">
           <span class="plq-emblem"><span class="plq-play"></span></span>
           <span class="plq-pic">
-            {item.cover && <img src={item.cover} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror={onErr} />}
+            {item.cover && <img src={frontSrc} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror={onErr} />}
             <span class="b3-ph">
               <span class="b3-ph-title">{item.title}</span>
             </span>
@@ -77,12 +79,12 @@ const onErr = "this.closest('.book3d').classList.remove('has-cover','has-spine')
         </span>
       ) : s.kind === 'cart' ? (
         <span class="cart-label">
-          {item.cover && <img src={item.cover} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror={onErr} />}
+          {item.cover && <img src={frontSrc} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror={onErr} />}
           <span class="b3-ph"><span class="b3-ph-title">{item.title}</span></span>
         </span>
       ) : (
         <>
-          {item.cover && <img src={item.cover} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror={onErr} />}
+          {item.cover && <img src={frontSrc} alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" onerror={onErr} />}
           <span class="b3-ph">
             <span class="b3-ph-title">{item.title}</span>
             {item.creator && <span class="b3-ph-creator">{item.creator}</span>}

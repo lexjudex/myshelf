@@ -2,6 +2,12 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.9.1 (Nov 2026)
+
+- **Fixed: iPhones crashing on the shelves.** On iPhone (Safari, DuckDuckGo and every other iPhone browser) the Shelves page could crash with *"A problem repeatedly occurred"*. The shelves were loading every cover at full size, which is more memory than iPhones allow a page. They now use small copies of the covers, and look the same. Item pages still show the full-size cover.
+- **After updating, open Manage once on a computer** and leave it open for a minute or two. It makes the small copies for the covers you already have, in the background. Until an item has its copies, its spine shows a plain colour. New covers get their copies the next time Manage is open.
+- Shelves far down the page are now drawn when you scroll near them, so long pages load faster.
+
 ## 0.9.0 (Nov 2026)
 
 - **Choose which decoration is in front.** In **Settings → Shelf decorations**, drag the ⠿ handle (or use ↑ ↓) to reorder them. Where they overlap, the top of the list stands in front, and each one is labelled *In front*, *Middle* or *At the back*. Heads-up: until now the *last* one stood in front, so if yours overlap, check the order once.

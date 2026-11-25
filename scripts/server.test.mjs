@@ -311,8 +311,9 @@ test('saveItem: editing keeps slug, date added and cover; replacing/deleting cle
   await assert.rejects(() => saveItem(env, { slug: 'nope', item: { title: 'X', type: 'book', status: 'want' } }), /not found/);
 });
 
-test('spine copies: stored for the current cover, kept on edits, dropped and cleaned up when the cover changes', async () => {
-  const { saveSpine } = await import('../server/spines.js');
+test('cover copies: stored for the current cover, kept on edits, dropped and cleaned up when the cover changes', async () => {
+  const { saveCoverCopy } = await import('../server/cover-copies.js');
+  const saveSpine = (env, b) => saveCoverCopy(env, { kind: 'spine', ...b });
   const env = fakeEnv();
   mockFetch([['example.com', () => new Response(PNG_1x2, { headers: { 'content-type': 'image/png' } })]]);
   const first = await saveItem(env, { item: { title: 'Dune', type: 'book', year: 1965, status: 'finished', cover: 'https://example.com/a.png' }, body: '' });
@@ -322,20 +323,26 @@ test('spine copies: stored for the current cover, kept on edits, dropped and cle
   const { spine } = await saveSpine(env, { slug: first.slug, cover: first.item.cover, image: jpeg });
   assert.match(spine, /^\/img\/book-dune-1965-spine-[a-z0-9]+\.jpg$/);
   assert.equal(env.COVERS._store.size, 2);
+  const { shelfCover } = await saveCoverCopy(env, { kind: 'shelf', slug: first.slug, cover: first.item.cover, image: jpeg });
+  assert.match(shelfCover, /^\/img\/book-dune-1965-shelf-[a-z0-9]+\.jpg$/);
+  await assert.rejects(() => saveCoverCopy(env, { kind: 'poster', slug: first.slug, cover: first.item.cover, image: jpeg }), /kind/);
+  assert.equal(env.COVERS._store.size, 3);
   // The admin form doesn't send spine back; an edit that keeps the cover keeps the spine.
-  const { spine: _drop, ...sent } = { ...first.item, spine };
-  const edit = await saveItem(env, { slug: first.slug, item: { ...sent, rating: 4 }, body: '' });
+  const edit = await saveItem(env, { slug: first.slug, item: { ...first.item, rating: 4 }, body: '' });
   assert.equal(edit.item.spine, spine);
+  assert.equal(edit.item.shelfCover, shelfCover);
   // Sending a made-up spine is ignored.
   const forged = await saveItem(env, { slug: first.slug, item: { ...edit.item, spine: '/img/elsewhere.jpg' }, body: '' });
   assert.equal(forged.item.spine, spine);
   await new Promise((r) => setTimeout(r, 2));
   const swapped = await saveItem(env, { slug: first.slug, item: { ...edit.item, cover: 'https://example.com/b.png' }, body: '' });
   assert.equal(swapped.item.spine, undefined);
-  assert.equal(env.COVERS._store.size, 1, 'old cover and its spine removed');
+  assert.equal(swapped.item.shelfCover, undefined);
+  assert.equal(env.COVERS._store.size, 1, 'old cover and its copies removed');
   await saveSpine(env, { slug: first.slug, cover: swapped.item.cover, image: jpeg });
+  await saveCoverCopy(env, { kind: 'shelf', slug: first.slug, cover: swapped.item.cover, image: jpeg });
   await deleteItem(env, first.slug);
-  assert.equal(env.COVERS._store.size, 0, 'deleting the item removes its spine too');
+  assert.equal(env.COVERS._store.size, 0, 'deleting the item removes its copies too');
 });
 
 test('missing bindings give a clear error', async () => {

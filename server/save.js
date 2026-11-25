@@ -3,6 +3,7 @@ import { normalizeItem } from './markdown.js';
 import { assertSlug } from './paths.js';
 import { getItem, itemExists, listItems, putItem, putItems, removeItem } from './db.js';
 import { downloadImage, storeCover, deleteCover, storedCoverName, aspectOf } from './covers.js';
+import { COPY_FIELDS } from './cover-copies.js';
 import { cleanExpansions, storeExpansionCovers, deleteExpansionCovers } from './expansions.js';
 
 async function uniqueSlug(env, base) {
@@ -52,10 +53,10 @@ export async function saveItem(env, payload) {
 
   const oldStored = storedCoverName(previous?.cover) ? previous.cover : null;
   let removeOld = false;
-  // item.spine: a small copy of the cover for the shelf spines (see server/spines.js). The server manages it:
-  // it stays while the cover stays, and goes (to be made again) when the cover changes.
-  const oldSpine = storedCoverName(previous?.spine) ? previous.spine : null;
-  delete item.spine;
+  // Small copies of the cover for the shelves (see server/cover-copies.js). The server manages them: they stay
+  // while the cover stays, and go (to be made again on the Manage page) when the cover changes.
+  const oldCopies = Object.values(COPY_FIELDS).map((f) => [f, storedCoverName(previous?.[f]) ? previous[f] : null]);
+  for (const f of Object.values(COPY_FIELDS)) delete item[f];
 
   if (/^https?:\/\//i.test(item.cover || '')) {
     const img = await downloadImage(item.cover);
@@ -72,7 +73,7 @@ export async function saveItem(env, payload) {
     removeOld = Boolean(oldStored);
   } else if (previous && item.cover === previous.cover) {
     if (previous.coverAspect) item.coverAspect = previous.coverAspect;
-    if (oldSpine) item.spine = oldSpine;
+    for (const [f, old] of oldCopies) if (old) item[f] = old;
   } else {
     delete item.coverAspect;
   }
@@ -95,7 +96,7 @@ export async function saveItem(env, payload) {
     await putItem(env, slug, item, payload.body);
   }
   if (removeOld) await deleteCover(env, oldStored).catch(() => {});
-  if (oldSpine && item.spine !== oldSpine) await deleteCover(env, oldSpine).catch(() => {});
+  for (const [f, old] of oldCopies) if (old && item[f] !== old) await deleteCover(env, old).catch(() => {});
   await deleteExpansionCovers(env, unusedExpansionCovers);
   return { slug, item };
 }
@@ -118,7 +119,7 @@ export async function deleteItem(env, slug) {
   if (!row) throw new HttpError(404, 'Item not found');
   await removeItem(env, slug);
   await deleteCover(env, row.item.cover).catch(() => {});
-  await deleteCover(env, row.item.spine).catch(() => {});
+  for (const f of Object.values(COPY_FIELDS)) await deleteCover(env, row.item[f]).catch(() => {});
   await deleteExpansionCovers(env, (row.item.expansions || []).map((x) => x.cover));
   return { slug };
 }

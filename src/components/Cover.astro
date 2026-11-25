@@ -6,10 +6,12 @@ const t = TYPES[item.type] || TYPES.book;
 const placeholderWidth = Math.round(height * t.aspect);
 const href = link === false ? null : link;
 const Tag = href ? 'a' : 'div';
+// Small covers (the Journal) use the shelf copy; big ones (item pages) keep the full-size cover.
+const src = height <= 200 && item.shelfCover ? item.shelfCover : item.cover;
 ---
 <Tag href={href} class="cover" data-type={item.type} title={`${item.title}${item.creator ? ' — ' + item.creator : ''}`} style={`--h:${height}px; --pw:${placeholderWidth}px; --tc:${t.color}`}>
   {item.cover ? (
-    <img src={item.cover} alt={`${item.title} cover`} loading={eager ? 'eager' : 'lazy'} decoding="async" referrerpolicy="no-referrer"
+    <img src={src} alt={`${item.title} cover`} loading={eager ? 'eager' : 'lazy'} decoding="async" referrerpolicy="no-referrer"
       onerror="this.parentElement.classList.add('broken');this.remove();" />
   ) : null}
   <span class="placeholder" aria-hidden={item.cover ? 'true' : undefined}>
