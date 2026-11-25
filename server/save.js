@@ -52,6 +52,10 @@ export async function saveItem(env, payload) {
 
   const oldStored = storedCoverName(previous?.cover) ? previous.cover : null;
   let removeOld = false;
+  // item.spine: a small copy of the cover for the shelf spines (see server/spines.js). The server manages it:
+  // it stays while the cover stays, and goes (to be made again) when the cover changes.
+  const oldSpine = storedCoverName(previous?.spine) ? previous.spine : null;
+  delete item.spine;
 
   if (/^https?:\/\//i.test(item.cover || '')) {
     const img = await downloadImage(item.cover);
@@ -68,6 +72,7 @@ export async function saveItem(env, payload) {
     removeOld = Boolean(oldStored);
   } else if (previous && item.cover === previous.cover) {
     if (previous.coverAspect) item.coverAspect = previous.coverAspect;
+    if (oldSpine) item.spine = oldSpine;
   } else {
     delete item.coverAspect;
   }
@@ -90,6 +95,7 @@ export async function saveItem(env, payload) {
     await putItem(env, slug, item, payload.body);
   }
   if (removeOld) await deleteCover(env, oldStored).catch(() => {});
+  if (oldSpine && item.spine !== oldSpine) await deleteCover(env, oldSpine).catch(() => {});
   await deleteExpansionCovers(env, unusedExpansionCovers);
   return { slug, item };
 }
@@ -112,6 +118,7 @@ export async function deleteItem(env, slug) {
   if (!row) throw new HttpError(404, 'Item not found');
   await removeItem(env, slug);
   await deleteCover(env, row.item.cover).catch(() => {});
+  await deleteCover(env, row.item.spine).catch(() => {});
   await deleteExpansionCovers(env, (row.item.expansions || []).map((x) => x.cover));
   return { slug };
 }

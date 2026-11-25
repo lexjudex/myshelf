@@ -139,6 +139,11 @@ main { max-width: 1280px; margin: 0 auto; padding: 0 20px 60px; }
 .bookcase > .shelf-section:last-of-type { padding-bottom: 0; }
 .shelf-section {
   padding: 6px 0 14px;
+  /* Shelves well off screen aren't drawn until you scroll near them (their covers aren't loaded or decoded
+     either), which keeps long pages light enough for phones. "auto" remembers each shelf's real height once
+     it has been drawn, so the page doesn't jump. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
 }
 .shelf-head { display: flex; align-items: baseline; gap: 10px; padding: 0 22px; }
 .shelf-head h2 { font-size: 1.25rem; font-weight: 600; margin: 0; }

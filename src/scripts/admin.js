@@ -827,6 +827,55 @@ async function loadLibrary() {
     state.library = [];
   }
   renderLibrary();
+  makeSpines();
+}
+
+// ───────── spine copies ─────────
+// Shelf spines are painted with a small copy of each cover (full-size covers made iPhones crash the page).
+// Workers can't resize images on the free plan, so this page does it: any stored cover without a copy gets one,
+// one at a time in the background. Spines need a bit more detail where little blur is applied.
+const SPINE_SIZE = { boardgame: 480, videogame: 360 }; // longest side, px; everything else gets 160
+let spinesRunning = false;
+async function makeSpines() {
+  if (spinesRunning || !getToken()) return;
+  spinesRunning = true;
+  let made = 0;
+  try {
+    const failed = new Set();
+    for (;;) {
+      const item = state.library.find((i) => /^\/img\//.test(i.cover || '') && !i.spine && !failed.has(i.slug));
+      if (!item) break;
+      try {
+        const res = await api('spine', { method: 'POST', body: { slug: item.slug, cover: item.cover, image: await spineImage(item) } });
+        item.spine = res.spine;
+        made++;
+      } catch (err) {
+        if (err.message === 'Unauthorized') break;
+        failed.add(item.slug); // a broken image: skip it this time, try again next visit
+        console.warn(`Couldn't make a spine copy for ${item.title}:`, err);
+      }
+    }
+  } finally {
+    spinesRunning = false;
+  }
+  if (made) console.info(`Made ${made} spine cop${made === 1 ? 'y' : 'ies'}.`);
+}
+async function spineImage(item) {
+  const img = new Image();
+  img.src = item.cover; // same site, so the canvas stays readable
+  await img.decode();
+  const long = SPINE_SIZE[item.type] || 160;
+  const scale = Math.min(1, long / Math.max(img.naturalWidth, img.naturalHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+  canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = (TYPES[item.type] || TYPES.book).color || '#333'; // behind transparent PNGs
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+  img.src = '';
+  return canvas.toDataURL('image/jpeg', 0.85);
 }
 function libraryItems() {
   return state.library;

@@ -14,6 +14,7 @@ export async function GET({ locals, request }) {
     creator: e.data.creator,
     year: e.data.year,
     cover: e.data.cover,
+    spine: e.data.spine || '',
     status: e.data.status,
     rating: e.data.rating ?? null,
     collections: e.data.collections,

@@ -42,15 +42,19 @@ if (s.kind === 'box') {
   }
 }
 const d = Math.max(s.min, Math.round(u * s.d));
-const spineImg = item.cover ? `url("${String(item.cover).replace(/"/g, '%22')}")` : 'none';
+// Spines are painted with a small copy of the cover (item.spine, made on the Manage page), never the full-size
+// cover: decoding dozens of full-size covers at once is more than iPhones allow a tab, and Safari crashes the page.
+// No small copy yet: the spine is drawn in the type's colour.
+const spineSrc = item.cover && item.spine ? String(item.spine) : '';
+const spineImg = spineSrc ? `url("${spineSrc.replace(/"/g, '%22')}")` : 'none';
 const label = `${item.title}${item.creator ? ' — ' + item.creator : ''}`;
 // A thin progress strip along the bottom of the cover, for books, shows and legacy games you're partway through.
 const prog = progressOf(item);
-const onErr = "this.closest('.book3d').classList.remove('has-cover');this.remove();";
+const onErr = "this.closest('.book3d').classList.remove('has-cover','has-spine');this.remove();";
 ---
 <a
   href={href}
-  class:list={['book3d', `kind-${s.kind}`, { 'is-front': front, 'has-cover': !!item.cover }]}
+  class:list={['book3d', `kind-${s.kind}`, { 'is-front': front, 'has-cover': !!item.cover, 'has-spine': !!spineSrc }]}
   data-type={item.type}
   data-kind={isChannel(item) ? 'channel' : undefined}
   title={label}

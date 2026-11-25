@@ -311,6 +311,33 @@ test('saveItem: editing keeps slug, date added and cover; replacing/deleting cle
   await assert.rejects(() => saveItem(env, { slug: 'nope', item: { title: 'X', type: 'book', status: 'want' } }), /not found/);
 });
 
+test('spine copies: stored for the current cover, kept on edits, dropped and cleaned up when the cover changes', async () => {
+  const { saveSpine } = await import('../server/spines.js');
+  const env = fakeEnv();
+  mockFetch([['example.com', () => new Response(PNG_1x2, { headers: { 'content-type': 'image/png' } })]]);
+  const first = await saveItem(env, { item: { title: 'Dune', type: 'book', year: 1965, status: 'finished', cover: 'https://example.com/a.png' }, body: '' });
+  const jpeg = 'data:image/jpeg;base64,' + Buffer.from('fake-jpeg').toString('base64');
+  await assert.rejects(() => saveSpine(env, { slug: first.slug, cover: '/img/other.png', image: jpeg }), /cover changed/);
+  await assert.rejects(() => saveSpine(env, { slug: first.slug, cover: first.item.cover, image: 'data:image/svg+xml;base64,AAAA' }), /JPEG or WebP/);
+  const { spine } = await saveSpine(env, { slug: first.slug, cover: first.item.cover, image: jpeg });
+  assert.match(spine, /^\/img\/book-dune-1965-spine-[a-z0-9]+\.jpg$/);
+  assert.equal(env.COVERS._store.size, 2);
+  // The admin form doesn't send spine back; an edit that keeps the cover keeps the spine.
+  const { spine: _drop, ...sent } = { ...first.item, spine };
+  const edit = await saveItem(env, { slug: first.slug, item: { ...sent, rating: 4 }, body: '' });
+  assert.equal(edit.item.spine, spine);
+  // Sending a made-up spine is ignored.
+  const forged = await saveItem(env, { slug: first.slug, item: { ...edit.item, spine: '/img/elsewhere.jpg' }, body: '' });
+  assert.equal(forged.item.spine, spine);
+  await new Promise((r) => setTimeout(r, 2));
+  const swapped = await saveItem(env, { slug: first.slug, item: { ...edit.item, cover: 'https://example.com/b.png' }, body: '' });
+  assert.equal(swapped.item.spine, undefined);
+  assert.equal(env.COVERS._store.size, 1, 'old cover and its spine removed');
+  await saveSpine(env, { slug: first.slug, cover: swapped.item.cover, image: jpeg });
+  await deleteItem(env, first.slug);
+  assert.equal(env.COVERS._store.size, 0, 'deleting the item removes its spine too');
+});
+
 test('missing bindings give a clear error', async () => {
   await assert.rejects(() => saveItem({}, { item: { title: 'X', type: 'book', status: 'want' } }), /binding named DB/);
 });
