@@ -101,9 +101,21 @@ function renderConfig(c, types) {
   if (!c.bgg && on('boardgame')) missing.push('BGG');
   if (!c.spotify && on('music')) missing.push('Spotify (using MusicBrainz)');
   $('#config-status').innerHTML = missing.length
-    ? `<span class="warn" title="Add these as secrets: Worker → Settings → Variables and Secrets">Missing keys: ${esc(missing.join(', '))}</span>`
+    ? `<a class="warn" href="#api-keys" data-goto-keys title="Add them in Settings → API keys">Missing keys: ${esc(missing.join(', '))}</a>`
     : '<span class="okay">All sources connected</span>';
 }
+// Settings → API keys tells us when keys change, so the header stays right without signing in again.
+document.addEventListener('myshelf:keys-changed', async () => {
+  try { const ping = await api('ping'); renderConfig(ping.configured, ping.types); } catch {}
+});
+// "Missing keys" in the header (and the Updates hints) jump to Settings → API keys.
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-goto-keys]');
+  if (!a) return;
+  e.preventDefault();
+  showTab('settings');
+  requestAnimationFrame(() => $('#api-keys')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+});
 // Storage status + one-time import of the old Git-based entries.
 function renderStorage(ping) {
   const el = $('#storage-banner');
@@ -1146,6 +1158,10 @@ $('#export-btn').addEventListener('click', async () => {
 // /admin/#add=collection-slug[&type=boardgame] — from "＋ Add more" in a collection's arrange dialog.
 // /admin/#search=<type>&q=<title> — "Add it" on a recommendation in the inbox on the public Friends page.
 function handleHash() {
+  if (location.hash === '#api-keys') {
+    showTab('settings');
+    return requestAnimationFrame(() => $('#api-keys')?.scrollIntoView({ block: 'start' }));
+  }
   const m = location.hash.match(/^#edit=([a-z0-9-]+)$/);
   if (m) {
     if (EMBED) return editSlug(m[1], (slug, item) => tellParent({ type: 'myshelf:edited', slug: m[1], item }));

@@ -86,9 +86,9 @@ export function truncate(str, n = 1200) {
 }
 
 
-/** Cloudflare bindings + secrets for an Astro request (D1, KV, API keys). */
+/** Cloudflare bindings + secrets for an Astro request (D1, KV, API keys). On /api/*, keys saved in Settings are included. */
 export function envOf(locals) {
-  return locals?.runtime?.env || {};
+  return locals?.myshelfEnv || locals?.runtime?.env || {};
 }
 
 /** Astro endpoint wrapper: fn({ request, env, url }) with thrown errors turned into JSON. */

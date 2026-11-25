@@ -322,7 +322,7 @@ function applyTypes(types) {
 // ───────── updates (Settings) ─────────
 const ghLink = (repo) => `<a href="https://github.com/${esc(repo)}" target="_blank" rel="noopener">${esc(repo)}</a>`;
 const SOURCE_HINT = 'If you set up MyShelf by forking it, put your fork’s address (like <code>https://github.com/you/myshelf</code>) in <strong>Source code link</strong> above and save.';
-const TOKEN_HINT = (repo) => `To check for and install updates from here, add a <strong>GITHUB_TOKEN</strong> secret to your Worker: a GitHub fine-grained token for just ${ghLink(repo)} with <em>Contents: Read and write</em>. Until then, use <strong>Sync fork</strong> on your repository’s GitHub page.`;
+const TOKEN_HINT = (repo) => `To check for and install updates from here, add a GitHub token under <a href="#api-keys" data-goto-keys>API keys</a> below: a fine-grained token for just ${ghLink(repo)} with <em>Contents: Read and write</em>. Until then, use <strong>Sync fork</strong> on your repository’s GitHub page.`;
 function renderVersion(v) {
   if (!v?.version) return;
   const bits = [v.commit && `<code>${esc(v.commit)}</code>`, v.built && `built ${fmt(v.built)}`].filter(Boolean);
@@ -349,7 +349,7 @@ async function loadUpdates() {
   } else if (u.status === 'no-repo' || u.status === 'not-found') {
     box.innerHTML = `<p class="muted">${u.repo ? `Couldn’t find ${esc(u.repo)} on GitHub.` : 'This site doesn’t know which GitHub repository it runs from.'} ${SOURCE_HINT}</p>`;
   } else if (u.status === 'bad-token') {
-    box.innerHTML = `<p class="error">GitHub didn’t accept your GITHUB_TOKEN. It may have expired: make a new one and replace the secret.</p>${again}`;
+    box.innerHTML = `<p class="error">GitHub didn’t accept your GITHUB_TOKEN. It may have expired: make a new one and replace it under <a href="#api-keys" data-goto-keys>API keys</a>.</p>${again}`;
   } else {
     box.innerHTML = `<p class="error">Couldn’t check for updates: ${esc(u.message || 'unknown error')}</p>${again}`;
   }

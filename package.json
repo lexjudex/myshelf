@@ -1,6 +1,6 @@
 {
   "name": "myshelf",
-  "version": "0.5.9",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "A self-hosted media journal and virtual bookshelf (books, movies, TV, music, video games, board games, YouTube).",
@@ -29,19 +29,19 @@
         "description": "Your admin password. Make up a long random one (for example run `openssl rand -hex 24`) and keep it somewhere safe. You type it at **/admin/** to manage your shelf."
       },
       "TMDB_TOKEN": {
-        "description": "Movies and TV. Free at [themoviedb.org](https://www.themoviedb.org/settings/api): copy the **API Read Access Token**. Leave blank to add it later."
+        "description": "Movies and TV. Free at [themoviedb.org](https://www.themoviedb.org/settings/api): copy the **API Read Access Token**. Leave blank to paste it later in Manage → Settings → API keys."
       },
       "TWITCH_CLIENT_ID": {
-        "description": "Video games (IGDB). Register an app at [dev.twitch.tv/console](https://dev.twitch.tv/console). Leave blank to add it later."
+        "description": "Video games (IGDB). Register an app at [dev.twitch.tv/console](https://dev.twitch.tv/console). Leave blank to paste it later in Manage → Settings → API keys."
       },
       "TWITCH_CLIENT_SECRET": {
-        "description": "The Client Secret from the same Twitch app. Leave blank to add it later."
+        "description": "The Client Secret from the same Twitch app. Leave blank to paste it later in Manage → Settings → API keys."
       },
       "BGG_TOKEN": {
-        "description": "Board games. Register a non-commercial app at [boardgamegeek.com/applications](https://boardgamegeek.com/applications) and create a token. Leave blank to add it later."
+        "description": "Board games. Register a non-commercial app at [boardgamegeek.com/applications](https://boardgamegeek.com/applications) and create a token. Leave blank to paste it later in Manage → Settings → API keys."
       },
       "SPOTIFY_CLIENT_ID": {
-        "description": "Music (optional; MusicBrainz is used without it). Create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard)."
+        "description": "Music (optional; MusicBrainz is used without it). Create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard). Leave blank to paste it later in Manage → Settings → API keys."
       },
       "SPOTIFY_CLIENT_SECRET": {
         "description": "The Client Secret from the same Spotify app (optional)."

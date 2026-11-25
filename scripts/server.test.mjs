@@ -213,7 +213,7 @@ test('Spotify playlists in search, and pasted Spotify links', async () => {
     ['api.spotify.com/v1/playlists', () => new Response('{}', { status: 404 })],
   ]);
   await assert.rejects(search('music', 'https://open.spotify.com/playlist/zzzzzzzzzzzz', env), /is the playlist public/);
-  await assert.rejects(search('music', 'https://open.spotify.com/album/zzzzzzzzzzzz', {}), /Spotify keys/);
+  await assert.rejects(search('music', 'https://open.spotify.com/album/zzzzzzzzzzzz', {}), /Spotify Client ID and Secret/);
 });
 
 test('vinyl sleeves: albums, compilations and playlists; singles and songs stay CDs', () => {
@@ -326,7 +326,7 @@ test('auth check + search handler', async () => {
   assert.equal(bad.status, 400);
   const noKey = await searchHandler(astro('https://x/api/search?type=movie&q=hello', {}));
   assert.equal(noKey.status, 400);
-  assert.match((await noKey.json()).error, /TMDB_TOKEN/);
+  assert.match((await noKey.json()).error, /No TMDB token/);
 });
 
 test('IGDB re-ranking puts real releases above mods and caps at 26', async () => {
@@ -680,4 +680,62 @@ test('add to my shelf: a friend’s item becomes an editor link with its details
   assert.match(shelfHtml({ friend, items: [item] }, TYPES, { me: 'https://me.example' }), /Add to my shelf/);
   assert.doesNotMatch(shelfHtml({ friend, items: [{ ...item, youHave: true }] }, TYPES, { me: 'https://me.example' }), /Add to my shelf/);
   assert.doesNotMatch(shelfHtml({ friend: { url: friend.url }, items: [item] }, TYPES, {}), /Add to my shelf/); // visitors
+});
+
+test('API keys saved in Settings: encrypted, laid over Worker secrets, never sent back', async () => {
+  const { saveKeys, keyStatus, withStoredKeys, testKeys, _resetKeyCache } = await import('../server/apikeys.js');
+  const { serveCover } = await import('../server/covers.js');
+  const { getSetting } = await import('../server/db.js');
+  _resetKeyCache();
+  const env = { ...fakeEnv(), BGG_TOKEN: 'worker-secret-bgg-0000' };
+
+  // Nothing saved: the Worker secret shows, and the env is unchanged.
+  let s = await keyStatus(env);
+  let bgg = s.groups.find((g) => g.id === 'bgg').fields[0];
+  assert.deepEqual([bgg.saved, bgg.secret, bgg.hint], [false, true, '0000']);
+  assert.equal(await withStoredKeys(env), env);
+
+  // Save: stored encrypted, the plain key isn't in D1, and the status shows only the last four.
+  s = await saveKeys(env, { TMDB_TOKEN: 'tmdb-token-abcdefgh1234', BGG_TOKEN: 'saved-bgg-token-9999', CONTACT_EMAIL: 'me@example.com' });
+  const row = JSON.stringify(await getSetting(env, 'api_keys'));
+  assert.ok(!row.includes('tmdb-token') && !row.includes('saved-bgg'));
+  assert.ok(!JSON.stringify(s).includes('tmdb-token-abcdefgh'));
+  bgg = s.groups.find((g) => g.id === 'bgg').fields[0];
+  assert.deepEqual([bgg.saved, bgg.secret, bgg.hint], [true, true, '9999']);
+  assert.equal(s.groups.find((g) => g.id === 'contact').fields[0].hint, 'me@example.com');
+
+  // Saved keys win over Worker secrets; bindings are kept.
+  const merged = await withStoredKeys(env);
+  assert.equal(merged.BGG_TOKEN, 'saved-bgg-token-9999');
+  assert.equal(merged.TMDB_TOKEN, 'tmdb-token-abcdefgh1234');
+  assert.equal(merged.DB, env.DB);
+  // Status from the merged env still knows which are Worker secrets.
+  assert.equal((await keyStatus(merged)).groups.find((g) => g.id === 'tmdb').fields[0].secret, false);
+
+  // The encryption key can't be fetched through /img/.
+  assert.ok([...env.COVERS._store.keys()].includes('_myshelf/api-keys-cipher'));
+  assert.equal((await serveCover(env, '_myshelf/api-keys-cipher')).status, 404);
+
+  // Remove: back to the Worker secret.
+  await saveKeys(env, { BGG_TOKEN: null });
+  assert.equal((await withStoredKeys(env)).BGG_TOKEN, 'worker-secret-bgg-0000');
+
+  // Bad input.
+  await assert.rejects(saveKeys(env, { ADMIN_TOKEN: 'x' }), /Unknown key/);
+  await assert.rejects(saveKeys(env, { TMDB_TOKEN: 'has a space' }), /spaces/);
+
+  // Lost encryption key: a clear message, and Worker secrets still work.
+  env.COVERS._store.delete('_myshelf/api-keys-cipher');
+  _resetKeyCache();
+  assert.match((await keyStatus(env)).error, /couldn’t be read/);
+  assert.equal((await withStoredKeys(env)).BGG_TOKEN, 'worker-secret-bgg-0000');
+  await saveKeys(env, { TMDB_TOKEN: 'fresh-token-zzzz12345678' }); // saving again starts over
+  assert.equal((await keyStatus(env)).error, null);
+
+  // Test button: uses the key in effect and reports a rejected key plainly.
+  let seen;
+  const ok = await testKeys(env, 'tmdb', async (url) => { seen = url; return new Response('{}', { status: 200 }); });
+  assert.ok(ok.ok && seen.includes('fresh-token-zzzz12345678'));
+  await assert.rejects(testKeys(env, 'tmdb', async () => new Response('no', { status: 401 })), /rejected/);
+  await assert.rejects(testKeys(env, 'spotify', async () => new Response('{}')), /Add SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET/);
 });

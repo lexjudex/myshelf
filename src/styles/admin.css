@@ -383,3 +383,21 @@ html.embed .editor::backdrop { background: transparent; }
 .site-form .look-mine .pref-toggle { display: inline-flex; flex-direction: row; color: var(--ink); font-size: 0.9rem; font-weight: 600; }
 .look-mine .pref-track { background: #d5c6a8; }
 .look-mine .pref-track::after { background: #fff; }
+
+/* Settings → API keys */
+.admin-status a.warn { text-decoration: underline dotted; text-underline-offset: 3px; }
+.keys-list { display: grid; gap: 12px; margin: 10px 0 24px; }
+.key-group { border: 1px solid #e2d6bd; border-radius: 10px; padding: 12px 14px; }
+.key-group.off { opacity: 0.6; }
+.key-group.off:focus-within { opacity: 1; }
+.key-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; }
+.key-head h3 { margin: 0 0 4px; font-size: 1rem; }
+.key-row { display: grid; grid-template-columns: minmax(180px, 1fr) 2fr; gap: 4px 12px; align-items: center; padding: 6px 0; }
+.key-row label { font-weight: 600; font-size: 0.9rem; }
+.key-name { font-size: 0.75rem; font-weight: 400; color: var(--ink-soft); }
+.key-state { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.key-state input { flex: 1 1 220px; width: auto; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.85rem; }
+.key-ok { color: #3f7a3a; font-weight: 600; font-size: 0.88rem; }
+.key-actions { margin: 6px 0 0; }
+.key-actions:empty { display: none; }
+@media (max-width: 640px) { .key-row { grid-template-columns: 1fr; } }

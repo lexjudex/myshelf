@@ -11,7 +11,7 @@ If MyShelf is useful to you, you can support its development on Ko-fi:
 ## How it works
 
 ```
-You (admin page) ──► /api/* on your Worker (holds your API keys)
+You (admin page) ──► /api/* on your Worker (uses your API keys, kept encrypted in your own D1 + KV)
                         ├─► searches Open Library / Google Books / TMDB / Spotify / IGDB / BGG / YouTube
                         └─► saves the entry to D1 and the cover image to KV
 Visitors ──► pages render straight from D1, so every change is live immediately
@@ -40,7 +40,7 @@ With a fork, GitHub's **Sync fork** button pulls in new versions, and Cloudflare
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/lexjudex/myshelf)
 1. Click **Deploy to Cloudflare** above and sign in to Cloudflare and GitHub when asked.
 2. Cloudflare copies MyShelf into a new repository on your GitHub account and creates your database and cover storage.
-3. It asks for your secrets. Only **`ADMIN_TOKEN`** is required: make up a long random password and keep it somewhere safe. Leave the API keys blank for now if you don't have them yet.
+3. It asks for your secrets. Only **`ADMIN_TOKEN`** is required: make up a long random password and keep it somewhere safe. Leave the API keys blank: you can paste them into the site itself later.
 4. Click **Deploy**. In a minute or two your site is live at `https://myshelf.<your-subdomain>.workers.dev`.
 
 Option B's copy isn't linked to this repository, so getting updates later takes a couple of git commands (see [Getting updates](#getting-updates)).
@@ -50,13 +50,15 @@ Option B's copy isn't linked to this repository, so getting updates later takes 
 
 1. Go to `https://<your-site>/admin/` and enter your `ADMIN_TOKEN`.
 2. Open **Settings** and set your site name and your name.
-3. Add API keys as you get them (next section). The admin header lists any that are still missing.
+3. Paste API keys into **Settings → API keys** as you get them (next section). The admin header lists any that are still missing; click it to jump there.
 
 ### Free API keys
 
-Add each one in your Worker → **Settings → Variables and Secrets** → **Add** → type **Secret**, then save and deploy. No rebuild is needed.
+Paste each one into **Manage → Settings → API keys** and press **Save**. MyShelf tests it right away with one small request and tells you if it was rejected. Keys saved there are encrypted (the encryption key is made for you and kept in your KV storage), only their last four characters are ever shown again, and they're never sent to friends or included in backups.
 
-| Source | Where | Secret name(s) |
+Prefer Cloudflare's dashboard? Worker secrets still work: Worker → **Settings → Variables and Secrets** → **Add** → type **Secret**, using the names below. If both are set, the key saved in MyShelf wins, and **Remove** in MyShelf goes back to the Worker secret.
+
+| Source | Where | Name(s) |
 |---|---|---|
 | **TMDB** (movies, TV) | themoviedb.org → Settings → API → request a personal key. Copy the **API Read Access Token** (the long one). | `TMDB_TOKEN` |
 | **IGDB** (video games) | dev.twitch.tv/console → Register Your Application (redirect URL `http://localhost`, client type Confidential). Your Twitch account needs 2FA turned on. | `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET` |

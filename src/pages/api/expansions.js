@@ -4,7 +4,7 @@ import { searchBggExpansions, bggExpansionsFor } from '../../../server/providers
 // GET /api/expansions?q=wingspan     → search BGG expansions
 // GET /api/expansions?base=266192    → every expansion BGG lists for that base game
 export const GET = route(async ({ url, env }) => {
-  if (!env.BGG_TOKEN) throw new HttpError(400, 'BGG_TOKEN is not set.');
+  if (!env.BGG_TOKEN) throw new HttpError(400, 'No BGG token yet. Add it in Manage → Settings → API keys.');
   const base = url.searchParams.get('base');
   if (base) {
     if (!/^\d{1,9}$/.test(base)) throw new HttpError(400, 'Invalid BGG id');

@@ -1,4 +1,5 @@
 # Secrets for your MyShelf. The "Deploy to Cloudflare" button asks for each of these.
+# Only ADMIN_TOKEN is needed: API keys can also be pasted into Manage → Settings → API keys (saved keys win).
 # For local testing, copy this file to .dev.vars and fill it in. Never commit .dev.vars.
 ADMIN_TOKEN=change-me # your admin password
 TMDB_TOKEN= # movies + TV (optional)

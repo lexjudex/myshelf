@@ -2,6 +2,12 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.6.0 (Nov 2026)
+
+- **API keys in Settings.** Paste your TMDB, Twitch (IGDB), BoardGameGeek, Spotify, Google Books, YouTube and GitHub keys (and contact email) in **Manage → Settings → API keys**. No more Cloudflare dashboard. Each service has a **Test** button, and saving runs the test for you. Keys are stored encrypted (the encryption key is made automatically and kept in your KV storage, so a database copy alone doesn't give them away). The page only ever shows their last four characters. They're never shared with friends or put in backups.
+- **Worker secrets still work.** If a key is saved in Settings it's used first; otherwise the Worker secret with the same name is. **Remove** goes back to the secret. Existing sites don't need to change anything.
+- The **Missing keys** note in the Manage header is now a link to Settings → API keys, and error messages about missing keys point there too.
+
 ## 0.5.9 (Nov 2026)
 
 - **＋ on the Journal.** Signed in, a ＋ sits next to the Journal's title. It opens **Manage → Add**.

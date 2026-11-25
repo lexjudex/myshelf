@@ -190,6 +190,10 @@ const typesJson = JSON.stringify(TYPES);
             </fieldset>
             <div class="row span2"><button class="btn primary" type="submit">Save</button><span id="site-msg" class="muted small"></span></div>
           </form>
+          <h2 id="api-keys">API keys</h2>
+          <p class="muted">Paste the free keys for the databases MyShelf looks things up in. They’re stored encrypted on your own Cloudflare account, never shown again here (only their last four characters), and never shared with friends or put in backups. A key saved here is used instead of a Worker secret with the same name. Not sure where to get one? See <a href="https://github.com/lexjudex/myshelf#free-api-keys" target="_blank" rel="noopener">Free API keys</a>.</p>
+          <p id="keys-error" class="error" hidden></p>
+          <div id="keys-list" class="keys-list"><p class="muted">Loading…</p></div>
           <h2>Shelf decorations</h2>
           <p class="muted">Add up to three images that stand on top of the bookcase on your main Shelves page, like a teddy bear, a mini figure, or a photo in a frame. Use PNGs with a transparent background, or put any image (a JPG, or anything with a background) in a frame. Up to 2 MB each. <strong>Drag them in the preview</strong> to place them, left, right, up or down (arrow keys nudge), or set exact numbers below. The preview shows exactly what your Shelves page will. Switch to <strong>Phone</strong> to give phones their own layout. Changes save as you make them.</p>
           <div class="decor-preview-bar">
@@ -339,6 +343,7 @@ const typesJson = JSON.stringify(TYPES);
     import '../../scripts/admin.js';
     import '../../scripts/friends.js';
     import '../../scripts/decor-settings.js';
+    import '../../scripts/api-keys.js';
     import { enableMentionPicker } from '../../scripts/mention-picker.js';
     enableMentionPicker();
   </script>

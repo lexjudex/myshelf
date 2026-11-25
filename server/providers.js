@@ -70,7 +70,7 @@ async function searchBooks(q, env) {
 // ───────────────────────── Movies & TV: TMDB ─────────────────────────
 
 function tmdb(env, path, params = {}) {
-  if (!env.TMDB_TOKEN) throw new HttpError(400, 'TMDB_TOKEN is not set. Add your TMDB API Read Access Token in Cloudflare.');
+  if (!env.TMDB_TOKEN) throw new HttpError(400, 'No TMDB token yet. Add it in Manage → Settings → API keys.');
   const usp = new URLSearchParams(params);
   const headers = { accept: 'application/json' };
   // Accept either the long "API Read Access Token" (Bearer) or the short v3 API key.
@@ -124,10 +124,11 @@ async function tmdbDetails(type, id, env) {
 
 // ───────────────────────── Music: Spotify (fallback: MusicBrainz) ─────────────────────────
 
-let spotifyToken = null; // { token, exp } — cached per isolate
+let spotifyToken = null; // { token, exp, who } — cached per isolate, for the keys it was made with
 
 async function getSpotifyToken(env) {
-  if (spotifyToken && spotifyToken.exp > Date.now() + 30_000) return spotifyToken.token;
+  const who = `${env.SPOTIFY_CLIENT_ID}:${env.SPOTIFY_CLIENT_SECRET}`;
+  if (spotifyToken && spotifyToken.who === who && spotifyToken.exp > Date.now() + 30_000) return spotifyToken.token;
   const res = await fetch('https://accounts.spotify.com/api/token', {
     method: 'POST',
     headers: {
@@ -138,7 +139,7 @@ async function getSpotifyToken(env) {
   });
   if (!res.ok) throw new HttpError(502, `Spotify auth failed (${res.status})`);
   const data = await res.json();
-  spotifyToken = { token: data.access_token, exp: Date.now() + data.expires_in * 1000 };
+  spotifyToken = { token: data.access_token, exp: Date.now() + data.expires_in * 1000, who };
   return spotifyToken.token;
 }
 
@@ -212,7 +213,7 @@ async function spotifyFromUrl(input, env) {
     } catch { /* fall through */ }
   }
   if (!ref) throw new HttpError(400, 'That doesn’t look like a Spotify album, song or playlist link.');
-  if (!(env.SPOTIFY_CLIENT_ID && env.SPOTIFY_CLIENT_SECRET)) throw new HttpError(400, 'Spotify links need Spotify keys (SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET). Search by name instead.');
+  if (!(env.SPOTIFY_CLIENT_ID && env.SPOTIFY_CLIENT_SECRET)) throw new HttpError(400, 'Spotify links need your Spotify Client ID and Secret (Manage → Settings → API keys). Search by name instead.');
   const token = await getSpotifyToken(env);
   const path = { album: 'albums', track: 'tracks', playlist: 'playlists' }[ref.kind];
   const res = await fetch(`https://api.spotify.com/v1/${path}/${ref.id}`, { headers: { authorization: `Bearer ${token}` } });
@@ -275,16 +276,17 @@ let twitchToken = null;
 
 async function getTwitchToken(env) {
   if (!env.TWITCH_CLIENT_ID || !env.TWITCH_CLIENT_SECRET) {
-    throw new HttpError(400, 'TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET are not set (needed for IGDB video game search).');
+    throw new HttpError(400, 'Video game search needs your Twitch Client ID and Secret. Add them in Manage → Settings → API keys.');
   }
-  if (twitchToken && twitchToken.exp > Date.now() + 60_000) return twitchToken.token;
+  const who = `${env.TWITCH_CLIENT_ID}:${env.TWITCH_CLIENT_SECRET}`; // new keys saved in Settings → new token
+  if (twitchToken && twitchToken.who === who && twitchToken.exp > Date.now() + 60_000) return twitchToken.token;
   const res = await fetch(
     `https://id.twitch.tv/oauth2/token?client_id=${encodeURIComponent(env.TWITCH_CLIENT_ID)}&client_secret=${encodeURIComponent(env.TWITCH_CLIENT_SECRET)}&grant_type=client_credentials`,
     { method: 'POST' },
   );
   if (!res.ok) throw new HttpError(502, `Twitch auth failed (${res.status})`);
   const data = await res.json();
-  twitchToken = { token: data.access_token, exp: Date.now() + data.expires_in * 1000 };
+  twitchToken = { token: data.access_token, exp: Date.now() + data.expires_in * 1000, who };
   return twitchToken.token;
 }
 
@@ -513,7 +515,7 @@ async function bgg(env, path) {
     const res = await fetch(`https://boardgamegeek.com/xmlapi2/${path}`, { headers });
     if (res.status === 202) { await new Promise((r) => setTimeout(r, 1200)); continue; } // queued
     if (res.status === 401 || res.status === 403) {
-      throw new HttpError(502, 'BoardGameGeek refused the request. Set BGG_TOKEN (register an app at boardgamegeek.com/applications).');
+      throw new HttpError(502, 'BoardGameGeek refused the request. Add your BGG token in Manage → Settings → API keys (register an app at boardgamegeek.com/applications).');
     }
     if (!res.ok) throw new HttpError(502, `BoardGameGeek failed (${res.status})`);
     return res.text();

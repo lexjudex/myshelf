@@ -9,7 +9,7 @@ const clean = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v !=
 const bggIdOf = (src = {}) => (/boardgamegeek|bgg/i.test(`${src.name} ${src.url}`) && src.id ? String(src.id) : null);
 
 export async function refreshBoardgames(env, onlySlugs) {
-  if (!env.BGG_TOKEN) throw new HttpError(400, 'BGG_TOKEN is not set.');
+  if (!env.BGG_TOKEN) throw new HttpError(400, 'No BGG token yet. Add it in Manage → Settings → API keys.');
   const games = (await listItems(env, { type: 'boardgame' }))
     .filter((r) => !onlySlugs || onlySlugs.includes(r.slug))
     .map((r) => ({ slug: r.slug, data: r.item, body: r.body }));

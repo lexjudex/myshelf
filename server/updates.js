@@ -79,7 +79,7 @@ async function check(env) {
 
 /** Pull in the original's new commits, like GitHub's "Sync fork → Update branch". */
 export async function syncUpdates(env) {
-  if (!env.GITHUB_TOKEN) throw new HttpError(400, 'Add a GITHUB_TOKEN secret to your Worker to update from here.');
+  if (!env.GITHUB_TOKEN) throw new HttpError(400, 'Add a GitHub token in Manage → Settings → API keys to update from here.');
   const now = await check(env);
   if (now.status === 'up-to-date') return { ok: true, message: 'Already up to date.' };
   if (now.status !== 'behind') throw new HttpError(400, `Can’t update right now (${now.status}).`);
