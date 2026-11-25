@@ -2,6 +2,10 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.7.1 (Nov 2026)
+
+- **The Recently Finished ✕ moved into the shelf's edit screen.** It's no longer on the covers. Open the shelf's ✎ (Arrange), press the red ✕ on anything you want off it (↺ keeps it), then **Save changes**. Its finished date moves back past the shelf's time window, as before.
+
 ## 0.7.0 (Nov 2026)
 
 - **Tidier editor.** The add/edit form only shows fields that fit the media and status: no rating or start date on *Want to*, a finished date only on *Finished*, **Lent to** and **Lent since** only once you tick **I own a copy**, and no "own a copy" for YouTube. Hidden fields aren't saved, so nothing stale is left behind.

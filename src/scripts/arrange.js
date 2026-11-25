@@ -136,13 +136,14 @@ export function updateItem(slug, item) {
  * onEdit(item): shows a pencil on each item that runs it (open the item editor).
  * onRecommend(item): shows a paper plane on each item that runs it (recommend it to friends).
  * onClose(): runs whenever the dialog closes (saved or not).
+ * removeHint: what the red ✕ does, when it isn't simply "take it off this shelf".
  */
-export function openArrange({ title, items, onSave, canRemove = null, onAdd = null, onEdit = null, onRecommend = null, onClose = null }) {
+export function openArrange({ title, items, onSave, canRemove = null, onAdd = null, onEdit = null, onRecommend = null, onClose = null, removeHint = '' }) {
   if (!dialog) build();
   current = { items, onSave, canRemove, onAdd, onEdit, onRecommend, onClose };
   dialog.querySelector('.ar-title').textContent = `Arrange “${title}”`;
   dialog.querySelector('.ar-hint').textContent = (canRemove
-    ? 'Drag covers into the order you want. Use the red ✕ to take something off this shelf.'
+    ? `Drag covers into the order you want. ${removeHint || 'Use the red ✕ to take something off this shelf.'}`
     : 'Drag covers into the order you want. Items you add later appear at the front.') + (onEdit ? ' The pencil edits an item.' : '') + (onRecommend ? ' The paper plane recommends it to friends.' : '');
   dialog.querySelector('[data-ar-add]').hidden = !onAdd;
   render(items);

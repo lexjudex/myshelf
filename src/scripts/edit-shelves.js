@@ -1,6 +1,7 @@
 // Pencil buttons on collection shelves: only visible in a browser that's signed in to the admin.
 // Clicking opens the arrange dialog; saving updates the shelf instantly and stores the new order.
 import { sortShelf, inShelf } from '../lib/sorting.js';
+import { localDaysAgo } from '../lib/dates.js';
 
 const TOKEN_KEY = 'myshelf_token';
 const token = (() => { try { return localStorage.getItem(TOKEN_KEY) || ''; } catch { return ''; } })();
@@ -93,14 +94,23 @@ async function editCollection(mod, lib, slug) {
   // "＋ Add more" opens search with this collection pre-checked (and the media type, if the shelf is all one type).
   const types = new Set(items.map((i) => i.type));
   const addHref = `/admin/#add=${encodeURIComponent(slug)}${types.size === 1 ? `&type=${[...types][0]}` : ''}`;
+  // Recently Finished (an automatic Finished shelf with a time window): the ✕ works on everything. It moves the
+  // finished date to just past the window (a year and a day ago on the starter shelf), so the item drops off.
+  const recent = c.auto === 'finished' && Number(c.within) > 0;
+  const handPicked = (i) => (i.collections || []).includes(slug);
+  const byDate = (i) => recent && i.status === 'finished';
   mod.openArrange({
     ...arrangeExtras(mod),
     title: c.name,
     items,
-    canRemove: (i) => (i.collections || []).includes(slug), // automatic (status) members can't be taken off by hand
+    canRemove: (i) => handPicked(i) || byDate(i), // other automatic (status) members can't be taken off by hand
+    removeHint: recent ? 'The red ✕ takes something off this shelf by moving its finished date back past the shelf’s time window.' : '',
     onAdd: c.auto || c.minRating ? null : () => { location.href = addHref; },
     onSave: async (order, removed = []) => {
-      if (removed.length) await api('collection-items', { method: 'POST', body: { collection: slug, remove: removed } });
+      const picked = removed.filter((s) => handPicked(items.find((i) => i.slug === s) || {}));
+      if (picked.length) await api('collection-items', { method: 'POST', body: { collection: slug, remove: picked } });
+      const dated = removed.filter((s) => byDate(items.find((i) => i.slug === s) || {}));
+      for (const s of dated) await api('item', { method: 'POST', body: { slug: s, dateFinished: localDaysAgo(Number(c.within) + 1) } });
       // Only switch to a custom order if you actually dragged things around.
       const before = items.map((i) => i.slug).filter((s) => !removed.includes(s));
       if (order.join() !== before.join()) {
