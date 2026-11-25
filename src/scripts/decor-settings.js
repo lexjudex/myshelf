@@ -3,6 +3,7 @@
 // something in Phone view, then they keep their own placement. Every change saves by itself.
 import { esc, token } from './friends-ui.js';
 import { phoneOf } from '../lib/decor.js';
+import Sortable from 'sortablejs';
 
 const $ = (s, root = document) => root.querySelector(s);
 const FRAMES = [['none', 'None'], ['wood', 'Wood'], ['black', 'Black'], ['gold', 'Gold'], ['white', 'White']];
@@ -140,7 +141,12 @@ function render() {
     const p = placement(d);
     return `
     <li class="decor-row${phone && p.hidden ? ' is-hidden' : ''}" data-i="${i}">
-      <img class="decor-thumb" src="${esc(d.image)}" alt="Decoration ${i + 1}">
+      <div class="decor-side">
+        <span class="decor-handle" title="Drag to change which one is in front" aria-hidden="true"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg></span>
+        <img class="decor-thumb" src="${esc(d.image)}" alt="Decoration ${i + 1}">
+        ${decor.length > 1 ? `<span class="decor-layer muted small">${i === 0 ? 'In front' : i === decor.length - 1 ? 'At the back' : 'Middle'}</span>` : ''}
+        ${decor.length > 1 ? `<span class="decor-move"><button type="button" class="btn ghost small" data-decor-up="${i}" aria-label="Move forward"${i === 0 ? ' disabled' : ''}>↑</button><button type="button" class="btn ghost small" data-decor-down="${i}" aria-label="Move back"${i === decor.length - 1 ? ' disabled' : ''}>↓</button></span>` : ''}
+      </div>
       <div class="decor-controls">
         ${phone ? `<p class="decor-phone-note muted small">${phoneNote(d, i)}</p>` : ''}
         ${fieldHtml('x', p)}${fieldHtml('y', p)}${fieldHtml('height', p)}${fieldHtml('tilt', p)}${fieldHtml('turn', p)}
@@ -213,7 +219,25 @@ $('#decor-list').addEventListener('change', (e) => {
   if (k === 'showOnPhone') e.target.closest('.decor-row').classList.toggle('is-hidden', !e.target.checked);
   save();
 });
+// ───────── layering: the top of the list stands in front ─────────
+function moveDecor(from, to) {
+  if (to < 0 || to >= decor.length || from === to) return;
+  const [d] = decor.splice(from, 1);
+  decor.splice(to, 0, d);
+  render();
+  save(to === 0 ? 'Moved to the front.' : to === decor.length - 1 ? 'Moved to the back.' : 'Moved.');
+}
+Sortable.create($('#decor-list'), {
+  handle: '.decor-handle',
+  animation: 160,
+  onEnd: (e) => { if (e.oldIndex !== e.newIndex) { const { oldIndex, newIndex } = e; render(); moveDecor(oldIndex, newIndex); } },
+});
+
 $('#decor-list').addEventListener('click', (e) => {
+  const up = e.target.closest('[data-decor-up]');
+  if (up) return moveDecor(Number(up.dataset.decorUp), Number(up.dataset.decorUp) - 1);
+  const down = e.target.closest('[data-decor-down]');
+  if (down) return moveDecor(Number(down.dataset.decorDown), Number(down.dataset.decorDown) + 1);
   const follow = e.target.closest('[data-decor-follow]');
   if (follow) {
     const i = Number(follow.dataset.decorFollow);

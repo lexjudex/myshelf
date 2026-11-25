@@ -779,28 +779,58 @@ test('local dates: the browser’s day, not UTC’s', async () => {
   }
 });
 
-test('update check: compares versions from the original project, cached', async () => {
-  const { compareVersions, latestVersion, _resetLatest } = await import('../server/latest.js');
+test('update check: versions, changelog and announcements from the original project, cached', async () => {
+  const { compareVersions, latestVersion, _resetLatest, parseChangelog, cleanAnnouncements, activeAnnouncements, changesBetween } = await import('../server/latest.js');
   const { VERSION } = await import('../server/version.js');
   assert.equal(compareVersions('0.7.10', '0.7.9'), 1);
   assert.equal(compareVersions('0.8', '0.8.0'), 0);
   assert.equal(compareVersions('0.6.9', '0.7.0'), -1);
 
+  const log = parseChangelog('# Changelog\n\nintro\n\n## 99.1.0 (Dec 2026)\n\n- **New** thing\n\n## 99.0.0 (Dec 2026)\n\n- Older\n\n## 0.1.0 (Jan 2026)\n\n- Ancient\n');
+  assert.deepEqual(log.map((e) => e.version), ['99.1.0', '99.0.0', '0.1.0']);
+  assert.equal(log[0].body, '- **New** thing');
+  assert.deepEqual(changesBetween(log, '0.5.0', '99.0.0').map((e) => e.version), ['99.0.0']);
+
+  const ann = cleanAnnouncements({ announcements: [
+    { id: 'a', message: 'Hello <b>all</b>', link: 'javascript:alert(1)' },
+    { id: 'old', message: 'Expired', until: '2020-01-01' },
+    { id: 'upd', message: 'Please update', below: '0.0.1' },
+    { message: 'no id' },
+  ] });
+  assert.equal(ann.length, 3);
+  assert.equal(ann[0].link, ''); // https links only
+  assert.deepEqual(activeAnnouncements(ann, '0.5.0', '2026-11-25').map((a) => a.id), ['a']);
+  assert.deepEqual(activeAnnouncements(ann, '0.0.0', '2026-11-25').map((a) => a.id), ['a', 'upd']);
+
   _resetLatest();
   const env = fakeEnv();
   let calls = 0;
-  const newer = async (url) => { calls++; assert.match(url, /raw\.githubusercontent\.com\/lexjudex\/myshelf\/main\/package\.json$/); return new Response(JSON.stringify({ version: '99.0.0' })); };
-  assert.deepEqual(await latestVersion(env, { fetcher: newer }), { current: VERSION, latest: '99.0.0', behind: true });
-  await latestVersion(env, { fetcher: newer });
-  assert.equal(calls, 1); // cached
+  const files = {
+    'package.json': JSON.stringify({ version: '99.1.0' }),
+    'CHANGELOG.md': '## 99.1.0 (Dec 2026)\n\n- New\n\n## 0.0.1 (old)\n\n- Old\n',
+    'announcements.json': JSON.stringify({ announcements: [{ id: 'hi', message: 'Hi everyone' }] }),
+  };
+  const upstream = async (url) => {
+    calls++;
+    const m = url.match(/^https:\/\/raw\.githubusercontent\.com\/lexjudex\/myshelf\/main\/(.+)$/);
+    return files[m?.[1]] ? new Response(files[m[1]]) : new Response('missing', { status: 404 });
+  };
+  const r = await latestVersion(env, { fetcher: upstream });
+  assert.deepEqual([r.current, r.latest, r.behind], [VERSION, '99.1.0', true]);
+  assert.deepEqual(r.changes.map((e) => e.version), ['99.1.0']);
+  assert.deepEqual(r.announcements.map((a) => a.id), ['hi']);
+  await latestVersion(env, { fetcher: upstream });
+  assert.equal(calls, 3); // three files, then cached
   _resetLatest(); // a new isolate still has it from D1
-  await latestVersion(env, { fetcher: newer });
-  assert.equal(calls, 1);
+  await latestVersion(env, { fetcher: upstream });
+  assert.equal(calls, 3);
 
   _resetLatest();
-  const same = async () => new Response(JSON.stringify({ version: VERSION }));
-  assert.equal((await latestVersion(fakeEnv(), { fetcher: same })).behind, false);
+  const same = async (url) => (url.endsWith('package.json') ? new Response(JSON.stringify({ version: VERSION })) : new Response('', { status: 404 }));
+  const s2 = await latestVersion(fakeEnv(), { fetcher: same });
+  assert.deepEqual([s2.behind, s2.changes, s2.announcements], [false, [], []]);
   _resetLatest();
   const down = async () => new Response('nope', { status: 500 });
-  assert.deepEqual(await latestVersion(fakeEnv(), { fetcher: down }), { current: VERSION, latest: '', behind: false });
+  const d = await latestVersion(fakeEnv(), { fetcher: down });
+  assert.deepEqual([d.latest, d.behind], ['', false]);
 });

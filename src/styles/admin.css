@@ -408,3 +408,37 @@ html.embed .editor::backdrop { background: transparent; }
 .progress-inputs input { width: 6.5em; }
 .progress-inputs select { width: auto; }
 .editor-foot .btn[hidden] { display: none; }
+
+/* Shelf decorations: drag handle + layer order (top of the list = in front) */
+.decor-side { flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 72px; }
+.decor-handle { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 22px; cursor: grab; color: #6f604a; border-radius: 6px; touch-action: none; }
+.decor-handle:hover { color: var(--ink); background: rgba(0,0,0,0.05); }
+.decor-handle:active { cursor: grabbing; }
+.decor-layer { text-align: center; line-height: 1.2; }
+.decor-move { display: flex; gap: 4px; }
+.decor-move .btn { padding: 2px 8px; }
+.decor-row.sortable-chosen { background: rgba(0,0,0,0.03); border-radius: 8px; }
+@media (max-width: 600px) { .decor-side { flex-direction: row; width: auto; } }
+
+/* Update banner at the top of Manage: a newer version, and announcements from the MyShelf project */
+.update-banner { display: grid; gap: 8px; margin: 0 0 14px; }
+.update-banner[hidden] { display: none; }
+.ub-row {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  padding: 10px 14px; border-radius: 10px; background: var(--paper); color: var(--ink);
+  border-left: 4px solid var(--accent); box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+}
+.ub-text { flex: 1 1 280px; margin: 0; font-size: 0.92rem; }
+.ub-text a { color: inherit; }
+.ub-actions { display: inline-flex; align-items: center; gap: 8px; }
+.ub-tag { display: inline-block; margin-right: 4px; padding: 1px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 700; background: var(--paper-2); color: var(--ink-soft); }
+.ub-x { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--ink-soft); cursor: pointer; }
+.ub-x:hover { background: rgba(0,0,0,0.06); color: var(--ink); }
+.ub-news { flex: 1 1 100%; max-height: 50vh; overflow: auto; border-top: 1px solid #e2d6bd; padding-top: 8px; font-size: 0.9rem; }
+.ub-news[hidden] { display: none; }
+.ub-entry h4 { margin: 8px 0 4px; font-size: 0.95rem; }
+.ub-entry ul { margin: 0 0 6px; padding-left: 20px; }
+.ub-entry li { margin: 3px 0; }
+.your-version-notes { margin: 4px 0 18px; font-size: 0.9rem; }
+.ub-yours summary { cursor: pointer; font-weight: 600; }
+.ub-yours ul { padding-left: 20px; }

@@ -114,7 +114,7 @@ Open Library and MusicBrainz ask apps to include an email so they can reach you 
 
 ## Keeping up to date
 
-When a new version is out, a small **Update available** pill appears next to your name at the top of your site (only you see it). Click it, or open **Manage → Settings → Updates**, and click **Update now**. Cloudflare redeploys your site in a minute or two, and any database changes apply themselves. This needs your GitHub token (Step 4) and Source code link (Step 5).
+When a new version is out, a small **Update available** pill appears next to your name at the top of your site, and a banner at the top of Manage shows **What's new** (only you see either). Click **Update**, or open **Manage → Settings → Updates**, and click **Update now**. Cloudflare redeploys your site in a minute or two, and any database changes apply themselves. This needs your GitHub token (Step 4) and Source code link (Step 5).
 
 You can also update on GitHub: open `github.com/YOUR-USERNAME/myshelf` and click **Sync fork → Update branch**.
 
@@ -211,6 +211,18 @@ npm run preview                   # builds, then serves with wrangler dev at htt
 ```
 
 Local data lives in `.wrangler/` and never touches your live site. To try friends features, run two copies with separate data, for example `npx wrangler dev --port 8801 --persist-to .wrangler/a` and `npx wrangler dev --port 8802 --persist-to .wrangler/b`, then add `http://localhost:8802` as a friend from the first.
+
+### Announcements (for the MyShelf project)
+
+`announcements.json` in this repository is shown to every MyShelf site, in the banner at the top of Manage (sites check every few hours):
+
+```json
+{ "announcements": [
+  { "id": "2026-12-fix", "message": "An important fix is out. Please update.", "link": "https://github.com/lexjudex/myshelf/blob/main/CHANGELOG.md", "linkText": "What changed", "until": "2026-12-31", "below": "0.9.1" }
+] }
+```
+
+`id` and `message` are required. Messages are plain text. `link` must be https. `until` stops showing it after that date. `below` shows it only to sites older than that version. Give each new announcement a new `id`: dismissals are remembered per id. Update checks and **What's new** read `package.json` and `CHANGELOG.md` from here too, so keep a `## x.y.z` section in the changelog for each release.
 
 ### Item format
 

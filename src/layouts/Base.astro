@@ -112,7 +112,7 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
         let cached = null;
         try { cached = JSON.parse(sessionStorage.getItem('myshelf_latest') || 'null'); } catch {}
         if (cached && Date.now() - cached.at < 3600_000) show(cached);
-        else fetch('/api/latest', { headers: { authorization: `Bearer ${token}` } })
+        else fetch('/api/latest?brief=1', { headers: { authorization: `Bearer ${token}` } })
           .then((r) => (r.ok ? r.json() : null))
           .then((r) => { if (!r) return; try { sessionStorage.setItem('myshelf_latest', JSON.stringify({ ...r, at: Date.now() })); } catch {} show(r); })
           .catch(() => {});

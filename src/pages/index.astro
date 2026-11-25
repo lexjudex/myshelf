@@ -41,8 +41,8 @@ const addable = decorPreview ? [] : [
   {/* Shelf decorations (Manage → Settings): up to three images standing on top of the bookcase. */}
   {(decor.length > 0 || decorPreview) && (
     <div class="bookcase-top" aria-hidden="true" style={decorMaxStyle(decor)}>
-      {decor.map((d) => (
-        <span class={decorClasses(d)} style={decorStyle(d)} set:html={decorInner(d, escAttr)} />
+      {decor.map((d, i) => (
+        <span class={decorClasses(d)} style={decorStyle(d, i, decor.length)} set:html={decorInner(d, escAttr)} />
       ))}
     </div>
   )}
@@ -101,11 +101,11 @@ const addable = decorPreview ? [] : [
         els.forEach((el, i) => {
           const nudge = el.style.getPropertyValue('--nudge');
           el.className = decorClasses(list[i]) + (el.classList.contains('dragging') ? ' dragging' : '');
-          el.setAttribute('style', decorStyle(list[i]));
+          el.setAttribute('style', decorStyle(list[i], i, list.length));
           if (nudge) el.style.setProperty('--nudge', nudge);
         });
       } else {
-        top.innerHTML = list.map((d, i) => `<span class="${decorClasses(d)}" style="${decorStyle(d)}" data-i="${i}" data-image="${esc(d.image)}" tabindex="0"
+        top.innerHTML = list.map((d, i) => `<span class="${decorClasses(d)}" style="${decorStyle(d, i, list.length)}" data-i="${i}" data-image="${esc(d.image)}" tabindex="0"
           title="Drag to move · arrow keys nudge (Shift for bigger steps)">${decorInner(d, esc)}</span>`).join('');
       }
       if (e.data.focus != null) top.querySelector(`.decor[data-i="${e.data.focus}"]`)?.focus({ preventScroll: true });

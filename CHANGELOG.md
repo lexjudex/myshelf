@@ -2,6 +2,13 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.9.0 (Nov 2026)
+
+- **Choose which decoration is in front.** In **Settings → Shelf decorations**, drag the ⠿ handle (or use ↑ ↓) to reorder them. Where they overlap, the top of the list stands in front, and each one is labelled *In front*, *Middle* or *At the back*. Heads-up: until now the *last* one stood in front, so if yours overlap, check the order once.
+- **Update banner in Manage.** When a newer MyShelf is out, a banner at the top of Manage says so. **What's new** shows the changelog for everything since your version, and **Update** jumps to Settings → Updates. Hide it with ✕ and it comes back for the next version.
+- **Announcements.** The MyShelf project can post short notes to everyone running MyShelf, shown in the same place (for example, "an important fix is out, please update"). Each can be dismissed.
+- **Changelog links.** **Settings → Updates** shows what's in the version you're on, with a link to the full changelog.
+
 ## 0.8.0 (Nov 2026)
 
 - **Your name in the top bar.** The home link at the top now reads *MyShelf | Your name*. The big heading on the Shelves page says **Featured Shelves** instead of repeating it. Change the heading in **Manage → Settings → Shelves page heading**.

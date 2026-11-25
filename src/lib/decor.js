@@ -29,12 +29,15 @@ function vars(p, suffix) {
   ].map(([k, v]) => `${k}:${v}`).join(';');
 }
 
-/** CSS variables for one decoration, for desktop and for phones. */
-export function decorStyle(d) {
+/**
+ * CSS variables for one decoration, for desktop and for phones. i and n (its place in the list, and how many there
+ * are) set the layering: the first in the list (top of Manage → Settings → Shelf decorations) stands in front.
+ */
+export function decorStyle(d, i = 0, n = 1) {
   // --a (width ÷ height of the image) lets decor.css give it an exact width instead of leaving browsers to work it
   // out (Safari, which every iPhone browser uses, gets that wrong for images sized by height).
   const a = Number(d.aspect) > 0 ? `;--a:${Number(d.aspect)}` : '';
-  return `${vars(d, '')};${vars(phoneOf(d), 'm')}${a}`;
+  return `${vars(d, '')};${vars(phoneOf(d), 'm')}${a};z-index:${Math.max(1, n - i)}`;
 }
 
 export function decorClasses(d) {
