@@ -50,7 +50,7 @@ This is the password you'll use to add and edit things on your site. **Your site
 This lets your site update itself when new versions of MyShelf come out, with one click. Without it, you'd have to update by hand on GitHub.
 
 1. Open [GitHub → New fine-grained token](https://github.com/settings/personal-access-tokens/new).
-2. **Token name:** `MyShelf updates`. **Expiration:** pick the longest option. GitHub emails you before it runs out.
+2. **Token name:** `MyShelf updates`. **Expiration:** choose **No expiration**, so you never have to make a new one.
 3. **Repository access:** choose **Only select repositories**, then pick **YOUR-USERNAME/myshelf**.
 4. **Permissions:** open **Repository permissions**, find **Contents**, and set it to **Read and write**.
 5. Click **Generate token** and copy it. GitHub only shows it once, so keep this tab open for Step 5.
