@@ -3,6 +3,7 @@
 import defaults from '../src/data/site.json' with { type: 'json' };
 import { getSetting, setSetting, hasDb } from './db.js';
 import { HttpError, TYPE_KEYS } from './util.js';
+import { REPO } from './version.js';
 
 const clean = (v, n) => String(v ?? '').trim().slice(0, n);
 
@@ -14,7 +15,10 @@ function withNewTypes(site) {
   const seen = Array.isArray(site.typesSeen) ? site.typesSeen : ORIGINAL_TYPES;
   return [...site.types, ...TYPE_KEYS.filter((t) => !seen.includes(t))];
 }
-const withTypes = (site) => ({ ...site, types: cleanTypes(withNewTypes(site)), theme: cleanTheme(site.theme) });
+// A new copy's Source link points at the repository it was built from (its own fork), not the original:
+// left at the original project's address (the default), it's filled in from the build. Anything else you typed stays.
+export const sourceOf = (source, repo = REPO) => (repo && (!source || source === defaults.source) ? `https://github.com/${repo}` : source);
+const withTypes = (site) => ({ ...site, source: sourceOf(site.source), types: cleanTypes(withNewTypes(site)), theme: cleanTheme(site.theme) });
 
 // ───────── look: light or dark, and the accent colour ─────────
 export const DEFAULT_ACCENT = '#d99a4e';

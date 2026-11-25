@@ -948,3 +948,11 @@ test('page cache: keeps public pages, serves them, clears on changes', async () 
   await env.DB.prepare('INSERT INTO page_cache (path, html, created_at) VALUES (?1, ?2, ?3)').bind('old-build|/', '<old>', new Date().toISOString()).run();
   assert.equal(await cachedPage(env, url), null);
 });
+
+test('Source link: a copy left on the original project points at the repository it was built from', async () => {
+  const { sourceOf } = await import('../server/site.js');
+  assert.equal(sourceOf('https://github.com/lexjudex/myshelf', 'dillon/myshelf'), 'https://github.com/dillon/myshelf');
+  assert.equal(sourceOf('', 'dillon/myshelf'), 'https://github.com/dillon/myshelf');
+  assert.equal(sourceOf('https://gitlab.com/me/shelf', 'dillon/myshelf'), 'https://gitlab.com/me/shelf', 'a link you typed stays');
+  assert.equal(sourceOf('https://github.com/lexjudex/myshelf', ''), 'https://github.com/lexjudex/myshelf', 'unknown build repo: unchanged');
+});

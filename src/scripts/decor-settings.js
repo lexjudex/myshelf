@@ -17,6 +17,32 @@ const FIELDS = {
 };
 let decor = [];
 
+// ───────── lock + undo ─────────
+// Locked (the default): the preview ignores drags and arrow keys, so nothing moves by accident (and phones can
+// scroll past it). Remembered in this browser. Undo steps back through saved changes, up to 30.
+let locked = true;
+try { locked = localStorage.getItem('myshelf_decor_unlocked') !== '1'; } catch {}
+const undoStack = [];
+let lastSaved = null;
+let undoing = false;
+const snap = (list) => JSON.stringify(list);
+function showTools() {
+  const lock = $('#decor-lock');
+  lock.textContent = locked ? '🔒 Locked' : '🔓 Unlocked: drag to move';
+  lock.setAttribute('aria-pressed', String(locked));
+  lock.classList.toggle('on', !locked);
+  $('#decor-undo').disabled = !undoStack.length;
+}
+function remember(savedList) {
+  const s = snap(savedList);
+  if (!undoing && lastSaved != null && s !== lastSaved) {
+    undoStack.push(lastSaved);
+    if (undoStack.length > 30) undoStack.shift();
+  }
+  lastSaved = s;
+  showTools();
+}
+
 async function call(method, body, raw = false) {
   const res = await fetch('/api/decor', {
     method,
@@ -72,7 +98,7 @@ function renderStage(focus = null) {
   pending = true;
   requestAnimationFrame(() => {
     pending = false;
-    frame.contentWindow?.postMessage({ type: 'myshelf:decor', decor, focus: focusAfter }, location.origin);
+    frame.contentWindow?.postMessage({ type: 'myshelf:decor', decor, focus: focusAfter, locked }, location.origin);
     focusAfter = null;
   });
 }
@@ -86,6 +112,8 @@ window.addEventListener('message', (e) => {
   } else if (m.type === 'myshelf:decor-size') {
     frameHeight = Math.max(80, m.height || 0);
     scalePreview();
+  } else if (locked && (m.type === 'myshelf:decor-move' || m.type === 'myshelf:decor-nudge')) {
+    // locked: ignore (the preview shouldn't send these, but just in case)
   } else if (m.type === 'myshelf:decor-move' && decor[m.i]) {
     if (m.done) return save();
     setField(m.i, 'x', m.x);
@@ -181,6 +209,7 @@ async function save(okText = 'Saved. Your Shelves page shows it right away.') {
       && (!d.phone || (sameNumbers(d.phone, decor[i].phone) && d.phone.hidden === decor[i].phone.hidden)));
     decor = saved;
     if (!same) render();
+    remember(saved);
     msg(okText);
   } catch (err) {
     msg(err.message, true);
@@ -188,7 +217,13 @@ async function save(okText = 'Saved. Your Shelves page shows it right away.') {
 }
 
 async function load() {
-  try { decor = await call('GET'); render(); } catch (err) { msg(err.message, true); }
+  try {
+    decor = await call('GET');
+    undoStack.length = 0;
+    lastSaved = snap(decor);
+    render();
+    showTools();
+  } catch (err) { msg(err.message, true); }
 }
 
 function setField(i, k, v, focus = null) {
@@ -273,9 +308,11 @@ $('#decor-file').addEventListener('change', async (e) => {
   msg('Uploading…');
   try {
     decor = await call('POST', file, true);
+    remember(decor);
+    if (locked) { locked = false; try { localStorage.setItem('myshelf_decor_unlocked', '1'); } catch {} showTools(); renderStage(); }
     msg(file.type === 'image/jpeg'
-      ? 'Added in a wood frame, angled a little (a JPG can’t be see-through). Drag it into place, and change the frame and turn below.'
-      : 'Added. Drag it into place in the preview, or set exact numbers below.');
+      ? 'Added in a wood frame, angled a little (a JPG can’t be see-through). The preview is unlocked: drag it into place, and change the frame and turn below.'
+      : 'Added, and the preview is unlocked: drag it into place, or set exact numbers below.');
   } catch (err) {
     msg(err.message, true);
   }
@@ -284,3 +321,31 @@ $('#decor-file').addEventListener('change', async (e) => {
 
 document.addEventListener('myshelf:ready', load);
 document.addEventListener('myshelf:tab', (e) => { if (e.detail === 'settings') load(); });
+
+$('#decor-lock').addEventListener('click', () => {
+  locked = !locked;
+  try { locked ? localStorage.removeItem('myshelf_decor_unlocked') : localStorage.setItem('myshelf_decor_unlocked', '1'); } catch {}
+  showTools();
+  renderStage();
+  msg(locked ? 'Locked: the preview won’t move anything.' : 'Unlocked: drag the decorations in the preview.');
+});
+// Undo: back to the layout before the last saved change. A removed decoration's picture is deleted when it's
+// removed, so undo can't bring that one back (removing asks first).
+async function undo() {
+  if (!undoStack.length) return;
+  const have = new Set(decor.map((d) => d.image));
+  decor = JSON.parse(undoStack.pop()).filter((d) => have.has(d.image));
+  undoing = true;
+  render();
+  renderStage();
+  try { await save('Undone.'); } finally { undoing = false; showTools(); }
+}
+$('#decor-undo').addEventListener('click', undo);
+document.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.key.toLowerCase() !== 'z') return;
+  if (e.target.closest?.('input[type="text"], input:not([type]), textarea, [contenteditable]')) return; // let text fields undo their own typing
+  if (!$('#decor-list')?.offsetParent) return; // only while Settings is showing
+  e.preventDefault();
+  undo();
+});
+showTools();

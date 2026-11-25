@@ -61,7 +61,7 @@ This lets your site update itself when new versions of MyShelf come out, with on
 2. Enter your admin password from Step 3.
 3. Open **Settings** and fill in:
    - **Site name** and **Your name**.
-   - **Source code link:** `https://github.com/YOUR-USERNAME/myshelf`. Updates need this to find your copy.
+   - **Source code link** is filled in for you with your own copy on GitHub (`https://github.com/YOUR-USERNAME/myshelf`). Check it's yours: Updates use it to find your copy.
    - Click **Save**.
 4. Scroll down to **API keys** → **Updates from GitHub** (the first one), paste your token from Step 4, and click **Save**. It should say *GitHub accepted your token*.
 
@@ -114,7 +114,7 @@ Open Library and MusicBrainz ask apps to include an email so they can reach you 
 
 ## Keeping up to date
 
-When a new version is out, a small **Update available** pill appears next to your name at the top of your site, and a banner at the top of Manage shows **What's new** (only you see either). Click **Update**, or open **Manage → Settings → Updates**, and click **Update now**. Cloudflare redeploys your site in a minute or two, and any database changes apply themselves. This needs your GitHub token (Step 4) and Source code link (Step 5).
+When a new version is out, a small **Update available** pill appears next to your name at the top of your site, and a banner at the top of Manage shows **What's new** (only you see either). Click **Update**, or open **Manage → Settings → Updates**, and click **Update now**. Cloudflare redeploys your site in a minute or two, and any database changes apply themselves. This needs your GitHub token (Step 4) and Source code link (Step 5, filled in for you).
 
 You can also update on GitHub: open `github.com/YOUR-USERNAME/myshelf` and click **Sync fork → Update branch**.
 

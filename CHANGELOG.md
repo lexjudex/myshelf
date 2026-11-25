@@ -2,6 +2,14 @@
 
 The version number lives in `package.json` and shows in **Manage → Settings → Updates**. Bump it with each release.
 
+## 0.9.5 (Nov 2026)
+
+- **YouTube plaques look right on phones.** The plaque now has a thin brushed-platinum frame, so it stands out on the dark shelves instead of blending in, and the nameplate's title stays readable at phone sizes. Edge-on, it shows the platinum edge with the title.
+- **Shelf decorations: Lock and Undo.** The preview starts **locked**, so nothing moves if you touch or drag it by accident (and on a phone you can scroll past it). Click **Locked** to unlock it and drag, then lock it again. **Undo** (or Ctrl/⌘+Z) steps back through your last changes: moves, sizes, frames and order. Adding a decoration unlocks the preview so you can place it.
+- **Updates come first in Settings.** Which version you're running, and the Update button when a new one is out, are now at the top of Manage → Settings.
+- **New copies fill in their own GitHub address.** The Source code link (which Updates use to find your copy) is now filled in with the repository your site was built from, your own fork. Copies still pointing at the original project switch to their own fork automatically. A link you typed yourself stays.
+- **Fixed: collections hidden on a media page came back when you used the filters.** They now stay hidden.
+
 ## 0.9.4 (Nov 2026)
 
 - **Fixed: swiping and other shelf features stopped working after an update.** Pages kept by 0.9.2's page cache could outlive an update and point to script files the update had replaced, so the shelves' scripts (swiping, turning covers, editing shelves) didn't load. Kept pages now belong to the version that made them, and an update starts fresh.

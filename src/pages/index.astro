@@ -90,9 +90,12 @@ const addable = decorPreview ? [] : [
     const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
     const tell = (msg) => window.parent.postMessage(msg, location.origin);
     let list = [];
+    let locked = true; // until Manage says otherwise: dragging does nothing while it's locked
     window.addEventListener('message', (e) => {
       if (e.origin !== location.origin || e.source !== window.parent || e.data?.type !== 'myshelf:decor') return;
       list = e.data.decor || [];
+      locked = e.data.locked === true;
+      top.classList.toggle('decor-locked', locked);
       top.setAttribute('style', decorMaxStyle(list));
       const els = [...top.querySelectorAll('.decor')];
       const same = els.length === list.length && els.every((el, i) => el.dataset.image === list[i].image);
@@ -106,7 +109,7 @@ const addable = decorPreview ? [] : [
         });
       } else {
         top.innerHTML = list.map((d, i) => `<span class="${decorClasses(d)}" style="${decorStyle(d, i, list.length)}" data-i="${i}" data-image="${esc(d.image)}" tabindex="0"
-          title="Drag to move · arrow keys nudge (Shift for bigger steps)">${decorInner(d, esc)}</span>`).join('');
+          title="Unlock in Manage, then drag to move · arrow keys nudge (Shift for bigger steps)">${decorInner(d, esc)}</span>`).join('');
       }
       if (e.data.focus != null) top.querySelector(`.decor[data-i="${e.data.focus}"]`)?.focus({ preventScroll: true });
       watchImages();
@@ -117,7 +120,7 @@ const addable = decorPreview ? [] : [
     let drag = null;
     top.addEventListener('pointerdown', (e) => {
       const el = e.target.closest('.decor[data-i]');
-      if (!el) return;
+      if (!el || locked) return;
       e.preventDefault();
       el.focus({ preventScroll: true });
       const r = el.getBoundingClientRect();
@@ -146,7 +149,7 @@ const addable = decorPreview ? [] : [
     top.addEventListener('pointercancel', end);
     top.addEventListener('keydown', (e) => {
       const el = e.target.closest('.decor[data-i]');
-      if (!el || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
+      if (!el || locked || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) return;
       e.preventDefault();
       const horizontal = e.key === 'ArrowLeft' || e.key === 'ArrowRight';
       const sign = e.key === 'ArrowLeft' || e.key === 'ArrowDown' ? -1 : 1;

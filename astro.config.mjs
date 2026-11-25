@@ -10,6 +10,17 @@ function commit() {
   try { return execSync('git rev-parse --short HEAD', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim(); } catch { return ''; }
 }
 
+// Which GitHub repository this copy was built from ("you/myshelf"), so a new copy's Source link and Updates
+// point at its own fork without anyone typing it in. Cloudflare's Git builds work from a clone, so its remote
+// says; blank if it can't be read (then Settings' Source code link, or a GITHUB_REPO variable, is used).
+function repo() {
+  try {
+    const url = execSync('git config --get remote.origin.url', { stdio: ['ignore', 'pipe', 'ignore'] }).toString().trim();
+    const m = url.match(/github\.com[:/]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/i);
+    return m ? `${m[1]}/${m[2]}` : '';
+  } catch { return ''; }
+}
+
 // Pages render on request from the D1 database, so saves show up immediately (no rebuilds).
 // Static files (CSS, JS, fonts, old covers) are still served straight from Cloudflare Pages.
 export default defineConfig({
@@ -23,6 +34,7 @@ export default defineConfig({
   vite: {
     define: {
       __MYSHELF_COMMIT__: JSON.stringify(commit()),
+      __MYSHELF_REPO__: JSON.stringify(repo()),
       __MYSHELF_BUILT__: JSON.stringify(new Date().toISOString()),
     },
   },

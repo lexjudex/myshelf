@@ -68,6 +68,9 @@ html.decor-preview body { min-height: 0; overflow: hidden; }
 html.decor-preview .bookcase { height: 64px; padding: 0; border-bottom-width: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
   -webkit-mask-image: linear-gradient(#000 55%, transparent); mask-image: linear-gradient(#000 55%, transparent); }
 html.decor-preview .bookcase-top { pointer-events: auto; touch-action: none; }
+/* Locked in Manage: nothing to drag, so the page (and a phone) can scroll normally. */
+html.decor-preview .bookcase-top.decor-locked { touch-action: auto; }
+html.decor-preview .bookcase-top.decor-locked .decor { cursor: default; }
 html.decor-preview .decor { cursor: grab; outline-offset: 3px; }
 html.decor-preview .decor:focus-visible, html.decor-preview .decor.dragging { outline: 2px dashed var(--accent); }
 html.decor-preview .decor.dragging { cursor: grabbing; }

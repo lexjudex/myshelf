@@ -155,6 +155,11 @@ const typesJson = JSON.stringify(TYPES);
       <!-- Settings -->
       <div class="tabpanel" data-panel="settings" hidden>
         <div class="panel">
+          <!-- Updates first: which version this is, and whether a newer one is out. -->
+          <h2 id="updates-heading">Updates</h2>
+          <p id="version" class="version"></p>
+          <div id="updates" class="updates"><p class="muted">Checking for a new version…</p></div>
+          <div id="your-version-notes" class="your-version-notes"></div>
           <h2>Your site</h2>
           <form id="site-form" class="site-form">
             <label>Site name <input name="title" maxlength="80" required /></label>
@@ -199,9 +204,13 @@ const typesJson = JSON.stringify(TYPES);
           <p id="keys-error" class="error" hidden></p>
           <div id="keys-list" class="keys-list"><p class="muted">Loading…</p></div>
           <h2>Shelf decorations</h2>
-          <p class="muted">Add up to three images that stand on top of the bookcase on your main Shelves page, like a teddy bear, a mini figure, or a photo in a frame. Use PNGs with a transparent background, or put any image (a JPG, or anything with a background) in a frame. Up to 2 MB each. <strong>Drag them in the preview</strong> to place them, left, right, up or down (arrow keys nudge), or set exact numbers below. The preview shows exactly what your Shelves page will. Switch to <strong>Phone</strong> to give phones their own layout. Where they overlap, the <strong>top of the list stands in front</strong>: drag the <span aria-hidden="true">⠿</span> handle (or use ↑ ↓) to change it. Changes save as you make them.</p>
+          <p class="muted">Add up to three images that stand on top of the bookcase on your main Shelves page, like a teddy bear, a mini figure, or a photo in a frame. Use PNGs with a transparent background, or put any image (a JPG, or anything with a background) in a frame. Up to 2 MB each. <strong>Unlock the preview, then drag them</strong> to place them, left, right, up or down (arrow keys nudge), or set exact numbers below. Lock it again so nothing moves by accident, and <strong>Undo</strong> steps back through your changes. The preview shows exactly what your Shelves page will. Switch to <strong>Phone</strong> to give phones their own layout. Where they overlap, the <strong>top of the list stands in front</strong>: drag the <span aria-hidden="true">⠿</span> handle (or use ↑ ↓) to change it. Changes save as you make them.</p>
           <div class="decor-preview-bar">
             <span class="muted small" id="decor-editing"></span>
+            <span class="decor-tools">
+              <button type="button" class="btn ghost small" id="decor-lock" aria-pressed="true" title="While locked, dragging in the preview does nothing">🔒 Locked</button>
+              <button type="button" class="btn ghost small" id="decor-undo" disabled title="Undo the last change (Ctrl/⌘+Z)">↶ Undo</button>
+            </span>
             <span class="decor-modes" role="group" aria-label="Preview size">
               <button type="button" class="btn ghost small on" data-decor-mode="desktop" aria-pressed="true">Desktop</button>
               <button type="button" class="btn ghost small" data-decor-mode="phone" aria-pressed="false">Phone</button>
@@ -217,10 +226,6 @@ const typesJson = JSON.stringify(TYPES);
             <label class="btn ghost file-btn" id="decor-add">＋ Add a decoration… <input id="decor-file" type="file" accept="image/png,image/webp,image/jpeg" hidden /></label>
             <span id="decor-msg" class="muted small"></span>
           </div>
-          <h2 id="updates-heading">Updates</h2>
-          <p id="version" class="version"></p>
-          <div id="updates" class="updates"><p class="muted">Checking for a new version…</p></div>
-          <div id="your-version-notes" class="your-version-notes"></div>
           <h2>Backup &amp; restore</h2>
           <p class="muted">A backup is one JSON file with all your entries, notes, collections, shelf orders and site settings. Restoring adds those to this site, replacing entries with the same name. Moving to a new site? Restore here while the old site is still online and the covers are copied over from it.</p>
           <div class="row">
