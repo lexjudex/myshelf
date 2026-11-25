@@ -582,3 +582,7 @@ a.mention:hover { text-decoration: underline; }
 @media (min-width: 761px) { .item-page:has(.yt-embed) { grid-template-columns: minmax(280px, 520px) 1fr; } }
 .yt-embed { width: 100%; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; box-shadow: 8px 14px 30px rgba(0,0,0,0.35); }
 .yt-embed iframe { display: block; width: 100%; height: 100%; border: 0; }
+
+/* Progress bars set to "Only me" (Settings): hidden unless this browser is signed in to Manage. */
+html[data-progress='owner']:not(.signed-in) .b3-progress,
+html[data-progress='owner']:not(.signed-in) .item-progress { display: none; }

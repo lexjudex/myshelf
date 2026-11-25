@@ -956,3 +956,12 @@ test('Source link: a copy left on the original project points at the repository 
   assert.equal(sourceOf('https://gitlab.com/me/shelf', 'dillon/myshelf'), 'https://gitlab.com/me/shelf', 'a link you typed stays');
   assert.equal(sourceOf('https://github.com/lexjudex/myshelf', ''), 'https://github.com/lexjudex/myshelf', 'unknown build repo: unchanged');
 });
+
+test('Settings: progress bars for everyone (default) or only the owner', async () => {
+  const { saveSite, getSite } = await import('../server/site.js');
+  const env = fakeEnv();
+  assert.equal((await getSite(env)).progress, 'public');
+  assert.equal((await saveSite(env, { title: 'X', progress: 'owner' })).progress, 'owner');
+  assert.equal((await saveSite(env, { title: 'X' })).progress, 'owner', 'kept when not sent');
+  assert.equal((await saveSite(env, { title: 'X', progress: 'nonsense' })).progress, 'public');
+});

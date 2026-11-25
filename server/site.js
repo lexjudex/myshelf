@@ -18,7 +18,8 @@ function withNewTypes(site) {
 // A new copy's Source link points at the repository it was built from (its own fork), not the original:
 // left at the original project's address (the default), it's filled in from the build. Anything else you typed stays.
 export const sourceOf = (source, repo = REPO) => (repo && (!source || source === defaults.source) ? `https://github.com/${repo}` : source);
-const withTypes = (site) => ({ ...site, source: sourceOf(site.source), types: cleanTypes(withNewTypes(site)), theme: cleanTheme(site.theme) });
+const cleanProgress = (v) => (v === 'owner' ? 'owner' : 'public');
+const withTypes = (site) => ({ ...site, progress: cleanProgress(site.progress), source: sourceOf(site.source), types: cleanTypes(withNewTypes(site)), theme: cleanTheme(site.theme) });
 
 // ───────── look: light or dark, and the accent colour ─────────
 export const DEFAULT_ACCENT = '#d99a4e';
@@ -83,6 +84,9 @@ export async function saveSite(env, input = {}) {
     typesSeen: [...TYPE_KEYS],
     // Light or dark, and the accent colour. Visitors can still flip light/dark for themselves.
     theme: input.theme === undefined ? (await getSite(env)).theme : cleanTheme(input.theme),
+    // Progress bars (books, TV shows, legacy games): 'public' for everyone, or 'owner' = only in a browser
+    // signed in to Manage. (They're hidden from visitors, not removed from the page.)
+    progress: input.progress === undefined ? (await getSite(env)).progress : cleanProgress(input.progress),
   };
   await setSetting(env, 'site', site);
   return site;

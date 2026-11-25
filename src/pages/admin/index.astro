@@ -179,6 +179,14 @@ const typesJson = JSON.stringify(TYPES);
                 {TYPE_KEYS.map((t) => <label class="check"><input type="checkbox" name="types" value={t} checked /> <span>{TYPES[t].plural}</span></label>)}
               </div>
             </fieldset>
+            <fieldset class="span2 progress-vis">
+              <legend>Progress bars</legend>
+              <p class="muted small">The bars on books, TV shows and legacy games that show how far along you are.</p>
+              <div class="look-modes" role="radiogroup" aria-label="Who sees progress bars">
+                <label class="look-mode"><input type="radio" name="progress" value="public" checked /> Everyone</label>
+                <label class="look-mode"><input type="radio" name="progress" value="owner" /> Only me <span class="muted small">(when signed in)</span></label>
+              </div>
+            </fieldset>
             <fieldset class="span2 look">
               <legend>Look</legend>
               <p class="muted small">How your site looks to visitors. Anyone can still switch light or dark for themselves (bottom of the page, or the phone menu); that choice stays in their browser.</p>

@@ -56,7 +56,7 @@ const navItems = [
 const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage', active: path.startsWith('/admin') }];
 ---
 <!doctype html>
-<html lang="en" data-theme={theme.mode} data-site-theme={theme.mode} data-accent={theme.accent} style={accentStyle} data-static={Astro.isPrerendered ? '' : undefined}>
+<html lang="en" data-theme={theme.mode} data-site-theme={theme.mode} data-accent={theme.accent} style={accentStyle} data-static={Astro.isPrerendered ? '' : undefined} data-progress={site.progress === 'owner' ? 'owner' : undefined}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -102,6 +102,9 @@ const fabItems = [...navItems, { href: '/admin/', label: 'Manage', icon: 'manage
         var mode = ls.getItem('myshelf_mode');
         h.dataset.theme = mode === 'light' || mode === 'dark' ? mode : h.dataset.siteTheme;
         if (ls.getItem('myshelf_motion') === 'off') h.classList.add('flat-shelves');
+        if (ls.getItem('myshelf_token')) h.classList.add('signed-in'); // e.g. progress bars set to "only me"
+        if (h.hasAttribute('data-static')) { var pr = ls.getItem('myshelf_progress'); if (pr === 'owner') h.dataset.progress = 'owner'; }
+        else ls.setItem('myshelf_progress', h.dataset.progress || 'public');
         var size = parseFloat(ls.getItem('myshelf_size'));
         if (size >= 0.5 && size <= 2) h.style.setProperty('--shelf-zoom', String(size));
       } catch (e) {}

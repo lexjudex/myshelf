@@ -257,6 +257,8 @@ async function loadSite() {
     $$('input[name="types"]', siteForm).forEach((cb) => (cb.checked = site.types.includes(cb.value)));
     applyTypes(site.types);
     fillLook(site.theme);
+    const pr = siteForm.querySelector(`input[name="progress"][value="${site.progress === 'owner' ? 'owner' : 'public'}"]`);
+    if (pr) pr.checked = true;
   } catch (err) {
     $('#site-msg').textContent = err.message;
   }
@@ -381,6 +383,7 @@ siteForm.addEventListener('submit', async (e) => {
   const body = Object.fromEntries(['title', 'heading', 'tagline', 'owner', 'url', 'source'].map((k) => [k, siteForm[k].value]));
   body.types = $$('input[name="types"]:checked', siteForm).map((cb) => cb.value);
   body.theme = readLook();
+  body.progress = siteForm.querySelector('input[name="progress"]:checked')?.value || 'public';
   if (!body.types.length) { $('#site-msg').textContent = 'Keep at least one kind of media turned on.'; return; }
   try {
     const { site } = await api('site', { method: 'POST', body });
@@ -388,6 +391,7 @@ siteForm.addEventListener('submit', async (e) => {
     siteForm.source.value = site.source || '';
     applyTypes(site.types);
     applyLook(site.theme);
+    try { localStorage.setItem('myshelf_progress', site.progress || 'public'); } catch {}
     $('#site-msg').textContent = 'Saved. Your public pages show it right away.';
   } catch (err) {
     $('#site-msg').textContent = err.message;
